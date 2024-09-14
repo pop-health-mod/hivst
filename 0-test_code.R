@@ -9,7 +9,7 @@ library(rstan)
 
 # we take Kenya as a test countries
 data(popB1)
-ken <- popB1[popF1$name == "Kenya", !(colnames(popB1) %in% as.character(c(1949:2010))) ]
+ken <- popB1[popB1$name == "Kenya", !(colnames(popB1) %in% as.character(c(1949:2010))) ]
 #death rates
 data(mxB1)
 ken_dr <- mxB1[mxB1$name == "Kenya", !(colnames(mxB1) %in% as.character(c(1949:2010, 2023:2100)))]
@@ -95,13 +95,14 @@ data {
 }
 
 parameters {
-  real beta_t[n_yr];
-  real beta_retest;
-  real<lower = 0, upper = 5> sd_rw;
-  real<lower = 0, upper = 1> phi;
+  real beta_t[n_yr];                  // yearly hivstesting rates (rw1)
+  real<lower = 0, upper = 5> sd_rw;   // standard deviation of the rw1 for beta_t
+  real beta_retest;                   // re-testing rate
+  real<lower = 0, upper = 1> phi;     // proportion of hivst kits distributed that are used
 }
 
 transformed parameters {
+  // here we assign the yearly hivst rates for each dt (niter)
   vector[niter] beta_t_dt;
   for (i in 1:niter) {
     beta_t_dt[i] =  beta_t[yr_ind[i]];
@@ -110,14 +111,14 @@ transformed parameters {
 
 model {
   vector[niter] hts_m;
-  // we use our custom function to get the expected proportion of HIVST users and tests
+  // we use our custom function to get the expected proportion of hivst users and tests
   matrix[niter, 5] model_pred = hivst_fun(niter, beta_t_dt, beta_retest, pop, dt);
   // priors
   beta_t[1] ~ normal(-5, 2);      // exp(-5 + c(-1, 1) * 2)
   beta_t[2:n_yr] ~ normal(beta_t[1:(n_yr - 1)], sd_rw);
   sd_rw ~ normal(0, 1) T[0, 5];
-  beta_retest ~ normal(log(1.25), 0.3);    // exp(log(1.25) + c(-1, 1) * 0.3)
-  phi ~ beta(24, 6);            // plot(dbeta(x = seq(0, 1, 0.01), shape1 = 6, shape2 = 1.5), type = "l")
+  beta_retest ~ normal(log(1.2), 0.4); // exp(log(1.2) + c(-1, 1) * 0.4)
+  phi ~ beta(24, 6);                   // plot(dbeta(x = seq(0, 1, 0.01), shape1 = 6, shape2 = 1.5), type = "l")
 
   // fitting to survey data
     num_svy ~ binomial(den_svy, model_pred[ind_svy, 5]);
@@ -138,7 +139,7 @@ generated quantities {
 expose_stan_functions(stanc(model_code = hivst_mod))
 hivst_stan <- stan_model(model_code = hivst_mod)
 
-# testing if it works
+# testing if it works (we simulate using fake data)
 pop <- sum(ken[(15 + 1):(100 + 1), "2023"]) * 1000
 beta_t <- log(c(0.001, 0.01, 0.03, 0.03, 0.04, 0.05, 0.07, 0.07, 0.06))
 beta_t_dt <- rep(0, niter)
@@ -153,13 +154,13 @@ plot(prd[, 5] ~ I(prd[, 1] + start), type = "l", ylim = c(0, 1),
 plot(prd[, 4] ~ I(prd[, 1] + start), type = "l", 
      xlab = "time", ylab = "annual number hivst")
 
-ind_svy <- (c(2018, 2020, 2023) - start) / dt
+ind_svy <- (c(2018.5, 2020.5, 2023.5) - start) / dt
 svy_dat <- prd[ind_svy, 5]
 den_svy <- c(1000, 5000, 3000)
 num_svy <- round(svy_dat * den_svy)
 lci_svy <- svy_dat - qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
 uci_svy <- svy_dat + qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
-ind_hts <- (c(2018:2023) - start) / dt
+ind_hts <- (c(2018:2023) + 0.5 - start) / dt
 hts_dat <- round(prd[ind_hts, 4] / 0.85)
 se_hts <- hts_dat * 0.1
 
@@ -216,7 +217,8 @@ segments(x0 = time[ind_svy], y0 = lci_svy,
          x1 = time[ind_svy], y1 = uci_svy, col = "firebrick4")
 
 # hts fit
-plot(hts$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, ylab = "number hivst")
+plot(hts$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, ylab = "number hivst",
+     ylim = c(0, max(hts$`97.5%`)))
   polygon(x = c(time, rev(time)),
         y = c(hts$`2.5%`, rev(hts$`97.5%`)),
         col = yarrr::transparent("cyan4", trans.val = 0.5), border = NA)
