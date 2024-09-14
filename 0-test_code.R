@@ -188,6 +188,7 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 fit <- sampling(hivst_stan, data = data_stan, iter = 1500, chains = 4,
                 warmup = 500, thin = 1, control = list(adapt_delta = 0.9))
+
 summary(fit)
 
 # traceplots
