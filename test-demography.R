@@ -62,7 +62,7 @@ ggplot(df, aes(x = age, y = pop, fill = comp)) +
   geom_bar(stat = "identity", width = 0.8) +
   coord_flip() +
   scale_y_continuous(labels = abs) +  # Show positive values on y-axis
-  labs(title = "Population Pyramid", x = "Age", y = "Population", fill = "Source") +
+  labs(title = "Population Pyramid (our model vs. WPP)", x = "Age", y = "Population", fill = "Source") +
   scale_fill_manual(values = c("mod" = "steelblue4", "wpp" = "firebrick4")) +
   theme_minimal()
 
