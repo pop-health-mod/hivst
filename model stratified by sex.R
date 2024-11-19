@@ -107,11 +107,6 @@ transformed parameters {
   for (i in 1:niter) {
     beta_t_dt[i] =  beta_t[yr_ind[i]];
   }
-
-  vector[n_hts] hts_m_pery;   // hts number per year
-  for (i in 1:n_hts) {
-    hts_m_pery[i] = sum(hts_m[ind_hts[i]:(ind_hts[i] + (1 / dt) - 1)]);
-  }
 }
 
 
@@ -132,6 +127,10 @@ model {
     num_svy[, 2] ~ binomial(den_svy[, 2], model_pred[ind_svy, 4, 2]);
   // fitting to hivst program data
     hts_m = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / phi;
+    real hts_m_pery[n_hts];   // hts number per year
+  for (i in 1:n_hts) {
+    hts_m_pery[i] = sum(hts_m[ind_hts[i]:to_int(ind_hts[i] + (1 / dt) - 1)]);
+  }
     hivst ~ normal(hts_m_pery, se_hts);
 }
 
