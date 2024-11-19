@@ -3,6 +3,7 @@ options(timeout = 600)
 
 library(wpp2024)
 library(rstan)
+
 # male and female pop data from wpp
 data(popM1)
 data(popF1)
@@ -26,12 +27,16 @@ niter <- (end - start) / dt
 n_yr <- end - start
 
 # we create a vector to map the hivst rate to the appropriate yearly one
-beta_ind <- seq(1, niter, by = 1 / dt)
-yr_ind <- rep(1, niter)
+beta_ind <- seq(1, niter, by = 1 / dt) #13 indices for indicating the starting index for each year
+
+yr_ind <- rep(1, niter) #repeating 1 niter times (130 times)
+
+#right now all indices are 1, we now have to indicate for second year to last year
 for (i in 2:length(beta_ind)) {
   yr_ind[beta_ind[i - 1]:(beta_ind[i] - 1)] <- i - 1
 }
-yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
+
+yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind) #for last year because it is 1 now
 
 hivst_mod <- '
 functions {
@@ -102,7 +107,13 @@ transformed parameters {
   for (i in 1:niter) {
     beta_t_dt[i] =  beta_t[yr_ind[i]];
   }
+
+  vector[n_hts] hts_m_pery;   // hts number per year
+  for (i in 1:n_hts) {
+    hts_m_pery[i] = sum(hts_m[ind_hts[i]:(ind_hts[i] + (1 / dt) - 1)]);
+  }
 }
+
 
 model {
   vector[niter] hts_m;
@@ -121,7 +132,7 @@ model {
     num_svy[, 2] ~ binomial(den_svy[, 2], model_pred[ind_svy, 4, 2]);
   // fitting to hivst program data
     hts_m = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / phi;
-    hivst ~ normal(hts_m[ind_hts], se_hts);
+    hivst ~ normal(hts_m_pery, se_hts);
 }
 
 generated quantities {
@@ -136,9 +147,12 @@ generated quantities {
 }
 '
 
+
 # we compile the model and expose the function to invoke it directly in R
 expose_stan_functions(stanc(model_code = hivst_mod))
 hivst_stan <- stan_model(model_code = hivst_mod)
+
+
 
 ind_svy <- (c(2012.5, 2018.5, 2022.5) - start) / dt
 den_svy <- round(cbind(c(5756, 20102, 14453), c(7938, 22350, 32156)) * 0.8)
@@ -146,7 +160,7 @@ num_svy <- round(cbind(c(185, 425, 1305), c(145, 545, 1552)) * 0.8)
 svy_dat <- num_svy / den_svy
 lci_svy <- svy_dat - qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
 uci_svy <- svy_dat + qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
-ind_hts <- (c( 2018,  2019,   2020,    2021,   2022,  2023) + 0.5 - start) / dt
+ind_hts <- (c( 2018,  2019,   2020,    2021,   2022,  2023) - start) / dt
 hts_dat <- c(197200, 400000, 595953, 630000, 342610, 617317)
 se_hts <- hts_dat * 0.1
 
