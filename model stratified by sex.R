@@ -23,7 +23,7 @@ start <- 2011
 end <- 2024
 dt <- 0.1
 time <- seq(start, end - dt, by = dt)
-niter <- (end - start) / dt 
+niter <- (end - start) / dt
 n_yr <- end - start
 
 # we create a vector to map the hivst rate to the appropriate yearly one
@@ -63,12 +63,12 @@ functions {
     // ode males
       out[i, 1, 1] = out[i - 1, 1, 1] + dt * (- rr_t[i] * rr_m * out[i - 1, 1, 1]);
       out[i, 2, 1] = out[i - 1, 2, 1] + dt * (+ rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 3, 1] = rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
+      out[i, 3, 1] = dt * rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
       out[i, 4, 1] = out[i, 2, 1] / (out[i, 1, 1] + out[i, 2, 1]);
     // ode females
       out[i, 1, 2] = out[i - 1, 1, 2] + dt * (- rr_t[i] * out[i - 1, 1, 2]);
       out[i, 2, 2] = out[i - 1, 2, 2] + dt * (+ rr_t[i] * out[i - 1, 1, 2]);
-      out[i, 3, 2] = rr_t[i] * (out[i - 1, 1, 2] + rr_r * out[i - 1, 2, 2]);
+      out[i, 3, 2] = dt * rr_t[i] * (out[i - 1, 1, 2] + rr_r * out[i - 1, 2, 2]);
       out[i, 4, 2] = out[i, 2, 2] / (out[i, 1, 2] + out[i, 2, 2]);
     }
 
@@ -83,6 +83,7 @@ data {
   int<lower = 1> yr_ind[niter]; // to map the yearly rate to the dt ones
   real dt;                    // time step of ode
   vector[2] pop;                   // population from wpp
+  int<lower = 1> beta_ind[n_yr];    //beta indices
   int<lower = 0> n_hts;       // numbers of years with observed hivst data
   int<lower = 1> n_svy;       // numbers of years with observed survey data  
   int<lower = 0> ind_hts[n_hts]; // indices to get hts
@@ -142,17 +143,21 @@ generated quantities {
                                         pop, dt);
       svy_prd_m = pred[, 4, 1];
       svy_prd_f = pred[, 4, 2];
+      
       hivst_prd = (to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / phi;
+      real hts_pred_pery[n_yr];   // hts number predicted per year
+  for (i in 1:n_yr) {
+    hts_pred_pery[i] = sum(hivst_prd[beta_ind[i]:to_int(beta_ind[i] + (1 / dt) - 1)]);
+  }
 }
 '
-
 
 # we compile the model and expose the function to invoke it directly in R
 expose_stan_functions(stanc(model_code = hivst_mod))
 hivst_stan <- stan_model(model_code = hivst_mod)
 
 
-
+#survey data
 ind_svy <- (c(2012.5, 2018.5, 2022.5) - start) / dt
 den_svy <- round(cbind(c(5756, 20102, 14453), c(7938, 22350, 32156)) * 0.8)
 num_svy <- round(cbind(c(185, 425, 1305), c(145, 545, 1552)) * 0.8)
@@ -160,6 +165,7 @@ svy_dat <- num_svy / den_svy
 lci_svy <- svy_dat - qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
 uci_svy <- svy_dat + qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
 ind_hts <- (c( 2018,  2019,   2020,    2021,   2022,  2023) - start) / dt
+yr_hts <- c( 2018,  2019,   2020,    2021,   2022,  2023)
 hts_dat <- c(197200, 400000, 595953, 630000, 342610, 617317)
 se_hts <- hts_dat * 0.1
 
@@ -169,6 +175,7 @@ data_stan <- list(n_yr = n_yr,
                   niter = niter,
                   dt = dt,
                   pop = pop,
+                  beta_ind = beta_ind,
                   n_svy = nrow(num_svy),
                   n_hts = length(hts_dat),
                   ind_svy = ind_svy,
@@ -200,7 +207,7 @@ traceplot(fit, pars = "phi")
 # we get the results
 svy_m <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 svy_f <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-hts <- as.data.frame(rstan::summary(fit, pars = c("hivst_prd"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+hts <- as.data.frame(rstan::summary(fit, pars = c("hts_pred_pery"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 r <- as.data.frame(rstan::summary(fit, pars = c("beta_t"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(r$`50%`)
 rr <- as.data.frame(rstan::summary(fit, pars = c("beta_retest"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -240,12 +247,13 @@ segments(x0 = time[ind_svy], y0 = lci_svy[, 2],
 legend("topleft", legend = c("men", "women"), col = c("steelblue4", "pink4"), lwd = 4, bty = "n")
 
 # hts fit
-plot(hts$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, ylab = "number of HIVST kits",
+year <- start:(end-1)
+plot(hts$`50%` ~ year, type = "l", col = "cyan4", lwd = 3, ylab = "number of HIVST kits",
      ylim = c(0, max(hts$`97.5%`)))
-polygon(x = c(time, rev(time)),
+polygon(x = c(year, rev(year)),
         y = c(hts$`2.5%`, rev(hts$`97.5%`)),
         col = yarrr::transparent("cyan4", trans.val = 0.5), border = NA)
-points(hts_dat ~ time[ind_hts], pch = 16, col = "goldenrod3", cex = 1.25)
+points(hts_dat ~ year[year %in% yr_hts], pch = 16, col = "goldenrod3", cex = 1.25)
 
 mtext("Kenya", outer = TRUE, side = 3, line = 1, cex = 1.5)
 
@@ -395,6 +403,7 @@ num_svy <- round(cbind(c(37, 83), c(132, 151)))
 svy_dat <- num_svy / den_svy
 lci_svy <- svy_dat - qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
 uci_svy <- svy_dat + qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
+yr_hts <- c( 2018,  2019,   2020,    2021,   2022,  2023)
 ind_hts <- (c(2020, 2021, 2022, 2023) + 0.5 - start) / dt
 hts_dat <- c(20000, 1323, 235000, 140500)
 se_hts <- hts_dat * 0.1
@@ -406,6 +415,7 @@ data_stan <- list(n_yr = n_yr,
                   niter = niter,
                   dt = dt,
                   pop = pop,
+                  beta_ind = beta_ind,
                   n_svy = nrow(num_svy),
                   n_hts = length(hts_dat),
                   ind_svy = ind_svy,
@@ -475,16 +485,14 @@ segments(x0 = time[ind_svy], y0 = lci_svy[, 2],
          x1 = time[ind_svy], y1 = uci_svy[, 2], col = "firebrick4")
 legend("topleft", legend = c("men", "women"), col = c("steelblue4", "pink4"), lwd = 4, bty = "n")
 
-
-# hts fit 
-options(scipen = 999)
-plot(hts$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, ylab = "number of HIVST kits",
-     ylim = c(0, 900000)) #fixed ylim for better interpretability
-polygon(x = c(time, rev(time)),
+year <- start:(end-1)
+# hts fit
+plot(hts$`50%` ~ year, type = "l", col = "cyan4", lwd = 3, ylab = "number of HIVST kits",
+     ylim = c(0, max(hts$`97.5%`)))
+polygon(x = c(year, rev(year)),
         y = c(hts$`2.5%`, rev(hts$`97.5%`)),
         col = yarrr::transparent("cyan4", trans.val = 0.5), border = NA)
-points(hts_dat ~ time[ind_hts], pch = 16, col = "goldenrod3", cex = 1.25)
-
+points(hts_dat ~ year[year %in% yr_hts], pch = 16, col = "goldenrod3", cex = 1.25)
 
 mtext("Ghana", outer = TRUE, cex = 1.5)
 
@@ -634,6 +642,7 @@ num_svy <- round(cbind(c(50, 62), c(165, 101)))
 svy_dat <- num_svy / den_svy
 lci_svy <- svy_dat - qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
 uci_svy <- svy_dat + qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
+yr_hts <- c( 2020,    2021,   2022,  2023)
 ind_hts <- (c(2020, 2021, 2022) + 0.5 - start) / dt
 hts_dat <- c(2500, 270, 11050)
 se_hts <- hts_dat * 0.1
@@ -713,16 +722,14 @@ segments(x0 = time[ind_svy], y0 = lci_svy[, 2],
          x1 = time[ind_svy], y1 = uci_svy[, 2], col = "firebrick4")
 legend("topleft", legend = c("men", "women"), col = c("steelblue4", "pink4"), lwd = 4, bty = "n")
 
-
-# hts fit 
-options(scipen = 999)
-plot(hts$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, ylab = "number of HIVST kits",
-     ylim = c(0, 100000)) #fixed ylim for better interpretability
-polygon(x = c(time, rev(time)),
+year <- start:(end-1)
+# hts fit
+plot(hts$`50%` ~ year, type = "l", col = "cyan4", lwd = 3, ylab = "number of HIVST kits",
+     ylim = c(0, max(hts$`97.5%`)))
+polygon(x = c(year, rev(year)),
         y = c(hts$`2.5%`, rev(hts$`97.5%`)),
         col = yarrr::transparent("cyan4", trans.val = 0.5), border = NA)
-points(hts_dat ~ time[ind_hts], pch = 16, col = "goldenrod3", cex = 1.25)
-
+points(hts_dat ~ year[year %in% yr_hts], pch = 16, col = "goldenrod3", cex = 1.25)
 
 mtext("Sierra Leone", outer = TRUE, cex = 1.5)
 
