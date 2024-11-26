@@ -1,6 +1,43 @@
-
+library(dplyr)
 library(wpp2024)
 library(rstan)
+
+#---------------preparing data for model--------------------
+#------I commented out the lines which were done manually before-----------
+
+setwd("D:/Downloads/MSc Thesis/hivst/combine all")
+load("New_Cleaned_Pooled_Surveys.RData")
+ls()
+
+#extracting first 4 countries with more than 1 survey 
+sel_countries <- pooled_surveys %>%
+  filter(country %in% c("Kenya", "Ghana", "Sierra Leone", "Malawi")) %>%
+  select(country, survey_id) %>%
+  distinct()
+
+#extracting survey years
+sel_countries <- sel_countries %>%
+  mutate(survey_strt_y = substr(survey_id, 4, 7)) %>%
+  mutate(survey_strt_y = as.numeric(survey_strt_y))
+
+#removing rows with duplicate survey_id(for surveys with more than 1 year)
+sel_countries <- sel_countries %>%
+  distinct(survey_id, .keep_all = TRUE)
+
+#extracting country names 
+countries <- sel_countries %>%
+  distinct(country) %>%
+  pull(country)
+
+#country-specific start years by taking the earliest survey year and subtracting 3
+start_years <- sel_countries %>%
+  group_by(country) %>%                   
+  summarise(earliest_year = min(as.numeric(survey_strt_y))) %>% 
+  mutate(start_year = earliest_year - 3) %>% 
+  pull(start_year)
+
+
+#-----=----------model------------------
 
 # male and female pop data from wpp
 data(popM1)
@@ -15,14 +52,16 @@ get_popdata <- function(cnt_name, year="2020") {
 }
 
 # pop for all countries
-countries <- c("Kenya", "Ghana", "Sierra Leone", "Malawi", "Madagascar", "Zimbabwe")
+#countries <- c("Kenya", "Ghana", "Sierra Leone", "Malawi", "Madagascar", "Zimbabwe") 
+#the above line is done dynamically from the sel_countries 
 pop <- sapply(countries, get_popdata)#2by6 matrix of male & female
 
-#model starting year: y-3
 #indhts
 
-#time specification for different countries(different starting years for different countries)
-start_years <- c(2011, 2015, 2015, 2015, 2015, 2015) #country-specific start years
+#time specification(different starting years for different countries=earliest survey year-3)
+#start_years <- c(2011, 2015, 2015, 2015, 2015, 2015) #country-specific start years
+#above line is done dynamically now
+
 end_year <- 2024  #same for all
 dt <- 0.1 #unchanged
 time <- list()  #list of time for different countries
@@ -60,17 +99,17 @@ for (i in 1:length(start_years)) {
 
 #unlist(yr_ind_list)
 
-#indices for countries: first testing with 6 countries with multiple surveys
+#indices for countries: first testing with 4 countries with multiple surveys
 ken <- c(2012, 2018, 2022)             
 gha <- c(2017, 2022)                   
 sle <- c(2017, 2019)                  
 mal <- c(2015, 2019, 2020)            
-mdg <- c(2018, 2021)                   
-zwe <- c(2015, 2019, 2020)             
+#mdg <- c(2018, 2021)                   
+#zwe <- c(2015, 2019, 2020)             
 
 #list of survey years for each country
-cnt <- list(ken, gha, sle, mal, mdg, zwe)
-n_cnt <- length(cnt) #number of countries: 6
+cnt <- list(ken, gha, sle, mal)
+n_cnt <- length(cnt) #number of countries: 4
 n_svy_by_cnt <- unlist(lapply(cnt, length)) #number of surveys/country
 
 start_idx <- NULL
@@ -94,6 +133,7 @@ functions {
                        real beta_male,
                        real pop_male,
                        real pop_female,
+                       int c,
                        real dt) {
     vector[niter] rr_t = exp(beta_t_dt);
     real rr_r = exp(beta_retest);
@@ -166,6 +206,10 @@ parameters {
 }
 
 transformed parameters {
+  array[n_cnt, max_niter, 4, 2] real model_pred;  //declaring array here as stan is not allowing inside model block
+  for (c in 1:n_cnt) {
+    model_pred[c] = hivst_fun(niter[c], beta_t_dt[c, ], beta_retest, beta_male, pop[1, c], pop[2, c], dt);
+  }
   real beta_t_dt[n_cnt, niter];
   for (c in 1:n_cnt) {
     for (i in 1:niter) {
@@ -176,7 +220,7 @@ transformed parameters {
 
 model {
 // prior for testing rate
-  beta_t[, 1] ~ normal(-5, 2);  
+  beta_t[, 1] ~ normal(-10, 2);  
   for (c in 1:n_cnt) {
   beta_t[c, 2:n_yr] ~ normal(beta_t[c, 1:(n_yr - 1)], sd_rw[c]);  
   }
@@ -186,11 +230,7 @@ model {
   beta_male ~ normal(log(1), 0.5);
   phi ~ beta(24, 6);
 
-  // loop for each country
-  real[max_niter, 4, 2] model_pred;
-  for (c in 1:n_cnt) {
-    model_pred[i, ,] = hivst_fun(niter[c], beta_t_dt[c, ], beta_retest, beta_male, pop[1, c], pop[2, c], dt);
-  
+  // survey pred
     int<lower = 0> num_svy_c[svy_by_c[c]] = sel_non_zero(num_svy[c, ]);
     int<lower = 0> den_svy_c[svy_by_c[c]] = sel_non_zero(den_svy[c, ]);
     int<lower = 0> hts_c[hts_by_c[c]] = sel_non_zero(hivst[c, ]);
@@ -222,8 +262,8 @@ generated quantities {
   for (i in 1:niter[c]) {
     pred[c, i, ] = hivst_fun(niter[c], beta_t_dt[c, ], beta_retest, beta_male, pop[1,c], pop[2,c], dt);
     
-    svy_prd_m[c] = pred[c][, 4, 1];  // males ever HIVST
-    svy_prd_f[c] = pred[c][, 4, 2];  // females ever HIVST
+    svy_prd_m[c] = pred[c][, 4, 1];  // males ever used HIVST
+    svy_prd_f[c] = pred[c][, 4, 2];  // females ever used HIVST
     
     hivst_prd[c] = (to_vector(pred[c][, 3, 1]) + to_vector(pred[c][, 3, 2])) / phi;
     for (i in 1:n_yr[c]) {
@@ -240,52 +280,36 @@ hivst_stan <- stan_model(model_code = hivst_mod)
 #Survey and program data for each country
 cnt_data <- list(
   kenya = list(
-    ind_svy = (c(2012.5, 2018.5, 2022.5) - start_years[1]) / dt,
+    ind_svy = (c(2012.5, 2018.5, 2022.5) - start_years[2]) / dt,
     den_svy = round(cbind(c(4605, 16082, 11562), c(6350, 17880, 25725))),
     num_svy = round(cbind(c(148, 340, 1044), c(116, 436, 1242))),
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start_years[1]) / dt,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start_years[2]) / dt,
     hts_dat = c(197200, 400000, 595953, 630000, 342610, 617317),
     se_hts = c(197200, 400000, 595953, 630000, 342610, 617317) * 0.1
   ),
   ghana = list(
-    ind_svy = (c(2017.5, 2022.5) - start_years[2]) / dt,
+    ind_svy = (c(2017.5, 2022.5) - start_years[1]) / dt,
     den_svy = round(cbind(c(2553, 4558), c(5575, 6250))),
     num_svy = round(cbind(c(37, 83), c(132, 151))),
-    ind_hts = (c(2020, 2021, 2022, 2023) - start_years[2]) / dt,
+    ind_hts = (c(2020, 2021, 2022, 2023) - start_years[1]) / dt,
     hts_dat = c(20000, 1323, 235000, 140500),
     se_hts = c(20000, 1323, 235000, 140500) * 0.1
   ),
   sierraleone = list(
-    ind_svy = (c(2017.5, 2019.5) - start_years[3]) / dt,
+    ind_svy = (c(2017.5, 2019.5) - start_years[4]) / dt,
     den_svy = round(cbind(c(2465, 2907), c(5096, 2607))),
     num_svy = round(cbind(c(50, 62), c(165, 101))),
-    ind_hts = (c(2020, 2021, 2022) - start_years[3]) / dt,
+    ind_hts = (c(2020, 2021, 2022) - start_years[4]) / dt,
     hts_dat = c(2500, 270, 11050),
     se_hts = c(2500, 270, 11050) * 0.1
   ),
   malawi = list(
-    ind_svy <- (c(2015.5, 2020.5) - start_years[4]) / dt,
+    ind_svy <- (c(2015.5, 2020.5) - start_years[3]) / dt,
     den_svy = round(cbind(c(2796, 5165), c(14792, 5920))),
     num_svy = round(cbind(c(30, 406), c(136, 373))),
-    ind_hts = (c(2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023) - start_years[4]) / dt,
+    ind_hts = (c(2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023) - start_years[3]) / dt,
     hts_dat = c(63460, 228021, 501889, 830402, 1780000, 1000000, 1488750, 2699100),
     se_hts = c(63460, 228021, 501889, 830402, 1780000, 1000000, 1488750, 2699100) * 0.1
-  ),
-  madagascar = list(
-    ind_svy = (c(2018.5, 2021.5) - start_years[5]) / dt,
-    den_svy = round(cbind(c(3055, 6178), c(5039, 6825))),
-    num_svy = round(cbind(c(35, 44), c(84, 20))),
-    ind_hts = (c(2022, 2023) + 0.5 - start_years[5]) / dt,
-    hts_dat = c(2500, 2500),
-    se_hts = c(2500, 2500) * 0.1
-  ),
-  zimbabwe = list(
-    ind_svy = (c(2015.5, 2019.5, 2020.5) - start_years[6]) / dt,
-    den_svy = round(cbind(c(6717, 3343, 6576), c(7964, 8104, 10058))),
-    num_svy = round(cbind(c(118, 171, 381), c(21, 447, 594))),
-    ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start_years[6]) / dt,
-    hts_dat = c(174566, 240434, 459517, 414499, 513090),
-    se_hts = c(174566, 240434, 459517, 414499, 513090) * 0.1
   )
 )
 
@@ -330,7 +354,7 @@ rstan_options(auto_write = TRUE)
 #fitting the model
 options(mc.cores = parallel::detectCores())
 fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4,
-                warmup = 1500, thin = 1, control = list(adapt_delta = 0.8))
+                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
 
 summary(fit)
 
@@ -367,7 +391,7 @@ phi$`97.5%`
 par(mfrow = c(1, 2), oma = c(0, 0, 2, 0), mar = c(4, 4, 1, 1))
 
 # survey fit
-plot(svy_m$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, ylab = "ever used HIVST", ylim = c(0, 0.2))
+plot(svy_m$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, ylab = "Ever used HIVST(%)", ylim = c(0, 0.2))
 polygon(x = c(time, rev(time)),
         y = c(svy_m$`2.5%`, rev(svy_m$`97.5%`)),
         col = yarrr::transparent("steelblue4", trans.val = 0.5), border = NA)
@@ -386,7 +410,7 @@ legend("topleft", legend = c("men", "women"), col = c("steelblue4", "pink4"), lw
 
 # hts fit 
 options(scipen = 999)
-plot(hts$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, ylab = "number of HIVST kits",
+plot(hts$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, ylab = "Number of HIVST kits distributed",
      ylim = c(0, 900000)) #fixed ylim for better interpretability
 polygon(x = c(time, rev(time)),
         y = c(hts$`2.5%`, rev(hts$`97.5%`)),
