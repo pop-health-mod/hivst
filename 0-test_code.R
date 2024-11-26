@@ -7,7 +7,7 @@ install_github("PPgp/wpp2024")
 library(wpp2024)
 library(rstan)
 
-# we take Kenya as a test countries
+# we take Zim as a test countries
 data(popB1)
 wpp_b <- popB1[popB1$name == "Zimbabwe", !(colnames(popB1) %in% as.character(c(1949:2010))) ]
 data(popM1)
@@ -17,7 +17,7 @@ wpp_f <- popF1[popF1$name == "Zimbabwe", !(colnames(popF1) %in% as.character(c(1
 
 # death rates
 data(mxB1)
-ken_dr <- mxB1[mxB1$name == "Zimbabwe", !(colnames(mxB1) %in% as.character(c(1949:2010, 2023:2100)))]
+zim_dr <- mxB1[mxB1$name == "Zimbabwe", !(colnames(mxB1) %in% as.character(c(1949:2010, 2023:2100)))]
 
 # time specification
 start <- 2015
@@ -115,9 +115,9 @@ model {
   // we use our custom function to get the expected proportion of hivst users and tests
   real model_pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, pop, dt);
   // priors
-  beta_t[1] ~ normal(-5, 2);      // exp(-5 + c(-1, 1) * 2 * 1.96)
+  beta_t[1] ~ normal(-10, 1);      // exp(-5 + c(-1, 1) * 2 * 1.96)
   beta_t[2:n_yr] ~ normal(beta_t[1:(n_yr - 1)], sd_rw);
-  sd_rw ~ normal(0, 1) T[0, 5];
+  sd_rw ~ normal(0, 0.5) T[0, 5];
   beta_retest ~ normal(log(1.2), 0.5); // exp(log(1.2) + c(-1, 1) * 1.96 * 0.5)
   beta_male ~ normal(log(1), 0.5);     // exp(log(1) + c(-1, 1) * 1.96 * 0.5)
   phi ~ beta(24, 6);                   // plot(dbeta(x = seq(0, 1, 0.01), shape1 = 6, shape2 = 1.5), type = "l")
@@ -200,7 +200,7 @@ rstan_options(auto_write = TRUE)
 # we fit the model (this step can take a few minutes)
 options(mc.cores = parallel::detectCores())
 fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4,
-                warmup = 1500, thin = 1, control = list(adapt_delta = 0.8))
+                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
 
 #summary(fit)
 
@@ -254,7 +254,7 @@ wpp_m <- popM1[popM1$name == "Kenya", !(colnames(popM1) %in% as.character(c(1949
 wpp_f <- popF1[popF1$name == "Kenya", !(colnames(popF1) %in% as.character(c(1949:2010))) ]
 
 # time specification
-start <- 2011
+start <- 2008
 end <- 2024
 dt <- 0.1
 time <- seq(start, end - dt, by = dt)
@@ -331,7 +331,7 @@ phi$`50%`
 
 par(mfrow = c(1, 2), oma = c(0, 0, 0, 0), mar = c(4, 4, 1, 1))
 # survey fit
-plot(svy_m$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, ylab = "ever hivst", ylim = c(0, 0.2))
+plot(svy_m$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, ylab = "Ever used HIVST (%)", ylim = c(0, 0.2))
   polygon(x = c(time, rev(time)),
         y = c(svy_m$`2.5%`, rev(svy_m$`97.5%`)),
         col = yarrr::transparent("steelblue4", trans.val = 0.5), border = NA)
@@ -348,12 +348,14 @@ segments(x0 = time[ind_svy], y0 = lci_svy[, 2],
 legend("topleft", legend = c("men", "women"), col = c("steelblue4", "pink4"), lwd = 4, bty = "n")
 
 # hts fit
-plot(hts$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, ylab = "number hivst",
+plot(hts$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, ylab = "Nb HIVST kits distributed",
      ylim = c(0, max(hts$`97.5%`)))
   polygon(x = c(time, rev(time)),
         y = c(hts$`2.5%`, rev(hts$`97.5%`)),
         col = yarrr::transparent("cyan4", trans.val = 0.5), border = NA)
 points(hts_dat ~ time[ind_hts], pch = 16, col = "goldenrod3", cex = 1.25)
+
+
 
 # ---- Zimbabwe real data ----
 wpp_m <- popM1[popM1$name == "Zimbabwe", !(colnames(popM1) %in% as.character(c(1949:2010))) ]
