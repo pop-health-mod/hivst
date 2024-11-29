@@ -120,6 +120,8 @@ data {
 parameters {
   matrix[n_cnt, n_yr] beta_t;          // yearly HIVST rates (rw1) for each country
   real<lower = 0, upper = 5> sd_rw;    // sd of the rw1 for beta_t
+  real<lower = 0, upper = 5> sd_phi;    // sd of the rw1 for beta_t
+  real<lower = 0, upper = 5> sd_rt;    // sd of the rw1 for beta_t
   real beta_retest_overall;            // overall shared re-testing rate
   real beta_retest[n_cnt];            // country-specific re-testing rates
   real beta_male;                      //male relative rate of HIVST (same for all cntries)
@@ -142,6 +144,8 @@ model {
   // priors
   // overall prior for the SD of the RW1 for testing rate
   sd_rw ~ normal(0, 1) T[0, 5];
+  sd_phi ~ normal(0, 0.5) T[0, 5];
+  sd_rt ~ normal(0, 0.5) T[0, 5];
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(log(1.2), 0.5);
   // overall prior for the % of tests distributed being used
@@ -151,8 +155,8 @@ model {
 
   // country-specific priors
   for (c in 1:n_cnt) {
-    beta_retest[c] ~ normal(beta_retest_overall, 0.5);
-    phi[c] ~ normal(phi_overall, 0.5);
+    beta_retest[c] ~ normal(beta_retest_overall, sd_rt);
+    phi[c] ~ normal(phi_overall, sd_phi);
     beta_t[c, 1] ~ normal(-5, 2);
     beta_t[c, 2:n_yr] ~ normal(beta_t[c, 1:(n_yr - 1)], sd_rw);
 
@@ -226,18 +230,18 @@ n_hts_by_cnt <- unlist(lapply(cnt_data, function(x) length(x$ind_hts)))
 
 # survey
 svy_idx_s <- NULL
-svy_idx_s <- NULL
+svy_idx_e <- NULL
 svy_idx_s[1] <- 1  
-end_svy_idx_e[1] <- n_svy_by_cnt[1]
+svy_idx_e[1] <- n_svy_by_cnt[1]
 # hts
 hts_idx_s <- NULL
-end_hts_idx_e <- NULL
+hts_idx_e <- NULL
 hts_idx_s[1] <- 1  
-end_hts_idx_e[1] <- n_hts_by_cnt[1]
+hts_idx_e[1] <- n_hts_by_cnt[1]
 # remaining countries
 for (c in 2:n_cnt) {
   # survey
-  svy_idx_s[c] <- svy_id_sx[c - 1] + n_svy_by_cnt[c - 1]
+  svy_idx_s[c] <- svy_idx_s[c - 1] + n_svy_by_cnt[c - 1]
   svy_idx_e[c] <- svy_idx_s[c] + n_svy_by_cnt[c] - 1   
   # hts
   hts_idx_s[c] <- hts_idx_s[c - 1] + n_hts_by_cnt[c - 1]
@@ -294,10 +298,10 @@ options(mc.cores = parallel::detectCores())
 fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4,
                 warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
 
-summary(fit)
 
 # traceplots
 traceplot(fit, pars = "beta_t")
+traceplot(fit, pars = "sd_rw")
 traceplot(fit, pars = "sd_rw")
 traceplot(fit, pars = "beta_retest")
 traceplot(fit, pars = "beta_male")
