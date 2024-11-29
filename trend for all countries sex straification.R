@@ -23,7 +23,7 @@ get_popdata <- function(cnt_name, year="2020") {
 countries <- c("Kenya", "Ghana") 
 pop <- sapply(countries, get_popdata)#2by2 matrix of male & female pop in Ken&Gha
 
-#time specification
+# time specification
 start <- 2009 #same starting year for all countries
 end <- 2024  #same for all
 dt <- 0.1 #unchanged
@@ -31,102 +31,90 @@ time <- seq(start, end - dt, by = dt)
 niter <- (end - start) / dt
 n_yr <- end - start
 
-#mapping HIVST rate to the appropriate yearly indices
+# mapping HIVST rate to the appropriate yearly indices
 beta_ind <- seq(1, niter, by = 1 / dt) #15 indices of testing rate indicating beginning of each year
 yr_ind <- rep(1, niter) 
 for (i in 2:length(beta_ind)) {
   yr_ind[beta_ind[i - 1]:(beta_ind[i] - 1)] <- i - 1
 }
-
 yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
 
 
-#indices for countries: first testing with 2 countries w/ multiple surveys
-ken <- c(2012, 2018, 2022)
-gha <- c(2017, 2022) 
 
-#list of survey years for each country
-cnt <- list(ken, gha)
-n_cnt <- length(cnt) #number of countries: 2
-n_svy_by_cnt <- unlist(lapply(cnt, length)) #number of surveys per country
-
-start_idx <- NULL
-end_idx <- NULL
-start_idx[1] <- 1  
-end_idx[1] <- n_svy_by_cnt[1]
-
-#remaining countries
-for (c in 2:n_cnt) {
-  start_idx[c] <- start_idx[c - 1] + n_svy_by_cnt[c - 1]
-  end_idx[c] <- start_idx[c] + n_svy_by_cnt[c] - 1
-}
-
-
-#stan code
+# stan code
 hivst_mod <- '
 functions {
-  real[, , ] hivst_fun(int n_cnt, // # of countries added 
-                       int niter,
-                       vector[niter] beta_t_dt[n_cnt],
+  real[, , ] hivst_fun(int niter,
+                       vector beta_t_dt,
                        real beta_retest,
                        real beta_male,
-                       real pop[2, n_cnt], // male&female for n countries
-                       real dt) {
-     
-     // intializing ouputs:adding layer of country
-    real out[n_cnt, niter, 4, 2] = rep_array(0.0, n_cnt, niter, 4, 2);
-    
-    // now need to loop for each country
-    for (c in 1:n_cnt) {
-    
-    // converting rates from log scale
-    vector[niter] rr_t = exp(beta_t_dt[c]); // for each cnt testing&retesting rate
-    real rr_r = exp(beta_retest[c]);
-    real rr_m = exp(beta_male); // assuming fixed for all cntries
-    
-    // initializing male&female compartments for each country
-    out[c, 1, 1, 1] = pop[1, c]; // male, cnt c
-    out[c, 1, 1, 2] = pop[2, c]; // female, cnt c
+                       vector pop, // male&female 
+                       real dt,
+                       int dt_yr) {
 
-   // odes (per country)
+    // converting rates from log scale
+    vector[niter] rr_t = exp(beta_t_dt); 
+    real rr_r = exp(beta_retest);
+    real rr_m = exp(beta_male);
+    
+    // initializing the compartments
+    real out[niter, 4, 2];
+    out = rep_array(0.0, niter, 4, 2);
+    out[1, 1, 1] = pop[1]; // male
+    out[1, 1, 2] = pop[2]; // female
+
     for (i in 2:niter) {
-   // males for c cntry, i iteration
-        out[c, i, 1, 1] = out[c, i - 1, 1, 1] + dt * (-rr_t[i] * rr_m * out[c, i - 1, 1, 1]);
-        out[c, i, 2, 1] = out[c, i - 1, 2, 1] + dt * (+rr_t[i] * rr_m * out[c, i - 1, 1, 1]);
-        out[c, i, 3, 1] = dt * rr_t[i] * rr_m * (out[c, i - 1, 1, 1] + rr_r * out[c, i - 1, 2, 1]);
-        out[c, i, 4, 1] = out[c, i, 2, 1] / (out[c, i, 1, 1] + out[c, i, 2, 1]);
+   // males
+        out[i, 1, 1] = out[i - 1, 1, 1] + dt * (-rr_t[i] * rr_m * out[i - 1, 1, 1]);
+        out[i, 2, 1] = out[i - 1, 2, 1] + dt * (+rr_t[i] * rr_m * out[i - 1, 1, 1]);
+        out[i, 3, 1] = dt * rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
+        out[i, 4, 1] = out[i, 2, 1] / (out[i, 1, 1] + out[i, 2, 1]);
         
-    // females for c cntry, i iteration
-        out[c, i, 1, 2] = out[c, i - 1, 1, 2] + dt * (-rr_t[i] * out[c, i - 1, 1, 2]);
-        out[c, i, 2, 2] = out[c, i - 1, 2, 2] + dt * (+rr_t[i] * out[c, i - 1, 1, 2]);
-        out[c, i, 3, 2] = dt * rr_t[i] * (out[c, i - 1, 1, 2] + rr_r * out[c, i - 1, 2, 2]);
-        out[c, i, 4, 2] = out[c, i, 2, 2] / (out[c, i, 1, 2] + out[c, i, 2, 2]);
-      }
-    return out;
+    // females
+        out[i, 1, 2] = out[i - 1, 1, 2] + dt * (-rr_t[i] * out[i - 1, 1, 2]);
+        out[i, 2, 2] = out[i - 1, 2, 2] + dt * (+rr_t[i] * out[i - 1, 1, 2]);
+        out[i, 3, 2] = dt * rr_t[i] * (out[i - 1, 1, 2] + rr_r * out[i - 1, 2, 2]);
+        out[i, 4, 2] = out[i, 2, 2] / (out[i, 1, 2] + out[i, 2, 2]);
     }
+    
+    // we compute rolling sums to get the annual number of tests
+    int n_sum = niter - dt_yr;
+    for (i in 1:n_sum) {
+      out[i, 3, 1] = sum(out[i:(i + dt_yr - 1), 3, 1]); 
+      out[i, 3, 2] = sum(out[i:(i + dt_yr - 1), 3, 2]);       
+    }
+    return out;
 } 
 }
 
 data {
-  int<lower = 1> n_cnt;             // # of countries
-  int<lower = 1> n_yr;              // # of years (same for all countries)
-  int<lower = 1> niter;             // #of iterations (same for all countries)
+  int<lower = 1> n_cnt;             // nb countries
+  int<lower = 1> n_yr;              // nb of years   
+  int<lower = 1> niter;             // nb iterations (same for all countries)
+  int<lower = 1> tot_svy;         // total nb of surveys accross all countries
+  int<lower = 1> tot_hts;         // total nb of year with hivst data, accross all countries
   int<lower = 1> yr_ind[niter];     // mapping the yearly rate to the dt ones
-  real dt;                          
-  real pop[2, n_cnt];               // r = sex, c = cnt
-  int<lower = 1> beta_ind[n_yr];    // beta indices (common across cntries)
+  real dt;       
+  int dt_yr; 
+  matrix[2, n_cnt] pop;               // r = sex, c = cnt
   
-  // for prgrm data
-  int<lower = 0> n_hts[n_cnt];      // # of years with observed HIVST data per cntry
-  int<lower = 0> ind_hts[n_cnt, max(n_hts)]; //indices pgm data(max length?)
-  int<lower = 0> hivst[n_cnt, max(n_hts)];   //# of HIVST performed per year per cnty
-  real se_hts[n_cnt, max(n_hts)];   // se for program data(max lenght required?)
+  // for prgrm data;
+  int<lower = 1> n_hts_by_cnt[n_cnt];        // nb of years with observed HIVST data per cntry
+  int<lower = 1> ind_hts[tot_hts]; // indices pgm data(max length?)
+  int<lower = 1> hivst[tot_hts];   // nb of HIVST performed per year per cnty
+  real se_hts[tot_hts];            // se for program data(max lenght required?)
   
-  // survey data & proportions
-  int<lower = 1> n_svy_by_cnt[n_cnt]; // # of surveys per country
-  int<lower = 0> ind_svy[n_cnt, max(n_svy_by_cnt)]; // indices for survey data (max length across countries)
-  int<lower = 0> num_svy[n_cnt, max(n_svy_by_cnt), 2]; // numerator for survey proportions
-  int<lower = 1> den_svy[n_cnt, max(n_svy_by_cnt), 2]; // denominator for survey proportions
+  // for survey data;
+  int<lower = 1> n_svy_by_cnt[n_cnt];     // nb of surveys per country
+  int<lower = 1> ind_svy[tot_svy]; // indices for survey data (max length across countries)
+  int<lower = 1> num_svy[tot_svy, 2]; // numerator for survey proportions
+  int<lower = 1> den_svy[tot_svy, 2]; // denominator for survey proportions
+
+  // indices for the unlist data
+  int<lower = 1> svy_idx_s[n_cnt];
+  int<lower = 1> svy_idx_e[n_cnt]; 
+  int<lower = 1> hts_idx_s[n_cnt];
+  int<lower = 1> hts_idx_e[n_cnt];  
 }
 
 parameters {
@@ -135,7 +123,7 @@ parameters {
   real beta_retest_overall;            // overall shared re-testing rate
   real beta_retest[n_cnt];            // country-specific re-testing rates
   real beta_male;                      //male relative rate of HIVST (same for all cntries)
-  real<lower = 0, upper = 1> phi_overall; // overall proportion of HIVST kits used
+  real phi_overall; // overall proportion of HIVST kits used
   real phi[n_cnt];      // country-specific proportions of HIVST kits used
 }
 
@@ -149,36 +137,38 @@ transformed parameters {
 }
 
 model {
-  // priors
-  sd_rw ~ normal(0, 1) T[0, 5];
-  beta_retest_overall ~ normal(log(1.2), 0.5);
-  beta_male ~ normal(log(1), 0.5);
-  phi_overall ~ normal(logit(0.85), 0.5);
+    matrix[niter, n_cnt] hts_mod;
 
+  // priors
+  // overall prior for the SD of the RW1 for testing rate
+  sd_rw ~ normal(0, 1) T[0, 5];
+  // overall prior for retesting parameter
+  beta_retest_overall ~ normal(log(1.2), 0.5);
+  // overall prior for the % of tests distributed being used
+  phi_overall ~ normal(logit(0.85), 0.5);
+  // prior for male-to-female ratio - fixed accross countries
+  beta_male ~ normal(log(1), 0.5);
+
+  // country-specific priors
   for (c in 1:n_cnt) {
     beta_retest[c] ~ normal(beta_retest_overall, 0.5);
     phi[c] ~ normal(phi_overall, 0.5);
     beta_t[c, 1] ~ normal(-5, 2);
     beta_t[c, 2:n_yr] ~ normal(beta_t[c, 1:(n_yr - 1)], sd_rw);
-  }
 
   // model predictions and likelihoods 
-  for (c in 1:n_cnt) {
-    real model_pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt[c, ], beta_retest[c], beta_male, pop[, c], dt);
+    real model_pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male, pop[, c], dt, dt_yr);
 
     // fitting to survey data (layer of country and surveys)
-    for (s in 1:svy_by_cnt[c]) {
-      num_svy[c, s, 1] ~ binomial(den_svy[c, s, 1], model_pred[ind_svy[c, s], 4, 1]);
-      num_svy[c, s, 2] ~ binomial(den_svy[c, s, 2], model_pred[ind_svy[c, s], 4, 2]);
-    }
+      num_svy[svy_idx_s[c]:svy_idx_e[c], 1] ~ binomial(den_svy[svy_idx_s[c]:svy_idx_e[c], 1], 
+                                              model_pred[ind_svy[svy_idx_s[c]:svy_idx_e[c]], 4, 1]);
+      num_svy[svy_idx_s[c]:svy_idx_e[c], 2] ~ binomial(den_svy[svy_idx_s[c]:svy_idx_e[c], 2], 
+                                              model_pred[ind_svy[svy_idx_s[c]:svy_idx_e[c]], 4, 2]);
 
     // fitting to program data(layer of country & years we are modeling)
-    vector[niter] hts_m = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / inv_logit(phi[c]);
-    real hts_m_pery[n_yr]; // predicted # of HTS per y for each c
-    for (h in 1:n_yr) {
-      hts_m_pery[h] = sum(hts_m[ind_hts[c, h]:to_int(ind_hts[c, h] + (1 / dt) - 1)]);
-      hivst[c, h] ~ normal(hts_m_pery[h], se_hts[c, h]);
-    }
+    hts_mod[, c] = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / inv_logit(phi[c]);
+    hivst[hts_idx_s[c]:hts_idx_e[c]] ~ normal(hts_mod[ind_hts[hts_idx_s[c]:hts_idx_e[c]], c], 
+                                              se_hts[hts_idx_s[c]:hts_idx_e[c]]);
   }
 }
 
@@ -186,26 +176,17 @@ generated quantities {
     matrix[n_cnt, niter] hivst_prd;  // predicted HIVST rates per time step for all countries
     matrix[n_cnt, niter] svy_prd_m;  // predicted survey proportions (males) per country
     matrix[n_cnt, niter] svy_prd_f;  // predicted survey proportions (females) per country
-    array[n_cnt, niter, 4, 2] pred;  // predicted outputs of the compartments for each country
-    matrix[n_cnt, n_yr] hts_pred_pery;  // per-year predicted self-tests for each country
 
     for (c in 1:n_cnt) {
-        pred[c] = hivst_fun(niter, beta_t_dt[c, ], beta_retest[c], beta_male, pop[, c], dt);
+    real pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male, pop[, c], dt, dt_yr);
         
         // survey prediction
-        for (i in 1:niter) {
-            svy_prd_m[c, i] = pred[c, i, 4, 1];  // males ever used HIVST
-            svy_prd_f[c, i] = pred[c, i, 4, 2];  // females ever used HIVST
-        }
+            svy_prd_m[c, ] = to_row_vector(pred[, 4, 1]);  // males ever used HIVST
+            svy_prd_f[c, ] = to_row_vector(pred[, 4, 2]);  // females ever used HIVST
         
         // hts predictions (slicing operator : takes all niter for each country)
-        hivst_prd[c] = (to_vector(pred[c, :, 3, 1]) + to_vector(pred[c, :, 3, 2])) / inv_logit(phi[c]);
-        
-        // yearly predictions # of Hts
-        for (i in 1:n_yr) {
-            hts_pred_pery[c, i] = sum(hivst_prd[c, beta_ind[i]:to_int(beta_ind[i] + (1 / dt) - 1)]);
+        hivst_prd[c, ] = to_row_vector(to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / inv_logit(phi[c]);
         }
-    }
 }
 '
 
@@ -214,10 +195,11 @@ expose_stan_functions(stanc(model_code = hivst_mod))
 hivst_stan <- stan_model(model_code = hivst_mod)
 
 #------ Survey & program data for each country ------------
-#done manually now, but I have a seperate script to extract automatically from combined df of survey & prgm data
+# done manually now, but I have a separate script to extract automatically from combined df of survey & prgm data
 
 cnt_data <- list(
   kenya = list(
+    yr_svy = c(2012.5, 2018.5, 2022.5),
     ind_svy = (c(2012.5, 2018.5, 2022.5) - start) / dt,
     den_svy = round(cbind(c(4605, 16082, 11562), c(6350, 17880, 25725))),
     num_svy = round(cbind(c(148, 340, 1044), c(116, 436, 1242))),
@@ -226,6 +208,7 @@ cnt_data <- list(
     se_hts = c(197200, 400000, 595953, 630000, 342610, 617317) * 0.1
   ),
   ghana = list(
+    yr_svy = c(2017.5, 2022.5),
     ind_svy = (c(2017.5, 2022.5) - start) / dt,
     den_svy = round(cbind(c(2553, 4558), c(5575, 6250))),
     num_svy = round(cbind(c(37, 83), c(132, 151))),
@@ -235,7 +218,33 @@ cnt_data <- list(
   )
 )
 
-#adding svy_dat, lci,uci after list as the operations cant be perfomed inside list
+#indices for countries: first testing with 2 countries w/ multiple surveys
+# list of survey years for each country
+n_cnt <- length(cnt_data) #number of countries: 2
+n_svy_by_cnt <- unlist(lapply(cnt_data, function(x) length(x$yr_svy))) #number of surveys per country
+n_hts_by_cnt <- unlist(lapply(cnt_data, function(x) length(x$ind_hts)))
+
+# survey
+svy_idx_s <- NULL
+svy_idx_s <- NULL
+svy_idx_s[1] <- 1  
+end_svy_idx_e[1] <- n_svy_by_cnt[1]
+# hts
+hts_idx_s <- NULL
+end_hts_idx_e <- NULL
+hts_idx_s[1] <- 1  
+end_hts_idx_e[1] <- n_hts_by_cnt[1]
+# remaining countries
+for (c in 2:n_cnt) {
+  # survey
+  svy_idx_s[c] <- svy_id_sx[c - 1] + n_svy_by_cnt[c - 1]
+  svy_idx_e[c] <- svy_idx_s[c] + n_svy_by_cnt[c] - 1   
+  # hts
+  hts_idx_s[c] <- hts_idx_s[c - 1] + n_hts_by_cnt[c - 1]
+  hts_idx_e[c] <- hts_idx_s[c] + n_hts_by_cnt[c] - 1
+}
+
+# adding svy_dat, lci,uci after list as the operations cant be performed inside list
 cnt_data <- lapply(cnt_data, function(x) {
   x$svy_dat <- x$num_svy / x$den_svy
   x$lci_svy <- x$svy_dat - qnorm(0.975) * sqrt(x$svy_dat * (1 - x$svy_dat) / x$den_svy)
@@ -247,10 +256,10 @@ cnt_data <- lapply(cnt_data, function(x) {
 #combining svy and pgm data for all countries
 num_svy <- do.call(rbind, lapply(cnt_data, function(x) x$num_svy)) #rows=countries, cols=surveys
 den_svy <- do.call(rbind, lapply(cnt_data, function(x) x$den_svy))
-ind_svy <- do.call(rbind, lapply(cnt_data, function(x) x$ind_svy))
-hts_dat <- do.call(rbind, lapply(cnt_data, function(x) x$hts_dat)) #rows=countries, cols=time points
-se_hts <- do.call(rbind, lapply(cnt_data, function(x) x$se_hts))
-ind_hts <- do.call(rbind, lapply(cnt_data, function(x) x$ind_hts))
+ind_svy <- unlist(lapply(cnt_data, function(x) x$ind_svy))
+hts_dat <- unlist(lapply(cnt_data, function(x) x$hts_dat)) #rows=countries, cols=time points
+se_hts <- unlist(lapply(cnt_data, function(x) x$se_hts))
+ind_hts <- unlist(lapply(cnt_data, function(x) x$ind_hts))
 
 # fitting data for running in stan
 data_stan <- list(
@@ -258,13 +267,20 @@ data_stan <- list(
   n_yr = n_yr,                         
   yr_ind = yr_ind,                     
   niter = niter,                       
-  dt = dt,                             
+  dt = dt,    
+  dt_yr = 1 / dt, 
   pop = pop,                           
   beta_ind = beta_ind,
-  n_svy = n_svy_by_cnt,                
-  n_hts = sapply(cnt_data, function(x) length(x$hts_dat)), 
+  n_svy_by_cnt = n_svy_by_cnt,                
+  n_hts_by_cnt = n_hts_by_cnt, 
+  tot_svy = sum(n_svy_by_cnt),
+  tot_hts = sum(n_hts_by_cnt),
   ind_svy = ind_svy,                   
-  ind_hts = ind_hts,                
+  ind_hts = ind_hts,
+  svy_idx_s = svy_idx_s,
+  hts_idx_s = hts_idx_s,
+  svy_idx_e = svy_idx_e,
+  hts_idx_e = hts_idx_e,
   hivst = hts_dat,                     
   se_hts = se_hts,                     
   num_svy = num_svy,                   
