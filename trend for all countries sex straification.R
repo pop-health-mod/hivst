@@ -371,6 +371,94 @@ phi$`50%`
 phi$`2.5%`
 phi$`97.5%`
 
+
+
+#------ combined fit ------------
+
+
+# --- combining ----
+extracted_fit <- extract(fit)
+ext_fit_m <- extracted_fit$svy_prd_m
+ext_fit_f <- extracted_fit$svy_prd_f
+n_sample <- dim(ext_fit_m)[1] # no of iterations (6000)
+
+#ext_fit_m[i, , ]:fixing 1st dimension at i (selecting the i-th iteration).
+#Using , (with nothing before/after) for 2nd & 3rd dim: take all elements along those dim
+#6000 rows(one for each posterior sample or iteration),150 columns (one for each time step)
+
+pool_prp <- matrix(NA, nrow = n_sample, ncol = niter) # every element starts w/ NA, otherwise error as data is missing
+for (i in 1:n_sample) {
+  ext_fit_mi <- ext_fit_m[i, , ] * data_stan$pop[1, ]
+  ext_fit_fi <- ext_fit_f[i, , ] * data_stan$pop[2, ]
+  pool_prp[i, ] <- (colSums(ext_fit_mi) + colSums(ext_fit_fi)) / sum(data_stan$pop)
+}
+
+#apply quantile function over the columns (denoted by margin=2)
+pool_lci <- apply(pool_prp, MARGIN = 2, quantile, probs = 0.025)
+pool_med <- apply(pool_prp, MARGIN = 2, quantile, probs = 0.5)
+pool_uci <- apply(pool_prp, MARGIN = 2, quantile, probs = 0.975)
+
+
+#plotting from matrix
+plot(pool_med, type = "l", lwd = 2)
+lines(pool_lci, col = "grey")
+lines(pool_uci, col = "grey")
+
+#plot for combined fit
+par(mfrow = c(1,1), oma = c(2, 2, 2, 2), mar = c(4, 4, 2, 2))
+median_col <- "purple4"                          
+ci_shade_col <- adjustcolor("plum", alpha.f = 0.3)
+custom_years <- c(2009, 2012, 2015, 2018, 2021, 2024)
+plot(time, pool_med, type = "n",
+     xlab = "Year",
+     ylab = "Proportion of People Having Used HIVST",
+     ylim = c(0, max(pool_uci)),
+     las = 1,   
+     bty = "l",
+     xaxt = "n"
+)
+polygon(x = c(time, rev(time)),
+        y = c(pool_lci, rev(pool_uci)),
+        col = ci_shade_col, border = NA)
+
+lines(time, pool_med, col = median_col, lwd = 2)
+axis(1, at = custom_years, labels = custom_years)
+
+legend("topright",
+       legend = c("Weighted proportion for 6 countries with more than one survey", "95% CrI"),
+       lty = c(1, NA),
+       pch = c(NA, 15),
+       pt.cex = c(1, 1.5),
+       col = c(median_col, ci_shade_col),
+       bty = "n")
+
+title("Estimated HIV Self-Test Uptake")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#-----checking individual country-------------
 #----results with 95%CrI--------
 
 # male survey pred
@@ -486,74 +574,4 @@ for (country_name in tolower(countries)) {
 }
 
 
-#------ combined fit ------------
-
-
-# --- combining ----
-extracted_fit <- extract(fit)
-ext_fit_m <- extracted_fit$svy_prd_m
-ext_fit_f <- extracted_fit$svy_prd_f
-n_sample <- dim(ext_fit_m)[1] # no of iterations (6000)
-
-#ext_fit_m[i, , ]:fixing 1st dimension at i (selecting the i-th iteration).
-#Using , (with nothing before/after) for 2nd & 3rd dim: take all elements along those dim
-#6000 rows(one for each posterior sample or iteration),150 columns (one for each time step)
-
-pool_prp <- matrix(NA, nrow = n_sample, ncol = niter) # every element starts w/ NA, otherwise error as data is missing
-for (i in 1:n_sample) {
-  ext_fit_mi <- ext_fit_m[i, , ] * data_stan$pop[1, ]
-  ext_fit_fi <- ext_fit_f[i, , ] * data_stan$pop[2, ]
-  pool_prp[i, ] <- (colSums(ext_fit_mi) + colSums(ext_fit_fi)) / sum(data_stan$pop)
-}
-
-#apply quantile function over the columns (denoted by margin=2)
-pool_lci <- apply(pool_prp, MARGIN = 2, quantile, probs = 0.025)
-pool_med <- apply(pool_prp, MARGIN = 2, quantile, probs = 0.5)
-pool_uci <- apply(pool_prp, MARGIN = 2, quantile, probs = 0.975)
-
-
-#plotting
-plot(pool_med, type = "l", lwd = 2)
-lines(pool_lci, col = "grey")
-lines(pool_uci, col = "grey")
-
-#plot
-par(mfrow = c(1,1), oma = c(2, 2, 2, 2), mar = c(4, 4, 2, 2))
-
-median_col <- "purple4"                          
-ci_shade_col <- adjustcolor("plum", alpha.f = 0.3)
-
-# Specific years you want as ticks
-custom_years <- c(2009, 2012, 2015, 2018, 2021, 2024)
-
-plot(time, pool_med, type = "n",
-     xlab = "Year",
-     ylab = "Proportion of People Having Used HIVST",
-     ylim = c(0, max(pool_uci)),
-     las = 1,   # horizontal y-axis labels
-     bty = "l",
-     xaxt = "n" # suppress default x-axis
-)
-
-# Add the confidence interval polygon
-polygon(x = c(time, rev(time)),
-        y = c(pool_lci, rev(pool_uci)),
-        col = ci_shade_col, border = NA)
-
-# Add the median line
-lines(time, pool_med, col = median_col, lwd = 2)
-
-# Add a custom x-axis with the chosen years
-axis(1, at = custom_years, labels = custom_years)
-
-# Add a legend
-legend("topright",
-       legend = c("Weighted proportion for 6 countries with more than one survey", "95% CrI"),
-       lty = c(1, NA),
-       pch = c(NA, 15),
-       pt.cex = c(1, 1.5),
-       col = c(median_col, ci_shade_col),
-       bty = "n")
-
-title("Estimated HIV Self-Test Uptake")
 
