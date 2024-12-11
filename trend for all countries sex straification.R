@@ -4,6 +4,7 @@ gc()
 
 library(wpp2024)
 library(rstan)
+library(V8)
 
 #---preparing model inputs---
 
@@ -120,9 +121,11 @@ parameters {
   real<lower = 0, upper = 5> sd_rw;    // sd of the rw1 for beta_t
   real<lower = 0, upper = 5> sd_phi;    // sd of the rw1 for beta_t
   real<lower = 0, upper = 5> sd_rt;    // sd of the rw1 for beta_t
+  real<lower = 0, upper = 5> sd_male;    // sd of the rw1 for beta_male
   real beta_retest_overall;            // overall shared re-testing rate
   real beta_retest[n_cnt];            // country-specific re-testing rates
-  real beta_male;                      //male relative rate of HIVST (same for all cntries)
+  real beta_male_overall;             //overall male relative rate of HIVST
+  real beta_male[n_cnt];             //overall male relative rate of HIVST
   real phi_overall; // overall proportion of HIVST kits used
   real phi[n_cnt];      // country-specific proportions of HIVST kits used
 }
@@ -144,22 +147,24 @@ model {
   sd_rw ~ normal(0, 1) T[0, 5];
   sd_phi ~ normal(0, 0.5) T[0, 5];
   sd_rt ~ normal(0, 0.5) T[0, 5];
+  sd_male ~ normal(0, 0.5) T[0, 5];
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(log(1.2), 0.5);
   // overall prior for the % of tests distributed being used
   phi_overall ~ normal(logit(0.85), 0.5);
-  // prior for male-to-female ratio - fixed accross countries
-  beta_male ~ normal(log(1), 0.5);
+  // overall prior for male-to-female ratio
+  beta_male_overall ~ normal(log(1), 0.5);
 
   // country-specific priors
   for (c in 1:n_cnt) {
     beta_retest[c] ~ normal(beta_retest_overall, sd_rt);
     phi[c] ~ normal(phi_overall, sd_phi);
+    beta_male[c] ~ normal(beta_male_overall, sd_male);
     beta_t[c, 1] ~ normal(-5, 2);
     beta_t[c, 2:n_yr] ~ normal(beta_t[c, 1:(n_yr - 1)], sd_rw);
 
   // model predictions and likelihoods 
-    real model_pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male, pop[, c], dt, dt_yr);
+    real model_pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], pop[, c], dt, dt_yr);
 
     // fitting to survey data (layer of country and surveys)
       num_svy[svy_idx_s[c]:svy_idx_e[c], 1] ~ binomial(den_svy[svy_idx_s[c]:svy_idx_e[c], 1], 
@@ -180,7 +185,7 @@ generated quantities {
     matrix[n_cnt, niter] svy_prd_f;  // predicted survey proportions (females) per country
 
     for (c in 1:n_cnt) {
-    real pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male, pop[, c], dt, dt_yr);
+    real pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], pop[, c], dt, dt_yr);
         
         // survey prediction
             svy_prd_m[c, ] = to_row_vector(pred[, 4, 1]);  // males ever used HIVST
@@ -213,12 +218,12 @@ cnt_data <- list(
     ind_svy = (c(2017.5, 2022.5) - start) / dt,
     den_svy = round(cbind(c(2553, 4558), c(5575, 6250))),
     num_svy = round(cbind(c(37, 83), c(132, 151))),
-    yr_hts = c(2020,    2021,   2022,  2023),
+    yr_hts = c(2020,  2021,   2022,  2023),
     ind_hts = (c(2020, 2021, 2022, 2023) - start) / dt,
     hts_dat = c(20000, 1323, 235000, 140500),
     se_hts = c(20000, 1323, 235000, 140500) * 0.1
   ),
-  sierraleone = list(
+  "Sierra Leone" = list(
     yr_svy = c(2017.5, 2019.5),
     ind_svy = (c(2017.5, 2019.5) - start) / dt,
     den_svy = round(cbind(c(2465, 2907), c(5096, 2607))),
@@ -329,12 +334,10 @@ data_stan <- list(
 )
 rstan_options(auto_write = TRUE)
 
-
 #fitting the model
 options(mc.cores = parallel::detectCores())
-fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4,
-                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
-
+fit <- sampling(hivst_stan, data = data_stan, iter = 2000, chains = 4,
+                warmup = 1000, thin = 1, control = list(adapt_delta = 0.9))
 
 # traceplots
 traceplot(fit, pars = "beta_t")
@@ -371,12 +374,7 @@ phi$`50%`
 phi$`2.5%`
 phi$`97.5%`
 
-
-
 #------ combined fit ------------
-
-
-# --- combining ----
 extracted_fit <- extract(fit)
 ext_fit_m <- extracted_fit$svy_prd_m
 ext_fit_f <- extracted_fit$svy_prd_f
@@ -458,7 +456,7 @@ title("Estimated HIV Self-Test Uptake")
 
 
 
-#-----checking individual country-------------
+#-----checking for individual country-------------
 #----results with 95%CrI--------
 
 # male survey pred
