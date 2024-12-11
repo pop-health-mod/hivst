@@ -1,5 +1,4 @@
-library(devtools)
-options(timeout = 600)
+#change first 3 cnt hts time
 
 library(wpp2024)
 library(rstan)
@@ -38,6 +37,21 @@ for (i in 2:length(beta_ind)) {
 
 yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind) #for last year because it is 1 now
 
+
+#survey data
+ind_svy <- (c(2012.5, 2018.5, 2022.5) - start) / dt
+den_svy <- round(cbind(c(5756, 20102, 14453), c(7938, 22350, 32156)) * 0.8)
+num_svy <- round(cbind(c(185, 425, 1305), c(145, 545, 1552)) * 0.8)
+svy_dat <- num_svy / den_svy
+lci_svy <- svy_dat - qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
+uci_svy <- svy_dat + qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
+ind_hts <- (c( 2018,  2019,   2020,    2021,   2022,  2023) - start) / dt
+yr_hts <- c( 2018,  2019,   2020,    2021,   2022,  2023)
+hts_dat <- c(197200, 400000, 595953, 630000, 342610, 617317)
+se_hts <- hts_dat * 0.1
+
+
+#stan block
 hivst_mod <- '
 functions {
   // function to run the model for a given country
@@ -61,8 +75,8 @@ functions {
 
     for (i in 2:niter) {
     // ode males
-      out[i, 1, 1] = out[i - 1, 1, 1] + dt * (- rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 2, 1] = out[i - 1, 2, 1] + dt * (+ rr_t[i] * rr_m * out[i - 1, 1, 1]);
+      out[i, 1, 1] = out[i - 1, 1, 1] + dt * (- rr_t[i] * rr_m * out[i - 1, 1, 1]); //
+      out[i, 2, 1] = out[i - 1, 2, 1] + dt * (+ rr_t[i] * rr_m * out[i - 1, 1, 1]); //
       out[i, 3, 1] = dt * rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
       out[i, 4, 1] = out[i, 2, 1] / (out[i, 1, 1] + out[i, 2, 1]);
     // ode females
@@ -110,9 +124,7 @@ transformed parameters {
   }
 }
 
-
 model {
-  vector[niter] hts_m;
   // we use our custom function to get the expected proportion of hivst users and tests
   real model_pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, pop, dt);
   // priors
@@ -126,7 +138,9 @@ model {
   // fitting to survey data
     num_svy[, 1] ~ binomial(den_svy[, 1], model_pred[ind_svy, 4, 1]);
     num_svy[, 2] ~ binomial(den_svy[, 2], model_pred[ind_svy, 4, 2]);
+    
   // fitting to hivst program data
+    vector[niter] hts_m;
     hts_m = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / phi;
     real hts_m_pery[n_hts];   // hts number per year
   for (i in 1:n_hts) {
@@ -156,18 +170,6 @@ generated quantities {
 expose_stan_functions(stanc(model_code = hivst_mod))
 hivst_stan <- stan_model(model_code = hivst_mod)
 
-
-#survey data
-ind_svy <- (c(2012.5, 2018.5, 2022.5) - start) / dt
-den_svy <- round(cbind(c(5756, 20102, 14453), c(7938, 22350, 32156)) * 0.8)
-num_svy <- round(cbind(c(185, 425, 1305), c(145, 545, 1552)) * 0.8)
-svy_dat <- num_svy / den_svy
-lci_svy <- svy_dat - qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
-uci_svy <- svy_dat + qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
-ind_hts <- (c( 2018,  2019,   2020,    2021,   2022,  2023) - start) / dt
-yr_hts <- c( 2018,  2019,   2020,    2021,   2022,  2023)
-hts_dat <- c(197200, 400000, 595953, 630000, 342610, 617317)
-se_hts <- hts_dat * 0.1
 
 # data for fitting and running
 data_stan <- list(n_yr = n_yr,
@@ -203,7 +205,7 @@ traceplot(fit, pars = "sd_rw")
 traceplot(fit, pars = "beta_retest")
 traceplot(fit, pars = "beta_male")
 traceplot(fit, pars = "phi")
-
+#-----------------------------------------------
 # we get the results
 svy_m <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 svy_f <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -238,6 +240,7 @@ polygon(x = c(time, rev(time)),
         y = c(svy_f$`2.5%`, rev(svy_f$`97.5%`)),
         col = yarrr::transparent("pink3", trans.val = 0.5), border = NA) 
 lines(svy_f$`50%` ~ time, col = "pink3", lwd = 3)
+
 points(svy_dat[, 1] ~ time[ind_svy], pch = 16, col = "blue4")
 points(svy_dat[, 2] ~ time[ind_svy], pch = 16, col = "firebrick4")
 segments(x0 = time[ind_svy], y0 = lci_svy[, 1],
@@ -403,7 +406,7 @@ num_svy <- round(cbind(c(37, 83), c(132, 151)))
 svy_dat <- num_svy / den_svy
 lci_svy <- svy_dat - qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
 uci_svy <- svy_dat + qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
-yr_hts <- c( 2018,  2019,   2020,    2021,   2022,  2023)
+yr_hts <- c( 2020,    2021,   2022,  2023)
 ind_hts <- (c(2020, 2021, 2022, 2023) + 0.5 - start) / dt
 hts_dat <- c(20000, 1323, 235000, 140500)
 se_hts <- hts_dat * 0.1
@@ -642,7 +645,7 @@ num_svy <- round(cbind(c(50, 62), c(165, 101)))
 svy_dat <- num_svy / den_svy
 lci_svy <- svy_dat - qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
 uci_svy <- svy_dat + qnorm(0.975) * sqrt(svy_dat * (1 - svy_dat ) / den_svy)
-yr_hts <- c( 2020,    2021,   2022,  2023)
+yr_hts <- c( 2020,    2021,   2022)
 ind_hts <- (c(2020, 2021, 2022) + 0.5 - start) / dt
 hts_dat <- c(2500, 270, 11050)
 se_hts <- hts_dat * 0.1

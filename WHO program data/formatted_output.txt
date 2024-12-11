@@ -1,0 +1,182 @@
+Botswana = list(
+    yr_hts = c(2019, 2021, 2022, 2023),
+    ind_hts = (c(2019, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(7000, 3848, 8403, 16405),
+    se_hts = c(7000, 3848, 8403, 16405) * 0.1
+),
+
+Burkina Faso = list(
+    yr_hts = c(2022, 2023),
+    ind_hts = (c(2022, 2023) - start) / dt,
+    hts_dat = c(968, 3367),
+    se_hts = c(968, 3367) * 0.1
+),
+
+Burundi = list(
+    yr_hts = c(2023),
+    ind_hts = (c(2023) - start) / dt,
+    hts_dat = c(78013),
+    se_hts = c(78013) * 0.1
+),
+
+Cameroon = list(
+    yr_hts = c(2022),
+    ind_hts = (c(2022) - start) / dt,
+    hts_dat = c(33073),
+    se_hts = c(33073) * 0.1
+),
+
+Côte d'Ivoire = list(
+    yr_hts = c(2020, 2021, 2022, 2023),
+    ind_hts = (c(2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(111184, 117556, 41774, 60154),
+    se_hts = c(111184, 117556, 41774, 60154) * 0.1
+),
+
+Eswatini = list(
+    yr_hts = c(2019),
+    ind_hts = (c(2019) - start) / dt,
+    hts_dat = c(32531),
+    se_hts = c(32531) * 0.1
+),
+
+Ghana = list(
+    yr_hts = c(2022),
+    ind_hts = (c(2022) - start) / dt,
+    hts_dat = c(27950),
+    se_hts = c(27950) * 0.1
+),
+
+Guinea = list(
+    yr_hts = c(2019, 2022),
+    ind_hts = (c(2019, 2022) - start) / dt,
+    hts_dat = c(12, 152),
+    se_hts = c(12, 152) * 0.1
+),
+
+Guinea-Bissau = list(
+    yr_hts = c(2020),
+    ind_hts = (c(2020) - start) / dt,
+    hts_dat = c(37500),
+    se_hts = c(37500) * 0.1
+),
+
+Kenya = list(
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023),
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(197200, 4e+05, 595953, 630000, 342610, 617317),
+    se_hts = c(197200, 4e+05, 595953, 630000, 342610, 617317) * 0.1
+),
+
+Lesotho = list(
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023),
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(58917, 42650, 164236, 281277, 301762, 262915),
+    se_hts = c(58917, 42650, 164236, 281277, 301762, 262915) * 0.1
+),
+
+Liberia = list(
+    yr_hts = c(2023),
+    ind_hts = (c(2023) - start) / dt,
+    hts_dat = c(12129),
+    se_hts = c(12129) * 0.1
+),
+
+Madagascar = list(
+    yr_hts = c(2023),
+    ind_hts = (c(2023) - start) / dt,
+    hts_dat = c(1192),
+    se_hts = c(1192) * 0.1
+),
+
+Malawi = list(
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023),
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(408900, 101256, 561282, 602657, 735385, 910088),
+    se_hts = c(408900, 101256, 561282, 602657, 735385, 910088) * 0.1
+),
+
+Mali = list(
+    yr_hts = c(2019, 2021, 2022, 2023),
+    ind_hts = (c(2019, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(7763, 169962, 11375, 235729),
+    se_hts = c(7763, 169962, 11375, 235729) * 0.1
+),
+
+Mozambique = list(
+    yr_hts = c(2021, 2022, 2023),
+    ind_hts = (c(2021, 2022, 2023) - start) / dt,
+    hts_dat = c(67883, 203966, 683345),
+    se_hts = c(67883, 203966, 683345) * 0.1
+),
+
+Namibia = list(
+    yr_hts = c(2022, 2023),
+    ind_hts = (c(2022, 2023) - start) / dt,
+    hts_dat = c(130000, 27974),
+    se_hts = c(130000, 27974) * 0.1
+),
+
+Nigeria = list(
+    yr_hts = c(2020),
+    ind_hts = (c(2020) - start) / dt,
+    hts_dat = c(92425),
+    se_hts = c(92425) * 0.1
+),
+
+Rwanda = list(
+    yr_hts = c(2023),
+    ind_hts = (c(2023) - start) / dt,
+    hts_dat = c(62683),
+    se_hts = c(62683) * 0.1
+),
+
+Senegal = list(
+    yr_hts = c(2019, 2020, 2021, 2022, 2023),
+    ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(7307, 18860, 5505, 4056, 11932),
+    se_hts = c(7307, 18860, 5505, 4056, 11932) * 0.1
+),
+
+Sierra Leone = list(
+    yr_hts = c(2021, 2022, 2023),
+    ind_hts = (c(2021, 2022, 2023) - start) / dt,
+    hts_dat = c(2678, 1173, 50340),
+    se_hts = c(2678, 1173, 50340) * 0.1
+),
+
+South Africa = list(
+    yr_hts = c(2018, 2019, 2022, 2023),
+    ind_hts = (c(2018, 2019, 2022, 2023) - start) / dt,
+    hts_dat = c(1200000, 794034, 913418, 212000),
+    se_hts = c(1200000, 794034, 913418, 212000) * 0.1
+),
+
+Tanzania = list(
+    yr_hts = c(2020, 2021, 2022, 2023),
+    ind_hts = (c(2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(19000, 38717, 809603, 1447029),
+    se_hts = c(19000, 38717, 809603, 1447029) * 0.1
+),
+
+Uganda = list(
+    yr_hts = c(2020, 2021, 2022, 2023),
+    ind_hts = (c(2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(42570, 306421, 750698, 681602),
+    se_hts = c(42570, 306421, 750698, 681602) * 0.1
+),
+
+Zambia = list(
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023),
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(315348, 781175, 639225, 23750, 33153, 95559),
+    se_hts = c(315348, 781175, 639225, 23750, 33153, 95559) * 0.1
+),
+
+Zimbabwe = list(
+    yr_hts = c(2019, 2020, 2021, 2022, 2023),
+    ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(171730, 240434, 459517, 838103, 504763),
+    se_hts = c(171730, 240434, 459517, 838103, 504763) * 0.1
+),
+
