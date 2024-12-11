@@ -118,10 +118,10 @@ data {
 
 parameters {
   matrix[n_cnt, n_yr] beta_t;          // yearly HIVST rates (rw1) for each country
-  real<lower = 0, upper = 5> sd_rw;    // sd of the rw1 for beta_t
-  real<lower = 0, upper = 5> sd_phi;    // sd of the rw1 for beta_t
-  real<lower = 0, upper = 5> sd_rt;    // sd of the rw1 for beta_t
-  real<lower = 0, upper = 5> sd_male;    // sd of the rw1 for beta_male
+  real<lower = 1e-6, upper = 5> sd_rw;    // sd of the rw1 for beta_t
+  real<lower = 1e-6, upper = 5> sd_phi;    // sd of the rw1 for beta_t
+  real<lower = 1e-6, upper = 5> sd_rt;    // sd of the rw1 for beta_t
+  real<lower = 1e-6, upper = 5> sd_male;    // sd of the rw1 for beta_male
   real beta_retest_overall;            // overall shared re-testing rate
   real beta_retest[n_cnt];            // country-specific re-testing rates
   real beta_male_overall;             //overall male relative rate of HIVST
@@ -144,10 +144,10 @@ model {
 
   // priors
   // overall prior for the SD of the RW1 for testing rate
-  sd_rw ~ normal(0, 1) T[0, 5];
-  sd_phi ~ normal(0, 0.5) T[0, 5];
-  sd_rt ~ normal(0, 0.5) T[0, 5];
-  sd_male ~ normal(0, 0.5) T[0, 5];
+  sd_rw ~ normal(0, 1) T[1e-6, 5];
+  sd_phi ~ normal(0, 0.5) T[1e-6, 5];
+  sd_rt ~ normal(0, 0.5) T[1e-6, 5];
+  sd_male ~ normal(0, 0.5) T[1e-6, 5];
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(log(1.2), 0.5);
   // overall prior for the % of tests distributed being used
@@ -160,7 +160,7 @@ model {
     beta_retest[c] ~ normal(beta_retest_overall, sd_rt);
     phi[c] ~ normal(phi_overall, sd_phi);
     beta_male[c] ~ normal(beta_male_overall, sd_male);
-    beta_t[c, 1] ~ normal(-5, 2);
+    beta_t[c, 1] ~ normal(-5, 0.5);
     beta_t[c, 2:n_yr] ~ normal(beta_t[c, 1:(n_yr - 1)], sd_rw);
 
   // model predictions and likelihoods 
@@ -223,7 +223,7 @@ cnt_data <- list(
     hts_dat = c(20000, 1323, 235000, 140500),
     se_hts = c(20000, 1323, 235000, 140500) * 0.1
   ),
-  "Sierra Leone" = list(
+  sierraleone = list(
     yr_svy = c(2017.5, 2019.5),
     ind_svy = (c(2017.5, 2019.5) - start) / dt,
     den_svy = round(cbind(c(2465, 2907), c(5096, 2607))),
