@@ -1,19 +1,18 @@
-#change first 3 cnt hts time
+rm(list = ls())
+gc()
 
 library(wpp2024)
 library(rstan)
 
-# male and female pop data from wpp
+# male and female pop
 data(popM1)
 data(popF1)
 
-
 #---Kenya----
+wpp_m <- popM1[popM1$name == "Kenya", !(colnames(popM1) %in% as.character(c(1949:2009)))]
+wpp_f <- popF1[popF1$name == "Kenya", !(colnames(popF1) %in% as.character(c(1949:2009)))]
 
-wpp_m <- popM1[popM1$name == "Kenya", !(colnames(popM1) %in% as.character(c(1949:2010)))]
-wpp_f <- popF1[popF1$name == "Kenya", !(colnames(popF1) %in% as.character(c(1949:2010)))]
-
-# male & female pop 
+# 15+ male & female pop 
 pop <- c((sum(wpp_m[(15 + 1):(100 + 1), "2020"]) * 1000),
          (sum(wpp_f[(15 + 1):(100 + 1), "2020"]) * 1000)) 
 
@@ -24,6 +23,83 @@ dt <- 0.1
 time <- seq(start, end - dt, by = dt)
 niter <- (end - start) / dt
 n_yr <- end - start
+
+# Entry rate for male (current year's 15y pop / total pop aged 15–100)
+entry_rates_m <- numeric(end - start + 1)
+for (t in start:end) {
+  if (t == 2024) {
+    numerator <- wpp_m[(15 + 1), "2023"] * 1000
+    denominator <- sum(wpp_m[(15 + 1):(100 + 1), "2023"], na.rm = TRUE) * 1000
+  } else {
+    numerator <- wpp_m[(15 + 1), as.character(t)] * 1000
+    denominator <- sum(wpp_m[(15 + 1):(100 + 1), as.character(t)], na.rm = TRUE) * 1000
+  }
+  
+  entry_rates[t - start + 1] <- numerator / denominator
+}
+
+entry_rate_male <- data.frame(Year = start:end, EntryRate = entry_rates)
+
+
+entry_rates_f <- numeric(end - start + 1)
+for (t in start:end) {
+  if (t == 2024) {
+    numerator <- wpp_f[(15 + 1), "2023"] * 1000
+    denominator <- sum(wpp_f[(15 + 1):(100 + 1), "2023"], na.rm = TRUE) * 1000
+  } else {
+    numerator <- wpp_f[(15 + 1), as.character(t)] * 1000
+    denominator <- sum(wpp_f[(15 + 1):(100 + 1), as.character(t)], na.rm = TRUE) * 1000
+  }
+  
+  entry_rates[t - start + 1] <- numerator / denominator
+}
+
+entry_rate_female <- data.frame(Year = start:end, EntryRate = entry_rates)
+
+
+# mortality data
+data(mxM1)   
+data(mxF1)  
+
+# weighted overall male mortality rate
+mx_male_kenya <- mxM1[mxM1$name == "Kenya", c("name", "age", as.character(2010:2024))]
+
+wt_mort_rate <- numeric(end - start + 1)
+for (t in as.character(start:end)) {
+    if (t == "2024") {
+      pop_male <- wpp_m[(15 + 1):(100 + 1), "2023"] * 1000
+      mort_male <- mx_male_kenya[(15 + 1):(100 + 1), "2024"]
+    } else {
+      pop_male <- wpp_m[(15 + 1):(100 + 1), t] * 1000
+      mort_male <- mx_male_kenya[(15 + 1):(100 + 1), t]
+    }
+  wt_deaths <- (pop_male) * (mort_male)
+  tot_deaths <- sum(wt_deaths)
+  tot_pop <- sum(pop_male)
+  wt_mort_rate[as.numeric(t) - start + 1] <- tot_deaths / tot_pop
+}
+wt_mort_male <- data.frame(Year = as.integer(start:end), MortalityRate = wt_mort_rate)
+
+
+# weighted overall female mortality rate
+mx_female_kenya <- mxF1[mxF1$name == "Kenya", c("name", "age", as.character(2010:2024))]
+
+wt_mort_rate <- numeric(end - start + 1)
+for (t in as.character(start:end)) {
+  if (t == "2024") {
+    pop_female <- wpp_f[(15 + 1):(100 + 1), "2023"] * 1000
+    mort_female <- mx_female_kenya[, "2024"]
+  } else {
+    pop_female <- wpp_f[(15 + 1):(100 + 1), t] * 1000
+    mort_female <- mx_female_kenya[, t]
+  }
+  wt_deaths <- (pop_female) * (mort_female)
+  tot_deaths <- sum(wt_deaths)
+  tot_pop <- sum(pop_female)
+  wt_mort_rate[as.numeric(t) - start + 1] <- tot_deaths / tot_pop
+}
+wt_mort_female <- data.frame(Year = as.integer(start:end), MortalityRate = wt_mort_rate)
+
 
 # we create a vector to map the hivst rate to the appropriate yearly one
 beta_ind <- seq(1, niter, by = 1 / dt) #13 indices for indicating the starting index for each year
@@ -286,118 +362,6 @@ for (i in 2:length(beta_ind)) {
 }
 yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
 
-#' ----------------
-# ---- stan code ----
-#' ----------------
-library(rstan)
-hivst_mod <- '
-functions {
-  // function to run the model for a given country
-  real[, , ] hivst_fun(int niter,
-                   vector beta_t_dt,
-                   real beta_retest,
-                   real beta_male,
-                   vector pop,
-                   real dt) {
-
-    // we convert the beta from the log scale
-    vector[niter] rr_t = exp(beta_t_dt);
-    real rr_r = exp(beta_retest);
-    real rr_m = exp(beta_male);
-    
-    // we initialize the 2 compartments (nvr, evr) for hivst
-    real out[niter, 4, 2];
-    out = rep_array(0.0, niter, 4, 2);
-    out[1, 1, 1] = pop[1];
-    out[1, 1, 2] = pop[2];
-
-    for (i in 2:niter) {
-    // ode males
-      out[i, 1, 1] = out[i - 1, 1, 1] + dt * (- rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 2, 1] = out[i - 1, 2, 1] + dt * (+ rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 3, 1] = rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
-      out[i, 4, 1] = out[i, 2, 1] / (out[i, 1, 1] + out[i, 2, 1]);
-    // ode females
-      out[i, 1, 2] = out[i - 1, 1, 2] + dt * (- rr_t[i] * out[i - 1, 1, 2]);
-      out[i, 2, 2] = out[i - 1, 2, 2] + dt * (+ rr_t[i] * out[i - 1, 1, 2]);
-      out[i, 3, 2] = rr_t[i] * (out[i - 1, 1, 2] + rr_r * out[i - 1, 2, 2]);
-      out[i, 4, 2] = out[i, 2, 2] / (out[i, 1, 2] + out[i, 2, 2]);
-    }
-
-  // we assign the outputs
-    return out;
-}
-}
-
-data {
-  int<lower = 1> n_yr;        // number of years
-  int<lower = 1> niter;       // number of iterations
-  int<lower = 1> yr_ind[niter]; // to map the yearly rate to the dt ones
-  real dt;                    // time step of ode
-  vector[2] pop;                   // population from wpp
-  int<lower = 0> n_hts;       // numbers of years with observed hivst data
-  int<lower = 1> n_svy;       // numbers of years with observed survey data  
-  int<lower = 0> ind_hts[n_hts]; // indices to get hts
-  int<lower = 0> ind_svy[n_svy]; // indices to get svy
-  int hivst[n_hts];      // number of hivst performed per year
-  real se_hts[n_hts];    // standard error for program data
-  int<lower = 0> num_svy[n_svy, 2]; // numerator proportion survey (design-adjusted)
-  int<lower = 1> den_svy[n_svy, 2]; // denominator proportion survey (design-adjusted)
-}
-
-parameters {
-  real beta_t[n_yr];                  // yearly hivstesting rates (rw1)
-  real<lower = 0, upper = 5> sd_rw;   // standard deviation of the rw1 for beta_t
-  real beta_retest;                   // re-testing rate
-  real beta_male;                     // male relative rate of hivst (referent = female)
-  real<lower = 0, upper = 1> phi;     // proportion of hivst kits distributed that are used
-}
-
-transformed parameters {
-  // here we assign the yearly hivst rates for each dt (niter)
-  vector[niter] beta_t_dt;
-  for (i in 1:niter) {
-    beta_t_dt[i] =  beta_t[yr_ind[i]];
-  }
-}
-
-model {
-  vector[niter] hts_m;
-  // we use our custom function to get the expected proportion of hivst users and tests
-  real model_pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, pop, dt);
-  // priors
-  beta_t[1] ~ normal(-5, 2);      // exp(-5 + c(-1, 1) * 2 * 1.96)
-  beta_t[2:n_yr] ~ normal(beta_t[1:(n_yr - 1)], sd_rw);
-  sd_rw ~ normal(0, 1) T[0, 5];
-  beta_retest ~ normal(log(1.2), 0.5); // exp(log(1.2) + c(-1, 1) * 1.96 * 0.5)
-  beta_male ~ normal(log(1), 0.5);     // exp(log(1) + c(-1, 1) * 1.96 * 0.5)
-  phi ~ beta(24, 6);                   // plot(dbeta(x = seq(0, 1, 0.01), shape1 = 6, shape2 = 1.5), type = "l")
-
-  // fitting to survey data
-    num_svy[, 1] ~ binomial(den_svy[, 1], model_pred[ind_svy, 4, 1]);
-    num_svy[, 2] ~ binomial(den_svy[, 2], model_pred[ind_svy, 4, 2]);
-  // fitting to hivst program data
-    hts_m = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / phi;
-    hivst ~ normal(hts_m[ind_hts], se_hts);
-}
-
-generated quantities {
-    vector[niter] hivst_prd;
-    real svy_prd_m[niter];
-    real svy_prd_f[niter];   
-    real pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, 
-                                        pop, dt);
-      svy_prd_m = pred[, 4, 1];
-      svy_prd_f = pred[, 4, 2];
-      hivst_prd = (to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / phi;
-}
-'
-
-# we compile the model and expose the function to invoke it directly in R
-expose_stan_functions(stanc(model_code = hivst_mod))
-hivst_stan <- stan_model(model_code = hivst_mod)
-
-
 # survey data and hivst program data
 
 ind_svy <- (c(2017.5, 2022.5) - start) / dt
@@ -525,117 +489,6 @@ for (i in 2:length(beta_ind)) {
 }
 yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
 
-#' ----------------
-# ---- stan code ----
-#' ----------------
-library(rstan)
-hivst_mod <- '
-functions {
-  // function to run the model for a given country
-  real[, , ] hivst_fun(int niter,
-                   vector beta_t_dt,
-                   real beta_retest,
-                   real beta_male,
-                   vector pop,
-                   real dt) {
-
-    // we convert the beta from the log scale
-    vector[niter] rr_t = exp(beta_t_dt);
-    real rr_r = exp(beta_retest);
-    real rr_m = exp(beta_male);
-    
-    // we initialize the 2 compartments (nvr, evr) for hivst
-    real out[niter, 4, 2];
-    out = rep_array(0.0, niter, 4, 2);
-    out[1, 1, 1] = pop[1];
-    out[1, 1, 2] = pop[2];
-
-    for (i in 2:niter) {
-    // ode males
-      out[i, 1, 1] = out[i - 1, 1, 1] + dt * (- rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 2, 1] = out[i - 1, 2, 1] + dt * (+ rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 3, 1] = rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
-      out[i, 4, 1] = out[i, 2, 1] / (out[i, 1, 1] + out[i, 2, 1]);
-    // ode females
-      out[i, 1, 2] = out[i - 1, 1, 2] + dt * (- rr_t[i] * out[i - 1, 1, 2]);
-      out[i, 2, 2] = out[i - 1, 2, 2] + dt * (+ rr_t[i] * out[i - 1, 1, 2]);
-      out[i, 3, 2] = rr_t[i] * (out[i - 1, 1, 2] + rr_r * out[i - 1, 2, 2]);
-      out[i, 4, 2] = out[i, 2, 2] / (out[i, 1, 2] + out[i, 2, 2]);
-    }
-
-  // we assign the outputs
-    return out;
-}
-}
-
-data {
-  int<lower = 1> n_yr;        // number of years
-  int<lower = 1> niter;       // number of iterations
-  int<lower = 1> yr_ind[niter]; // to map the yearly rate to the dt ones
-  real dt;                    // time step of ode
-  vector[2] pop;                   // population from wpp
-  int<lower = 0> n_hts;       // numbers of years with observed hivst data
-  int<lower = 1> n_svy;       // numbers of years with observed survey data  
-  int<lower = 0> ind_hts[n_hts]; // indices to get hts
-  int<lower = 0> ind_svy[n_svy]; // indices to get svy
-  int hivst[n_hts];      // number of hivst performed per year
-  real se_hts[n_hts];    // standard error for program data
-  int<lower = 0> num_svy[n_svy, 2]; // numerator proportion survey (design-adjusted)
-  int<lower = 1> den_svy[n_svy, 2]; // denominator proportion survey (design-adjusted)
-}
-
-parameters {
-  real beta_t[n_yr];                  // yearly hivstesting rates (rw1)
-  real<lower = 0, upper = 5> sd_rw;   // standard deviation of the rw1 for beta_t
-  real beta_retest;                   // re-testing rate
-  real beta_male;                     // male relative rate of hivst (referent = female)
-  real<lower = 0, upper = 1> phi;     // proportion of hivst kits distributed that are used
-}
-
-transformed parameters {
-  // here we assign the yearly hivst rates for each dt (niter)
-  vector[niter] beta_t_dt;
-  for (i in 1:niter) {
-    beta_t_dt[i] =  beta_t[yr_ind[i]];
-  }
-}
-
-model {
-  vector[niter] hts_m;
-  // we use our custom function to get the expected proportion of hivst users and tests
-  real model_pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, pop, dt);
-  // priors
-  beta_t[1] ~ normal(-5, 2);      // exp(-5 + c(-1, 1) * 2 * 1.96)
-  beta_t[2:n_yr] ~ normal(beta_t[1:(n_yr - 1)], sd_rw);
-  sd_rw ~ normal(0, 1) T[0, 5];
-  beta_retest ~ normal(log(1.2), 0.5); // exp(log(1.2) + c(-1, 1) * 1.96 * 0.5)
-  beta_male ~ normal(log(1), 0.5);     // exp(log(1) + c(-1, 1) * 1.96 * 0.5)
-  phi ~ beta(24, 6);                   // plot(dbeta(x = seq(0, 1, 0.01), shape1 = 6, shape2 = 1.5), type = "l")
-
-  // fitting to survey data
-    num_svy[, 1] ~ binomial(den_svy[, 1], model_pred[ind_svy, 4, 1]);
-    num_svy[, 2] ~ binomial(den_svy[, 2], model_pred[ind_svy, 4, 2]);
-  // fitting to hivst program data
-    hts_m = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / phi;
-    hivst ~ normal(hts_m[ind_hts], se_hts);
-}
-
-generated quantities {
-    vector[niter] hivst_prd;
-    real svy_prd_m[niter];
-    real svy_prd_f[niter];   
-    real pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, 
-                                        pop, dt);
-      svy_prd_m = pred[, 4, 1];
-      svy_prd_f = pred[, 4, 2];
-      hivst_prd = (to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / phi;
-}
-'
-
-# we compile the model and expose the function to invoke it directly in R
-expose_stan_functions(stanc(model_code = hivst_mod))
-hivst_stan <- stan_model(model_code = hivst_mod)
-
 
 # survey data and hivst program data
 
@@ -761,118 +614,6 @@ for (i in 2:length(beta_ind)) {
   yr_ind[beta_ind[i - 1]:(beta_ind[i] - 1)] <- i - 1
 }
 yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
-
-#' ----------------
-# ---- stan code ----
-#' ----------------
-library(rstan)
-hivst_mod <- '
-functions {
-  // function to run the model for a given country
-  real[, , ] hivst_fun(int niter,
-                   vector beta_t_dt,
-                   real beta_retest,
-                   real beta_male,
-                   vector pop,
-                   real dt) {
-
-    // we convert the beta from the log scale
-    vector[niter] rr_t = exp(beta_t_dt);
-    real rr_r = exp(beta_retest);
-    real rr_m = exp(beta_male);
-    
-    // we initialize the 2 compartments (nvr, evr) for hivst
-    real out[niter, 4, 2];
-    out = rep_array(0.0, niter, 4, 2);
-    out[1, 1, 1] = pop[1];
-    out[1, 1, 2] = pop[2];
-
-    for (i in 2:niter) {
-    // ode males
-      out[i, 1, 1] = out[i - 1, 1, 1] + dt * (- rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 2, 1] = out[i - 1, 2, 1] + dt * (+ rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 3, 1] = rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
-      out[i, 4, 1] = out[i, 2, 1] / (out[i, 1, 1] + out[i, 2, 1]);
-    // ode females
-      out[i, 1, 2] = out[i - 1, 1, 2] + dt * (- rr_t[i] * out[i - 1, 1, 2]);
-      out[i, 2, 2] = out[i - 1, 2, 2] + dt * (+ rr_t[i] * out[i - 1, 1, 2]);
-      out[i, 3, 2] = rr_t[i] * (out[i - 1, 1, 2] + rr_r * out[i - 1, 2, 2]);
-      out[i, 4, 2] = out[i, 2, 2] / (out[i, 1, 2] + out[i, 2, 2]);
-    }
-
-  // we assign the outputs
-    return out;
-}
-}
-
-data {
-  int<lower = 1> n_yr;        // number of years
-  int<lower = 1> niter;       // number of iterations
-  int<lower = 1> yr_ind[niter]; // to map the yearly rate to the dt ones
-  real dt;                    // time step of ode
-  vector[2] pop;                   // population from wpp
-  int<lower = 0> n_hts;       // numbers of years with observed hivst data
-  int<lower = 1> n_svy;       // numbers of years with observed survey data  
-  int<lower = 0> ind_hts[n_hts]; // indices to get hts
-  int<lower = 0> ind_svy[n_svy]; // indices to get svy
-  int hivst[n_hts];      // number of hivst performed per year
-  real se_hts[n_hts];    // standard error for program data
-  int<lower = 0> num_svy[n_svy, 2]; // numerator proportion survey (design-adjusted)
-  int<lower = 1> den_svy[n_svy, 2]; // denominator proportion survey (design-adjusted)
-}
-
-parameters {
-  real beta_t[n_yr];                  // yearly hivstesting rates (rw1)
-  real<lower = 0, upper = 5> sd_rw;   // standard deviation of the rw1 for beta_t
-  real beta_retest;                   // re-testing rate
-  real beta_male;                     // male relative rate of hivst (referent = female)
-  real<lower = 0, upper = 1> phi;     // proportion of hivst kits distributed that are used
-}
-
-transformed parameters {
-  // here we assign the yearly hivst rates for each dt (niter)
-  vector[niter] beta_t_dt;
-  for (i in 1:niter) {
-    beta_t_dt[i] =  beta_t[yr_ind[i]];
-  }
-}
-
-model {
-  vector[niter] hts_m;
-  // we use our custom function to get the expected proportion of hivst users and tests
-  real model_pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, pop, dt);
-  // priors
-  beta_t[1] ~ normal(-5, 2);      // exp(-5 + c(-1, 1) * 2 * 1.96)
-  beta_t[2:n_yr] ~ normal(beta_t[1:(n_yr - 1)], sd_rw);
-  sd_rw ~ normal(0, 1) T[0, 5];
-  beta_retest ~ normal(log(1.2), 0.5); // exp(log(1.2) + c(-1, 1) * 1.96 * 0.5)
-  beta_male ~ normal(log(1), 0.5);     // exp(log(1) + c(-1, 1) * 1.96 * 0.5)
-  phi ~ beta(24, 6);                   // plot(dbeta(x = seq(0, 1, 0.01), shape1 = 6, shape2 = 1.5), type = "l")
-
-  // fitting to survey data
-    num_svy[, 1] ~ binomial(den_svy[, 1], model_pred[ind_svy, 4, 1]);
-    num_svy[, 2] ~ binomial(den_svy[, 2], model_pred[ind_svy, 4, 2]);
-  // fitting to hivst program data
-    hts_m = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / phi;
-    hivst ~ normal(hts_m[ind_hts], se_hts);
-}
-
-generated quantities {
-    vector[niter] hivst_prd;
-    real svy_prd_m[niter];
-    real svy_prd_f[niter];   
-    real pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, 
-                                        pop, dt);
-      svy_prd_m = pred[, 4, 1];
-      svy_prd_f = pred[, 4, 2];
-      hivst_prd = (to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / phi;
-}
-'
-
-# we compile the model and expose the function to invoke it directly in R
-expose_stan_functions(stanc(model_code = hivst_mod))
-hivst_stan <- stan_model(model_code = hivst_mod)
-
 
 # survey data and hivst program data
 
@@ -1004,113 +745,6 @@ for (i in 2:length(beta_ind)) {
 }
 yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
 
-#' ----------------
-# ---- stan code ----
-#' ----------------
-library(rstan)
-hivst_mod <- '
-functions {
-  // function to run the model for a given country
-  real[, , ] hivst_fun(int niter,
-                   vector beta_t_dt,
-                   real beta_retest,
-                   real beta_male,
-                   vector pop,
-                   real dt) {
-
-    // we convert the beta from the log scale
-    vector[niter] rr_t = exp(beta_t_dt);
-    real rr_r = exp(beta_retest);
-    real rr_m = exp(beta_male);
-    
-    // we initialize the 2 compartments (nvr, evr) for hivst
-    real out[niter, 4, 2];
-    out = rep_array(0.0, niter, 4, 2);
-    out[1, 1, 1] = pop[1];
-    out[1, 1, 2] = pop[2];
-
-    for (i in 2:niter) {
-    // ode males
-      out[i, 1, 1] = out[i - 1, 1, 1] + dt * (- rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 2, 1] = out[i - 1, 2, 1] + dt * (+ rr_t[i] * rr_m * out[i - 1, 1, 1]);
-      out[i, 3, 1] = rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
-      out[i, 4, 1] = out[i, 2, 1] / (out[i, 1, 1] + out[i, 2, 1]);
-    // ode females
-      out[i, 1, 2] = out[i - 1, 1, 2] + dt * (- rr_t[i] * out[i - 1, 1, 2]);
-      out[i, 2, 2] = out[i - 1, 2, 2] + dt * (+ rr_t[i] * out[i - 1, 1, 2]);
-      out[i, 3, 2] = rr_t[i] * (out[i - 1, 1, 2] + rr_r * out[i - 1, 2, 2]);
-      out[i, 4, 2] = out[i, 2, 2] / (out[i, 1, 2] + out[i, 2, 2]);
-    }
-
-  // we assign the outputs
-    return out;
-}
-}
-
-data {
-  int<lower = 1> n_yr;        // number of years
-  int<lower = 1> niter;       // number of iterations
-  int<lower = 1> yr_ind[niter]; // to map the yearly rate to the dt ones
-  real dt;                    // time step of ode
-  vector[2] pop;                   // population from wpp
-  int<lower = 0> n_hts;       // numbers of years with observed hivst data
-  int<lower = 1> n_svy;       // numbers of years with observed survey data  
-  int<lower = 0> ind_hts[n_hts]; // indices to get hts
-  int<lower = 0> ind_svy[n_svy]; // indices to get svy
-  int hivst[n_hts];      // number of hivst performed per year
-  real se_hts[n_hts];    // standard error for program data
-  int<lower = 0> num_svy[n_svy, 2]; // numerator proportion survey (design-adjusted)
-  int<lower = 1> den_svy[n_svy, 2]; // denominator proportion survey (design-adjusted)
-}
-
-parameters {
-  real beta_t[n_yr];                  // yearly hivstesting rates (rw1)
-  real<lower = 0, upper = 5> sd_rw;   // standard deviation of the rw1 for beta_t
-  real beta_retest;                   // re-testing rate
-  real beta_male;                     // male relative rate of hivst (referent = female)
-  real<lower = 0, upper = 1> phi;     // proportion of hivst kits distributed that are used
-}
-
-transformed parameters {
-  // here we assign the yearly hivst rates for each dt (niter)
-  vector[niter] beta_t_dt;
-  for (i in 1:niter) {
-    beta_t_dt[i] =  beta_t[yr_ind[i]];
-  }
-}
-
-model {
-  vector[niter] hts_m;
-  // we use our custom function to get the expected proportion of hivst users and tests
-  real model_pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, pop, dt);
-  // priors
-  beta_t[1] ~ normal(-5, 2);      // exp(-5 + c(-1, 1) * 2 * 1.96)
-  beta_t[2:n_yr] ~ normal(beta_t[1:(n_yr - 1)], sd_rw);
-  sd_rw ~ normal(0, 1) T[0, 5];
-  beta_retest ~ normal(log(1.2), 0.5); // exp(log(1.2) + c(-1, 1) * 1.96 * 0.5)
-  beta_male ~ normal(log(1), 0.5);     // exp(log(1) + c(-1, 1) * 1.96 * 0.5)
-  phi ~ beta(24, 6);                   // plot(dbeta(x = seq(0, 1, 0.01), shape1 = 6, shape2 = 1.5), type = "l")
-
-  // fitting to survey data
-    num_svy[, 1] ~ binomial(den_svy[, 1], model_pred[ind_svy, 4, 1]);
-    num_svy[, 2] ~ binomial(den_svy[, 2], model_pred[ind_svy, 4, 2]);
-  // fitting to hivst program data
-    hts_m = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / phi;
-    hivst ~ normal(hts_m[ind_hts], se_hts);
-}
-
-generated quantities {
-    vector[niter] hivst_prd;
-    real svy_prd_m[niter];
-    real svy_prd_f[niter];   
-    real pred[niter, 4, 2] = hivst_fun(niter, beta_t_dt, beta_retest, beta_male, 
-                                        pop, dt);
-      svy_prd_m = pred[, 4, 1];
-      svy_prd_f = pred[, 4, 2];
-      hivst_prd = (to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / phi;
-}
-'
-
 # we compile the model and expose the function to invoke it directly in R
 expose_stan_functions(stanc(model_code = hivst_mod))
 hivst_stan <- stan_model(model_code = hivst_mod)
@@ -1214,8 +848,6 @@ points(hts_dat ~ time[ind_hts], pch = 16, col = "goldenrod3", cex = 1.25)
 
 
 mtext("Madagascar", outer = TRUE, cex = 1.5)
-
-
 
 
 
