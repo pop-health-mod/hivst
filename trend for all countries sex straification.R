@@ -4,7 +4,6 @@ gc()
 
 library(wpp2024)
 library(rstan)
-library(V8)
 
 #---preparing model inputs---
 
@@ -14,14 +13,14 @@ data(popF1)
 
 # function to retrieve pop data in 2020
 get_popdata <- function(cnt_name, year="2020") {
-  wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(c(1949:2010)))]
-  wpp_f <- popF1[popF1$name == cnt_name, !(colnames(popF1) %in% as.character(c(1949:2010)))]
+  wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(c(1949:2008)))]
+  wpp_f <- popF1[popF1$name == cnt_name, !(colnames(popF1) %in% as.character(c(1949:2008)))]
   return(c(sum(wpp_m[(15 + 1):(100 + 1), year]) * 1000, 
            sum(wpp_f[(15 + 1):(100 + 1), year]) * 1000))
 }
 
 # pop for 6 countries
-countries <- c("Kenya", "Ghana", "Sierra Leone", "Malawi", "Madagascar", "Zimbabwe") 
+countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", "Sierra Leone") 
 pop <- sapply(countries, get_popdata)#2by2 matrix of male & female pop in 6 countries
 
 # time specification
@@ -121,11 +120,9 @@ parameters {
   real<lower = 1e-6, upper = 5> sd_rw;    // sd of the rw1 for beta_t
   real<lower = 1e-6, upper = 5> sd_phi;    // sd of the rw1 for beta_t
   real<lower = 1e-6, upper = 5> sd_rt;    // sd of the rw1 for beta_t
-  real<lower = 1e-6, upper = 5> sd_male;    // sd of the rw1 for beta_male
   real beta_retest_overall;            // overall shared re-testing rate
   real beta_retest[n_cnt];            // country-specific re-testing rates
-  real beta_male_overall;             //overall male relative rate of HIVST
-  real beta_male[n_cnt];             //overall male relative rate of HIVST
+  real beta_male;             //overall male relative rate of HIVST
   real phi_overall; // overall proportion of HIVST kits used
   real phi[n_cnt];      // country-specific proportions of HIVST kits used
 }
@@ -147,24 +144,21 @@ model {
   sd_rw ~ normal(0, 1) T[1e-6, 5];
   sd_phi ~ normal(0, 0.5) T[1e-6, 5];
   sd_rt ~ normal(0, 0.5) T[1e-6, 5];
-  sd_male ~ normal(0, 0.5) T[1e-6, 5];
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(log(1.2), 0.5);
   // overall prior for the % of tests distributed being used
   phi_overall ~ normal(logit(0.85), 0.5);
-  // overall prior for male-to-female ratio
-  beta_male_overall ~ normal(log(1), 0.5);
+     beta_male ~ normal(log(1), 0.5);
 
   // country-specific priors
   for (c in 1:n_cnt) {
     beta_retest[c] ~ normal(beta_retest_overall, sd_rt);
     phi[c] ~ normal(phi_overall, sd_phi);
-    beta_male[c] ~ normal(beta_male_overall, sd_male);
     beta_t[c, 1] ~ normal(-5, 0.5);
     beta_t[c, 2:n_yr] ~ normal(beta_t[c, 1:(n_yr - 1)], sd_rw);
 
   // model predictions and likelihoods 
-    real model_pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], pop[, c], dt, dt_yr);
+    real model_pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male, pop[, c], dt, dt_yr);
 
     // fitting to survey data (layer of country and surveys)
       num_svy[svy_idx_s[c]:svy_idx_e[c], 1] ~ binomial(den_svy[svy_idx_s[c]:svy_idx_e[c], 1], 
@@ -185,7 +179,7 @@ generated quantities {
     matrix[n_cnt, niter] svy_prd_f;  // predicted survey proportions (females) per country
 
     for (c in 1:n_cnt) {
-    real pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], pop[, c], dt, dt_yr);
+    real pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male, pop[, c], dt, dt_yr);
         
         // survey prediction
             svy_prd_m[c, ] = to_row_vector(pred[, 4, 1]);  // males ever used HIVST
@@ -223,16 +217,6 @@ cnt_data <- list(
     hts_dat = c(20000, 1323, 235000, 140500),
     se_hts = c(20000, 1323, 235000, 140500) * 0.1
   ),
-  sierraleone = list(
-    yr_svy = c(2017.5, 2019.5),
-    ind_svy = (c(2017.5, 2019.5) - start) / dt,
-    den_svy = round(cbind(c(2465, 2907), c(5096, 2607))),
-    num_svy = round(cbind(c(50, 62), c(165, 101))),
-    yr_hts = c(2021, 2022, 2023),
-    ind_hts = (c(2021, 2022, 2023) - start) / dt,
-    hts_dat = c(2678, 1173, 50340),
-    se_hts = c(2678, 1173, 50340) * 0.1
-    ),
   malawi = list(
     yr_svy = c(2015.5, 2020.5),
     ind_svy = (c(2015.5, 2020.5) - start) / dt,
@@ -262,6 +246,17 @@ cnt_data <- list(
     ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start) / dt,
     hts_dat = c(174566, 240434, 459517, 414499, 513090),
     se_hts = c(174566, 240434, 459517, 414499, 513090) * 0.1
+  ),
+  ,
+  sierraleone = list(
+    yr_svy = c(2017.5, 2019.5),
+    ind_svy = (c(2017.5, 2019.5) - start) / dt,
+    den_svy = round(cbind(c(2465, 2907), c(5096, 2607))),
+    num_svy = round(cbind(c(50, 62), c(165, 101))),
+    yr_hts = c(2021, 2022, 2023),
+    ind_hts = (c(2021, 2022, 2023) - start) / dt,
+    hts_dat = c(2678, 1173, 50340),
+    se_hts = c(2678, 1173, 50340) * 0.1
   )
 )
 
@@ -336,8 +331,8 @@ rstan_options(auto_write = TRUE)
 
 #fitting the model
 options(mc.cores = parallel::detectCores())
-fit <- sampling(hivst_stan, data = data_stan, iter = 2000, chains = 4,
-                warmup = 1000, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4,
+                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
 
 # traceplots
 traceplot(fit, pars = "beta_t")
@@ -350,6 +345,7 @@ traceplot(fit, pars = "beta_male")
 traceplot(fit, pars = "phi_overall")
 traceplot(fit, pars = "phi")
 
+summary(fit)
 
 # parameters
 r <- as.data.frame(rstan::summary(fit, pars = c("beta_t"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -423,153 +419,12 @@ lines(time, pool_med, col = median_col, lwd = 2)
 axis(1, at = custom_years, labels = custom_years)
 
 legend("topright",
-       legend = c("Weighted proportion for 6 countries with more than one survey", "95% CrI"),
+       legend = c("Combined trend fit for 6 countries with more than one survey", "95% CrI"),
        lty = c(1, NA),
        pch = c(NA, 15),
        pt.cex = c(1, 1.5),
        col = c(median_col, ci_shade_col),
        bty = "n")
 
-title("Estimated HIV Self-Test Uptake")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#-----checking for individual country-------------
-#----results with 95%CrI--------
-
-# male survey pred
-svy_m <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-# medians
-medians_svy_m <- svy_m$`50%`
-# converting into matrix with niter rows and n_cnt columns
-medians_svy_m_mat <- matrix(medians_svy_m, nrow = niter, ncol = n_cnt, byrow = FALSE)
-colnames(medians_svy_m_mat) <- countries
-# 2.5% quantile estimates for svy_prd_m
-low_svy_m <- svy_m$`2.5%`
-low_svy_m_mat <- matrix(low_svy_m, nrow = niter, ncol = n_cnt, byrow = FALSE)
-colnames(low_svy_m_mat) <- countries
-# 97.5% quantile estimates for svy_prd_m
-high_svy_m <- svy_m$`97.5%`
-high_svy_m_mat <- matrix(high_svy_m, nrow = niter, ncol = n_cnt, byrow = FALSE)
-colnames(high_svy_m_mat) <- countries
-
-# female survey pred
-svy_f <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-# medians and 95% CrI
-medians_svy_f <- svy_f$`50%`
-medians_svy_f_mat <- matrix(medians_svy_f, nrow = niter, ncol = n_cnt, byrow = FALSE)
-colnames(medians_svy_f_mat) <- countries
-
-low_svy_f <- svy_f$`2.5%`
-low_svy_f_mat <- matrix(low_svy_f, nrow = niter, ncol = n_cnt, byrow = FALSE)
-colnames(low_svy_f_mat) <- countries
-
-high_svy_f <- svy_f$`97.5%`
-high_svy_f_mat <- matrix(high_svy_f, nrow = niter, ncol = n_cnt, byrow = FALSE)
-colnames(high_svy_f_mat) <- countries
-
-# prgm data pred
-hts <- as.data.frame(rstan::summary(fit, pars = c("hivst_prd"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-medians_hts <- hts$`50%`
-medians_hts_mat <- matrix(medians_hts, nrow = niter, ncol = n_cnt, byrow = FALSE)
-colnames(medians_hts_mat) <- countries
-
-low_hts <- hts$`2.5%`
-low_hts_mat <- matrix(low_hts, nrow = niter, ncol = n_cnt, byrow = FALSE)
-colnames(low_hts_mat) <- countries
-
-high_hts <- hts$`97.5%`
-high_hts_mat <- matrix(high_hts, nrow = niter, ncol = n_cnt, byrow = FALSE)
-colnames(high_hts_mat) <- countries
-
-
-#------plot for individual country--------
-
-countries <- c("Kenya", "Ghana")
-
-for (country_name in tolower(countries)) {
-  # matching capitalized version
-  c_name_capital <- countries[tolower(countries) == tolower(country_name)]
-  
-  # extracting pred 
-  median_m <- medians_svy_m_mat[, c_name_capital]
-  low_m <- low_svy_m_mat[, c_name_capital]
-  high_m <- high_svy_m_mat[, c_name_capital]
-  
-  median_f <- medians_svy_f_mat[, c_name_capital]
-  low_f <- low_svy_f_mat[, c_name_capital]
-  high_f <- high_svy_f_mat[, c_name_capital]
-  
-  median_hts <- medians_hts_mat[, c_name_capital]
-  low_hts <- low_hts_mat[, c_name_capital]
-  high_hts <- high_hts_mat[, c_name_capital]
-  
-  # extracting observed survey and prgm data
-  svy_dat_c <- cnt_data[[country_name]]$svy_dat
-  lci_svy_c <- cnt_data[[country_name]]$lci_svy
-  uci_svy_c <- cnt_data[[country_name]]$uci_svy
-  ind_svy_c <- cnt_data[[country_name]]$ind_svy
-  
-  hts_dat_c <- cnt_data[[country_name]]$hts_dat
-  ind_hts_c <- cnt_data[[country_name]]$ind_hts
-  
-  par(mfrow = c(1, 2), oma = c(0, 0, 2, 0), mar = c(4, 4, 1, 1))
-  
-  # Survey data
-  plot(time, median_m, type = "l", col = "steelblue4", lwd = 3, 
-       ylab = "Ever used HIVST(%)", ylim = c(0, 0.2), xlab = "Year")
-  polygon(x = c(time, rev(time)),
-          y = c(low_m, rev(high_m)),
-          col = yarrr::transparent("steelblue4", trans.val = 0.5), border = NA)
-  polygon(x = c(time, rev(time)),
-          y = c(low_f, rev(high_f)),
-          col = yarrr::transparent("pink3", trans.val = 0.5), border = NA)
-  lines(time, median_f, col = "pink3", lwd = 3)
-  
-  points(time[ind_svy_c], svy_dat_c[, 1], pch = 16, col = "blue4")
-  points(time[ind_svy_c], svy_dat_c[, 2], pch = 16, col = "firebrick4")
-  
-  segments(x0 = time[ind_svy_c], y0 = lci_svy_c[, 1],
-           x1 = time[ind_svy_c], y1 = uci_svy_c[, 1], col = "blue4")
-  segments(x0 = time[ind_svy_c], y0 = lci_svy_c[, 2],
-           x1 = time[ind_svy_c], y1 = uci_svy_c[, 2], col = "firebrick4")
-  
-  legend("topleft", legend = c("men", "women"), col = c("steelblue4", "pink4"), lwd = 4, bty = "n")
-  
-  # Program data
-  ylim_hts <- c(0, max(high_hts, hts_dat_c, na.rm = TRUE) * 1.1)
-  plot(time, median_hts, type = "l", col = "cyan4", lwd = 3, 
-       ylab = "Number of HIVST kits distributed", ylim = ylim_hts, xlab = "Year")
-  polygon(x = c(time, rev(time)),
-          y = c(low_hts, rev(high_hts)),
-          col = yarrr::transparent("cyan4", trans.val = 0.5), border = NA)
-  
-  points(time[ind_hts_c], hts_dat_c, pch = 16, col = "goldenrod3", cex = 1.25)
-  
-  mtext(c_name_capital, outer = TRUE, side = 3, line = 1, cex = 1.5)
-}
-
-
+title("Estimated Trend of HIV Self-Test Uptake")
 
