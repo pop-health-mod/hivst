@@ -47,8 +47,7 @@ functions {
                        real beta_retest,
                        real beta_male,
                        vector pop, // male&female 
-                       real dt,
-                       int dt_yr) {
+                       real dt) {
 
     // converting rates from log scale
     vector[niter] rr_t = exp(beta_t_dt); 
@@ -65,21 +64,14 @@ functions {
    // males
         out[i, 1, 1] = out[i - 1, 1, 1] + dt * (-rr_t[i] * rr_m * out[i - 1, 1, 1]);
         out[i, 2, 1] = out[i - 1, 2, 1] + dt * (+rr_t[i] * rr_m * out[i - 1, 1, 1]);
-        out[i, 3, 1] = dt * rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
+        out[i, 3, 1] = rr_t[i] * rr_m * (out[i - 1, 1, 1] + rr_r * out[i - 1, 2, 1]);
         out[i, 4, 1] = out[i, 2, 1] / (out[i, 1, 1] + out[i, 2, 1]);
         
     // females
         out[i, 1, 2] = out[i - 1, 1, 2] + dt * (-rr_t[i] * out[i - 1, 1, 2]);
         out[i, 2, 2] = out[i - 1, 2, 2] + dt * (+rr_t[i] * out[i - 1, 1, 2]);
-        out[i, 3, 2] = dt * rr_t[i] * (out[i - 1, 1, 2] + rr_r * out[i - 1, 2, 2]);
+        out[i, 3, 2] = rr_t[i] * (out[i - 1, 1, 2] + rr_r * out[i - 1, 2, 2]);
         out[i, 4, 2] = out[i, 2, 2] / (out[i, 1, 2] + out[i, 2, 2]);
-    }
-    
-    // we compute rolling sums to get the annual number of tests
-    int n_sum = niter - dt_yr;
-    for (i in 1:n_sum) {
-      out[i, 3, 1] = sum(out[i:(i + dt_yr - 1), 3, 1]); 
-      out[i, 3, 2] = sum(out[i:(i + dt_yr - 1), 3, 2]);       
     }
     return out;
 } 
@@ -93,7 +85,6 @@ data {
   int<lower = 1> tot_hts;         // total nb of year with hivst data, accross all countries
   int<lower = 1> yr_ind[niter];     // mapping the yearly rate to the dt ones
   real dt;       
-  int dt_yr; 
   matrix[2, n_cnt] pop;               // r = sex, c = cnt
   
   // for prgrm data
@@ -118,16 +109,28 @@ data {
 parameters {
   matrix[n_cnt, n_yr] beta_t;          // yearly HIVST rates (rw1) for each country
   real<lower = 1e-6, upper = 5> sd_rw;    // sd of the rw1 for beta_t
-  real<lower = 1e-6, upper = 5> sd_phi;    // sd of the rw1 for beta_t
-  real<lower = 1e-6, upper = 5> sd_rt;    // sd of the rw1 for beta_t
+  real<lower = 1e-6, upper = 2.5> sd_phi;    // sd of the RE for phi
+  real<lower = 1e-6, upper = 2.5> sd_rt;    // sd of the RE for the re-testing rate ratio
+  real<lower = 1e-6, upper = 2.5> sd_men;    // sd of the RE of the male rate ratio
   real beta_retest_overall;            // overall shared re-testing rate
-  real beta_retest[n_cnt];            // country-specific re-testing rates
-  real beta_male;             //overall male relative rate of HIVST
+  vector[n_cnt] beta_rt_raw;            // country-specific re-testing rates
+  real beta_men_overall;
+  vector[n_cnt] beta_men_raw;             //overall male relative rate of HIVST
   real phi_overall; // overall proportion of HIVST kits used
-  real phi[n_cnt];      // country-specific proportions of HIVST kits used
+  vector[n_cnt] phi_raw;      // country-specific proportions of HIVST kits used
 }
 
 transformed parameters {
+  // new non-centered parameterization
+  vector[n_cnt] beta_retest;
+  vector[n_cnt] beta_male;
+  vector[n_cnt] phi;
+  
+  beta_retest = beta_retest_overall + sd_rt * beta_rt_raw;
+  beta_male = beta_men_overall + sd_men * beta_men_raw;
+  phi = phi_overall + sd_phi * phi_raw;
+  
+  // mapping beta_t to beta_t_dt
   matrix[n_cnt, niter] beta_t_dt;  // yearly HIVST rates mapped to time steps
   for (c in 1:n_cnt) {
     for (i in 1:niter) {
@@ -141,24 +144,27 @@ model {
 
   // priors
   // overall prior for the SD of the RW1 for testing rate
-  sd_rw ~ normal(0, 1) T[1e-6, 5];
-  sd_phi ~ normal(0, 0.5) T[1e-6, 5];
-  sd_rt ~ normal(0, 0.5) T[1e-6, 5];
+  sd_rw ~ normal(0, 0.5) T[1e-6, 5];
+  sd_phi ~ normal(0, 0.25) T[1e-6, 2.5];
+  sd_rt ~ normal(0, 0.25) T[1e-6, 2.5];
+  sd_men ~ normal(0, 0.25) T[1e-6, 2.5];
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(log(1.2), 0.5);
   // overall prior for the % of tests distributed being used
   phi_overall ~ normal(logit(0.85), 0.5);
-     beta_male ~ normal(log(1), 0.5);
+  beta_men_overall ~ normal(log(1), 0.5);
+  
+  beta_rt_raw ~ std_normal();
+  beta_men_raw ~ std_normal();
+  phi_raw ~ std_normal();
 
   // country-specific priors
   for (c in 1:n_cnt) {
-    beta_retest[c] ~ normal(beta_retest_overall, sd_rt);
-    phi[c] ~ normal(phi_overall, sd_phi);
-    beta_t[c, 1] ~ normal(-5, 0.5);
+    beta_t[c, 1] ~ normal(-10, 1); // exp(-10 + c(-1, 1) * 1.96 * 1)
     beta_t[c, 2:n_yr] ~ normal(beta_t[c, 1:(n_yr - 1)], sd_rw);
 
   // model predictions and likelihoods 
-    real model_pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male, pop[, c], dt, dt_yr);
+    real model_pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], pop[, c], dt);
 
     // fitting to survey data (layer of country and surveys)
       num_svy[svy_idx_s[c]:svy_idx_e[c], 1] ~ binomial(den_svy[svy_idx_s[c]:svy_idx_e[c], 1], 
@@ -179,7 +185,7 @@ generated quantities {
     matrix[n_cnt, niter] svy_prd_f;  // predicted survey proportions (females) per country
 
     for (c in 1:n_cnt) {
-    real pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male, pop[, c], dt, dt_yr);
+    real pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], pop[, c], dt);
         
         // survey prediction
             svy_prd_m[c, ] = to_row_vector(pred[, 4, 1]);  // males ever used HIVST
@@ -202,8 +208,8 @@ cnt_data <- list(
     ind_svy = (c(2012.5, 2018.5, 2022.5) - start) / dt,
     den_svy = round(cbind(c(4605, 16082, 11562), c(6350, 17880, 25725))),
     num_svy = round(cbind(c(148, 340, 1044), c(116, 436, 1242))),
-    yr_hts = c(2018,  2019,   2020,    2021,   2022,  2023),
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+    yr_hts = c(2018,  2019,   2020,    2021,   2022,  2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(197200, 400000, 595953, 630000, 342610, 617317),
     se_hts = c(197200, 400000, 595953, 630000, 342610, 617317) * 0.1
   ),
@@ -212,8 +218,8 @@ cnt_data <- list(
     ind_svy = (c(2017.5, 2022.5) - start) / dt,
     den_svy = round(cbind(c(2553, 4558), c(5575, 6250))),
     num_svy = round(cbind(c(37, 83), c(132, 151))),
-    yr_hts = c(2020,  2021,   2022,  2023),
-    ind_hts = (c(2020, 2021, 2022, 2023) - start) / dt,
+    yr_hts = c(2020,  2021,   2022,  2023) + 0.5,
+    ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(20000, 1323, 235000, 140500),
     se_hts = c(20000, 1323, 235000, 140500) * 0.1
   ),
@@ -222,8 +228,8 @@ cnt_data <- list(
     ind_svy = (c(2015.5, 2020.5) - start) / dt,
     den_svy = round(cbind(c(2796, 5165), c(14792, 5920))),
     num_svy = round(cbind(c(30, 406), c(136, 373))),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023),
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(408900, 101256, 561282, 602657, 735385, 910088),
     se_hts =  c(408900, 101256, 561282, 602657, 735385, 910088) * 0.1 
   ),
@@ -232,8 +238,8 @@ cnt_data <- list(
     ind_svy = (c(2018.5, 2021.5) - start) / dt,
     den_svy = round(cbind(c(3055, 6178), c(5039, 6825))),
     num_svy = round(cbind(c(35, 44), c(84, 20))),
-    yr_hts = c(2022,  2023),
-    ind_hts = (c(2022, 2023) - start) / dt,
+    yr_hts = c(2022,  2023) + 0.5,
+    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
     hts_dat = c(2500, 2500),
     se_hts = c(2500, 2500) * 0.1
   ),
@@ -242,8 +248,8 @@ cnt_data <- list(
     ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
     den_svy = round(cbind(c(6717, 3343, 6576), c(7964, 8104, 10058))),
     num_svy = round(cbind(c(118, 171, 381), c(21, 447, 594))),
-    yr_hts = c(2019, 2020, 2021, 2022, 2023),
-    ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start) / dt,
+    yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(174566, 240434, 459517, 414499, 513090),
     se_hts = c(174566, 240434, 459517, 414499, 513090) * 0.1
   ),
@@ -252,8 +258,8 @@ cnt_data <- list(
     ind_svy = (c(2017.5, 2019.5) - start) / dt,
     den_svy = round(cbind(c(2465, 2907), c(5096, 2607))),
     num_svy = round(cbind(c(50, 62), c(165, 101))),
-    yr_hts = c(2021, 2022, 2023),
-    ind_hts = (c(2021, 2022, 2023) - start) / dt,
+    yr_hts = c(2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(2678, 1173, 50340),
     se_hts = c(2678, 1173, 50340) * 0.1
   )
@@ -308,9 +314,7 @@ data_stan <- list(
   yr_ind = yr_ind,                     
   niter = niter,                       
   dt = dt,    
-  dt_yr = 1 / dt, 
   pop = pop,                           
-  beta_ind = beta_ind,
   n_svy_by_cnt = n_svy_by_cnt,                
   n_hts_by_cnt = n_hts_by_cnt, 
   tot_svy = sum(n_svy_by_cnt),
@@ -328,20 +332,27 @@ data_stan <- list(
 )
 rstan_options(auto_write = TRUE)
 
-#fitting the model
+# ---- fitting the model ----
 options(mc.cores = parallel::detectCores())
-fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4,
-                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 2000, chains = 4,
+                warmup = 1000, thin = 1, control = list(adapt_delta = 0.9))
+
+shinystan::launch_shinystan(fit)
 
 # traceplots
 traceplot(fit, pars = "beta_t")
 traceplot(fit, pars = "sd_rw")
 traceplot(fit, pars = "sd_phi")
 traceplot(fit, pars = "sd_rt")
+traceplot(fit, pars = "sd_men")
 traceplot(fit, pars = "beta_retest_overall")
+traceplot(fit, pars = "beta_rt_raw")
 traceplot(fit, pars = "beta_retest")
+traceplot(fit, pars = "beta_men_overall")
+traceplot(fit, pars = "beta_men_raw")
 traceplot(fit, pars = "beta_male")
 traceplot(fit, pars = "phi_overall")
+traceplot(fit, pars = "phi_raw")
 traceplot(fit, pars = "phi")
 
 summary(fit)
