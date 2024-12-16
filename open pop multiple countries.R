@@ -1,11 +1,13 @@
 
-# note: after the model fit we will plot overall trend by sex
-
 rm(list = ls())
 gc()
 
 library(wpp2024)
 library(rstan)
+library(LaplacesDemon)
+library(ggplot2)
+library(scales) 
+
 
 # male & female pop data from wpp
 data(popM1)
@@ -16,7 +18,6 @@ data(mxF1)
 
 #---start of year pop---
 countries <- c("Kenya", "Ghana")
-
 get_pop_2011 <- function(cnt_name) {
   wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(1949:2009))]
   wpp_f <- popF1[popF1$name == cnt_name, !(colnames(popF1) %in% as.character(1949:2009))]
@@ -452,9 +453,12 @@ traceplot(fit, pars = "phi")
 #summary(fit)
 
 # parameters
+
+# testing rate
 r <- as.data.frame(rstan::summary(fit, pars = c("beta_t"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(r$`50%`)
 
+# retesting rate ratio
 rr_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_retest_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(rr_overall$`50%`)
 rr <- as.data.frame(rstan::summary(fit, pars = c("beta_retest"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -462,63 +466,243 @@ exp(rr$`50%`)
 exp(rr$`2.5%`)
 exp(rr$`97.5%`)
 
+# rate ratio male
 rr_m <- as.data.frame(rstan::summary(fit, pars = c("beta_male"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(rr_m$`50%`)
 exp(rr_m$`2.5%`)
 exp(rr_m$`97.5%`)
 
+# phi
 phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-phi_overall$`50%`
-phi_overall$`2.5%`
-phi_overall$`97.5%`
-
+invlogit(phi_overall$`50%`)
+invlogit(phi_overall$`2.5%`)
+invlogit(phi_overall$`97.5%`)
 phi <- as.data.frame(rstan::summary(fit, pars = c("phi"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-phi$`50%`
-phi$`2.5%`
-phi$`97.5%`
+invlogit(phi$`50%`)
+invlogit(phi$`2.5%`)
+invlogit(phi$`97.5%`)
 
 
+#----verification step: checking wpp population fit with model-----------
+post <- rstan::extract(fit)
+beta_t_median <- apply(post$beta_t, c(2,3), median)  # beta_t_median is now [n_cnt, n_yr]
+beta_retest_median <- apply(post$beta_retest, 2, median) # length n_cnt
+beta_male_median <- apply(post$beta_male, 2, median)     # length n_cnt
+phi_median <- apply(post$phi, 2, median)                 # length n_cnt
+
+model_results <- list()
+for (c_idx in 1:n_cnt) {
+    beta_t_dt <- beta_t_median[c_idx, yr_ind]
+    entry_m_dt <- entry_m_vec[yr_ind, c_idx]
+  entry_f_dt <- entry_f_vec[yr_ind, c_idx]
+  mort_m_dt <- mort_m_vec[yr_ind, c_idx]
+  mort_f_dt <- mort_f_vec[yr_ind, c_idx]
+  pop_c <- pop[, c_idx] 
+  beta_retest_c <- beta_retest_median[c_idx]
+  beta_male_c <- beta_male_median[c_idx]
+  phi_c <- phi_median[c_idx]
+  
+  # calling the function
+  model_out_raw <- hivst_fun(
+    niter = niter,
+    beta_t_dt = beta_t_dt,
+    beta_retest = beta_retest_c, 
+    beta_male = beta_male_c,     
+    pop = pop_c,
+    dt = dt,
+    dt_yr = 1/dt,
+    entry_m_dt = entry_m_dt,
+    entry_f_dt = entry_f_dt,
+    mort_m_dt = mort_m_dt,
+    mort_f_dt = mort_f_dt
+  )
+  
+  model_array <- array(NA, dim = c(niter, 4, 2))
+  for (i in 1:niter) {
+    for (j in 1:4) {
+      model_array[i, j, ] <- model_out_raw[[i]][[j]]
+    }
+  }
+  
+  model_results[[c_idx]] <- model_array
+}
+
+steps_per_year <- 1/dt
+year_seq <- start:(end-1)
+
+# male pop verification
+comparison_list <- list()
+for (c_idx in seq_along(countries)) {
+  cn <- countries[c_idx]
+  model_array <- model_results[[c_idx]]  
+  total_pop_male <- model_array[, 1, 1] + model_array[, 2, 1]
+  wpp_m_country <- popM1[popM1$name == cn, !(colnames(popM1) %in% as.character(c(1949:2009)))]
+  
+  df_compare <- data.frame(
+    Year = year_seq,
+    ModelMale = NA_real_,
+    WPPMale = NA_real_
+  )
+  
+  for (y_i in seq_along(year_seq)) {
+    year <- year_seq[y_i]
+    mid_i <- (y_i - 1)*steps_per_year + (steps_per_year / 2)
+    model_male_pop_mid_year <- total_pop_male[mid_i]
+    wpp_male_mid_year <- sum(wpp_m_country[16:101, as.character(year)], na.rm = TRUE)*1000
+    df_compare$ModelMale[y_i] <- model_male_pop_mid_year
+    df_compare$WPPMale[y_i] <- wpp_male_mid_year
+  }
+    comparison_list[[cn]] <- df_compare
+}
+
+comparison_list[["Kenya"]]
+comparison_list[["Ghana"]]
 
 
+# plotting for male
+options(scipen=999)
+for (cn in countries) {
+  df <- comparison_list[[cn]]
+  
+  p <- ggplot(df, aes(x = Year)) +
+    geom_line(aes(y = ModelMale, color = "Model"), linewidth = 1.2) +
+    geom_line(aes(y = WPPMale, color = "WPP"), linewidth = 1.2) +
+    ggtitle(paste("Male Population Comparison -", cn)) +
+    ylab("Population") +
+    scale_color_manual(values = c("Model" = "blue", "WPP" = "red")) +
+    scale_y_continuous(labels = scales::comma) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16),
+      axis.title.x = element_text(size = 14),
+      axis.title.y = element_text(size = 14),
+      axis.text = element_text(size = 12)
+    )
+  print(p)  # explicitly print the plot object
+}
 
+#  female pop verification
+comparison_list_female <- list()
+for (c_idx in seq_along(countries)) {
+  cn <- countries[c_idx]
+  model_array <- model_results[[c_idx]] 
+  total_pop_female <- model_array[, 1, 2] + model_array[, 2, 2]
+  wpp_f_country <- popF1[popF1$name == cn, !(colnames(popF1) %in% as.character(c(1949:2009)))]
+  
+  df_compare_f <- data.frame(
+    Year = year_seq,
+    ModelFemale = NA_real_,
+    WPPFemale = NA_real_
+  )
+  
+  for (y_i in seq_along(year_seq)) {
+    year <- year_seq[y_i]
+    mid_i <- (y_i - 1)*steps_per_year + (steps_per_year / 2)
+    model_female_pop_mid_year <- total_pop_female[mid_i]
+    wpp_female_mid_year <- sum(wpp_f_country[16:101, as.character(year)], na.rm = TRUE)*1000
+    
+    df_compare_f$ModelFemale[y_i] <- model_female_pop_mid_year
+    df_compare_f$WPPFemale[y_i] <- wpp_female_mid_year
+  }
+  
+  comparison_list_female[[cn]] <- df_compare_f
+}
 
+# plotting for female
+options(scipen=999)
+for (cn in countries) {
+  df_f <- comparison_list_female[[cn]]
+  
+  p_f <- ggplot(df_f, aes(x = Year)) +
+    geom_line(aes(y = ModelFemale, color = "Model"), linewidth = 1.2) +
+    geom_line(aes(y = WPPFemale, color = "WPP"), linewidth = 1.2) +
+    ggtitle(paste("Female Population Comparison -", cn)) +
+    ylab("Population") +
+    scale_color_manual(values = c("Model" = "blue", "WPP" = "red")) +
+    scale_y_continuous(labels = scales::comma) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 16),
+      axis.title.x = element_text(size = 14),
+      axis.title.y = element_text(size = 14),
+      axis.text = element_text(size = 12)
+    )
+  print(p_f)
+}
 
+# plotting overall trend sex stratified
+extracted_fit <- extract(fit)
+ext_fit_m <- extracted_fit$svy_prd_m
+ext_fit_f <- extracted_fit$svy_prd_f
+n_sample <- dim(ext_fit_m)[1] 
+n_cnt <- dim(ext_fit_m)[2]
+niter <- dim(ext_fit_m)[3]
 
+# matrix for storing results
+male_prp <- matrix(NA, nrow = n_sample, ncol = niter)   
+female_prp <- matrix(NA, nrow = n_sample, ncol = niter)
 
+# total sum of m and f pop (deno)
+total_male_pop <- sum(data_stan$pop[1, ])    
+total_female_pop <- sum(data_stan$pop[2, ])  
 
+for (i in 1:n_sample) {
+  ext_fit_mi <- ext_fit_m[i, , ] * data_stan$pop[1, ]  
+  ext_fit_fi <- ext_fit_f[i, , ] * data_stan$pop[2, ]
+  male_numbers <- colSums(ext_fit_mi)   
+  female_numbers <- colSums(ext_fit_fi)    
+  male_prp[i, ] <- male_numbers / total_male_pop
+  female_prp[i, ] <- female_numbers / total_female_pop
+}
 
+# apply quantile function over the columns (denoted by margin=2)
+male_lci <- apply(male_prp, 2, quantile, probs = 0.025)
+male_med <- apply(male_prp, 2, quantile, probs = 0.5)
+male_uci <- apply(male_prp, 2, quantile, probs = 0.975)
 
+female_lci <- apply(female_prp, 2, quantile, probs = 0.025)
+female_med <- apply(female_prp, 2, quantile, probs = 0.5)
+female_uci <- apply(female_prp, 2, quantile, probs = 0.975)
 
+# plot for overall trend by sex (open population)
+#  plotting x axis as %
+male_med_perc <- male_med * 100
+male_lci_perc <- male_lci * 100
+male_uci_perc <- male_uci * 100
 
+female_med_perc <- female_med * 100
+female_lci_perc <- female_lci * 100
+female_uci_perc <- female_uci * 100
 
+y_lim <- c(0, max(male_uci_perc, female_uci_perc))
 
+plot(time, male_med_perc, type = "n",
+     xlab = "Year",
+     ylab = "Proportion of people having ever used HIVST (%)",
+     ylim = y_lim,
+     las = 1,
+     bty = "l"
+)
 
+polygon(x = c(time, rev(time)),
+        y = c(male_lci_perc, rev(male_uci_perc)),
+        col = adjustcolor("lightblue", alpha.f = 0.3), border = NA)
+lines(time, male_med_perc, col = "deepskyblue4", lwd = 2)
 
+polygon(x = c(time, rev(time)),
+        y = c(female_lci_perc, rev(female_uci_perc)),
+        col = adjustcolor("pink", alpha.f = 0.3), border = NA)
+lines(time, female_med_perc, col = "deeppink1", lwd = 2)
 
+title("Estimated trends in HIVST uptake in SSA by sex")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+legend("topleft",
+       legend = c("Men", "Women"),
+       col = c("deepskyblue4", "deeppink1"),
+       lwd = 2,
+       pch = c(15, 15),
+       pt.cex = 1.5,
+       pt.bg = c("lightblue", "pink"),
+       bty = "n")
 
 
