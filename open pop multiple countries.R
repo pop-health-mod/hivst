@@ -1,4 +1,8 @@
 
+
+# code with hierarchical priors
+# adding 6 countries
+
 rm(list = ls())
 gc()
 
@@ -17,7 +21,7 @@ data(mxM1)
 data(mxF1) 
 
 #---start of year pop---
-countries <- c("Kenya", "Ghana")
+countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", "Sierra Leone")
 get_pop_2011 <- function(cnt_name) {
   wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(1949:2009))]
   wpp_f <- popF1[popF1$name == cnt_name, !(colnames(popF1) %in% as.character(1949:2009))]
@@ -354,8 +358,49 @@ cnt_data <- list(
     ind_hts = (c(2020, 2021, 2022, 2023) - start) / dt,
     hts_dat = c(20000, 1323, 235000, 140500),
     se_hts = c(20000, 1323, 235000, 140500) * 0.1
+   ),
+ malawi = list(
+  yr_svy = c(2015.5, 2020.5),
+  ind_svy = (c(2015.5, 2020.5) - start) / dt,
+  den_svy = round(cbind(c(2796, 5165), c(14792, 5920))),
+  num_svy = round(cbind(c(30, 406), c(136, 373))),
+  yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023),
+  ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+  hts_dat = c(408900, 101256, 561282, 602657, 735385, 910088),
+  se_hts =  c(408900, 101256, 561282, 602657, 735385, 910088) * 0.1 
+ ),
+ madagascar = list(
+  yr_svy = c(2018.5, 2021.5),
+  ind_svy = (c(2018.5, 2021.5) - start) / dt,
+  den_svy = round(cbind(c(3055, 6178), c(5039, 6825))),
+  num_svy = round(cbind(c(35, 44), c(84, 20))),
+  yr_hts = c(2022,  2023),
+  ind_hts = (c(2022, 2023) - start) / dt,
+  hts_dat = c(2500, 2500),
+  se_hts = c(2500, 2500) * 0.1
+ ),
+ zimbabwe = list(
+  yr_svy = c(2015.5, 2019.5, 2020.5),
+  ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+  den_svy = round(cbind(c(6717, 3343, 6576), c(7964, 8104, 10058))),
+  num_svy = round(cbind(c(118, 171, 381), c(21, 447, 594))),
+  yr_hts = c(2019, 2020, 2021, 2022, 2023),
+  ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start) / dt,
+  hts_dat = c(174566, 240434, 459517, 414499, 513090),
+  se_hts = c(174566, 240434, 459517, 414499, 513090) * 0.1
+ ),
+ sierraleone = list(
+  yr_svy = c(2017.5, 2019.5),
+  ind_svy = (c(2017.5, 2019.5) - start) / dt,
+  den_svy = round(cbind(c(2465, 2907), c(5096, 2607))),
+  num_svy = round(cbind(c(50, 62), c(165, 101))),
+  yr_hts = c(2021, 2022, 2023),
+  ind_hts = (c(2021, 2022, 2023) - start) / dt,
+  hts_dat = c(2678, 1173, 50340),
+  se_hts = c(2678, 1173, 50340) * 0.1
 )
 )
+
 
 # list of survey years for each country
 n_cnt <- length(cnt_data)
@@ -483,7 +528,7 @@ invlogit(phi$`2.5%`)
 invlogit(phi$`97.5%`)
 
 
-#----verification step: checking wpp population fit with model-----------
+#----verification step: checking wpp pop with model predictions-----------
 post <- rstan::extract(fit)
 beta_t_median <- apply(post$beta_t, c(2,3), median)  # beta_t_median is now [n_cnt, n_yr]
 beta_retest_median <- apply(post$beta_retest, 2, median) # length n_cnt
