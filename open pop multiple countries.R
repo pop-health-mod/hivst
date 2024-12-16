@@ -1,0 +1,524 @@
+
+# note: after the model fit we will plot overall trend by sex
+
+rm(list = ls())
+gc()
+
+library(wpp2024)
+library(rstan)
+
+# male & female pop data from wpp
+data(popM1)
+data(popF1)
+# mortality data
+data(mxM1)   
+data(mxF1) 
+
+#---start of year pop---
+countries <- c("Kenya", "Ghana")
+
+get_pop_2011 <- function(cnt_name) {
+  wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(1949:2009))]
+  wpp_f <- popF1[popF1$name == cnt_name, !(colnames(popF1) %in% as.character(1949:2009))]
+  
+  pop_2010_m <- sum(wpp_m[16:101, "2010"]) * 1000
+  pop_2011_m <- sum(wpp_m[16:101, "2011"]) * 1000
+  pop_2010_f <- sum(wpp_f[16:101, "2010"]) * 1000
+  pop_2011_f <- sum(wpp_f[16:101, "2011"]) * 1000
+  
+  pop_2011_m <- (pop_2010_m + pop_2011_m) / 2
+  pop_2011_f <- (pop_2010_f + pop_2011_f) / 2
+  
+  return(c(pop_2011_m, pop_2011_f))
+}
+
+pop <- sapply(countries, get_pop_2011) #(rows=sex,n col=cnt)
+
+#----time----
+start <- 2011
+end <- 2024
+dt <- 0.1
+time <- seq(start, end - dt, by = dt)
+niter <- (end - start) / dt
+n_yr <- end - start
+
+#--entry rates-----
+# male
+get_entry_rates_m <- function(cn, start, end) {
+wpp_m <- popM1[popM1$name == cn, !(colnames(popM1) %in% as.character(1949:2009))]
+entry_rates_m <- numeric(end - start + 1)
+  for (t in start:end) {
+    if (t == 2024) {
+      numerator <- wpp_m[(15 + 1), "2023"] * 1000
+      denominator <- sum(wpp_m[(15 + 1):(100 + 1), "2023"]) * 1000
+    } else {
+      numerator <- wpp_m[(15 + 1), as.character(t)] * 1000
+      denominator <- sum(wpp_m[(15 + 1):(100 + 1), as.character(t)]) * 1000
+    }
+    entry_rates_m[t - start + 1] <- numerator / denominator
+  }
+  return(data.frame(Year = start:end, EntryRate_m = entry_rates_m))
+}
+
+# matrix [row:y,col:cnt]  
+# matrix for passing to stan, need to declare in data block as matrix and also enter in data_stan
+entry_m_vec <- do.call(cbind, lapply(countries, function(cn) get_entry_rates_m(cn, start, end)$EntryRate_m[2:14]))
+
+
+# female
+get_entry_rates_f <- function(cn_f, start, end) {
+  wpp_f <- popF1[popF1$name == cn_f, !(colnames(popF1) %in% as.character(1949:2009))]
+  entry_rates_f <- numeric(end - start + 1)
+  for (t in start:end) {
+    if (t == 2024) {
+      numerator <- wpp_f[(15 + 1), "2023"] * 1000
+      denominator <- sum(wpp_f[(15 + 1):(100 + 1), "2023"]) * 1000
+    } else {
+      numerator <- wpp_f[(15 + 1), as.character(t)] * 1000
+      denominator <- sum(wpp_f[(15 + 1):(100 + 1), as.character(t)]) * 1000
+    }
+    entry_rates_f[t - start + 1] <- numerator / denominator
+  }
+  return(data.frame(Year = start:end, EntryRate_f = entry_rates_f))
+}
+
+entry_f_vec <- do.call(cbind, lapply(countries, function(cn_f) get_entry_rates_f(cn_f, start, end)$EntryRate_f[2:14]))
+
+#------- death rates ------
+# male
+get_mort_rate_m <- function(cn, start, end) {
+  wpp_m <- popM1[popM1$name == cn, !(colnames(popM1) %in% as.character(1949:2009))]
+  mx_male <- mxM1[mxM1$name == cn, c("name", "age", as.character(2010:2024))]
+  wt_mort_rate_m <- numeric(end - start + 1)
+  for (t in as.character(start:end)) {
+    if (t == "2024") {
+      pop_male <- wpp_m[16:101, "2023"] * 1000
+      mort_male <- mx_male[16:101, "2024"]
+    } else {
+      pop_male <- wpp_m[16:101, t] * 1000
+      mort_male <- mx_male[16:101, t]
+    }
+    wt_deaths_m <- pop_male * mort_male
+    tot_deaths_m <- sum(wt_deaths_m)
+    tot_pop_m <- sum(pop_male)
+    wt_mort_rate_m[as.numeric(t) - start + 1] <- tot_deaths_m / tot_pop_m
+  }
+  return(wt_mort_rate_m)
+}
+
+# mortality matrix [r:y,c:cnt]
+mort_m_vec <- do.call(cbind, lapply(countries, function(cn) get_mort_rate_m(cn, start, end)[1:13]))
+
+# female
+get_mort_rate_f <- function(cn, start, end) {
+  wpp_f <- popF1[popF1$name == cn, !(colnames(popF1) %in% as.character(1949:2009))]
+  mx_female <- mxF1[mxF1$name == cn, c("name", "age", as.character(2010:2024))]
+  wt_mort_rate_f <- numeric(end - start + 1)
+  for (t in as.character(start:end)) {
+    if (t == "2024") {
+      pop_female <- wpp_f[16:101, "2023"] * 1000
+      mort_female <- mx_female[16:101, "2024"]
+    } else {
+      pop_female <- wpp_f[16:101, t] * 1000
+      mort_female <- mx_female[16:101, t]
+    }
+    wt_deaths_f <- pop_female * mort_female
+    tot_deaths_f <- sum(wt_deaths_f)
+    tot_pop_f <- sum(pop_female)
+    wt_mort_rate_f[as.numeric(t) - start + 1] <- tot_deaths_f / tot_pop_f
+  }
+  return(wt_mort_rate_f)
+}
+
+mort_f_vec <- do.call(cbind, lapply(countries, function(cn) get_mort_rate_f(cn, start, end)[1:13]))
+
+#-------mapping HIVST rate to the appropriate yearly indices-----
+beta_ind <- seq(1, niter, by = 1 / dt) 
+yr_ind <- rep(1, niter) 
+for (i in 2:length(beta_ind)) {
+  yr_ind[beta_ind[i - 1]:(beta_ind[i] - 1)] <- i - 1
+}
+yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
+
+
+#---stan code open pop multiple countries-----
+hivst_mod <- '
+functions {
+  real[, , ] hivst_fun(
+    int niter,
+    vector beta_t_dt,
+    real beta_retest,
+    real beta_male,
+    vector pop,
+    real dt,
+    int dt_yr,
+    vector entry_m_dt, // kept vector as before as it will loop over each country
+    vector entry_f_dt,
+    vector mort_m_dt,
+    vector mort_f_dt
+  ) { // converting rates from log scale to exponent
+    vector[niter] rr_t = exp(beta_t_dt);
+    real rr_r = exp(beta_retest);
+    real rr_m = exp(beta_male);
+    
+    real out[niter,4,2];
+    out = rep_array(0.0, niter,4,2);
+    
+    // Initialization
+    out[1,1,1] = pop[1];  // Males, never tested
+    out[1,1,2] = pop[2];  // Females, never tested
+    
+    for (i in 2:niter) {
+  // Males
+  real eps_m = entry_m_dt[i]; // entry rate male
+  real delta_m = mort_m_dt[i]; // mortality rate male
+  real lambda_m = rr_t[i] * rr_m;
+  
+  out[i,1,1] = out[i-1,1,1] + dt * (eps_m*(out[i-1,1,1] + out[i-1,2,1]) - lambda_m*out[i-1,1,1] - delta_m*out[i-1,1,1]);
+  out[i,2,1] = out[i-1,2,1] + dt * (lambda_m*out[i-1,1,1] - delta_m*out[i-1,2,1]);
+  out[i,3,1] = dt * lambda_m*(out[i-1,1,1] + rr_r*out[i-1,2,1]);
+  out[i,4,1] = out[i,2,1] / (out[i,1,1] + out[i,2,1]);
+  
+  // Females
+  real eps_f = entry_f_dt[i];  // entry rate female
+  real delta_f = mort_f_dt[i]; // mortality rate female
+  real lambda_f = rr_t[i];
+  
+  out[i,1,2] = out[i-1,1,2] + dt * (eps_f*(out[i-1,1,2] + out[i-1,2,2]) - lambda_f*out[i-1,1,2] - delta_f*out[i-1,1,2]);
+  out[i,2,2] = out[i-1,2,2] + dt * (lambda_f*out[i-1,1,2] - delta_f*out[i-1,2,2]);
+  out[i,3,2] = dt * lambda_f*(out[i-1,1,2] + rr_r*out[i-1,2,2]);
+  out[i,4,2] = out[i,2,2] / (out[i,1,2] + out[i,2,2]);
+    }
+  
+  // rolling sums to get the annual number of tests
+  int n_sum = niter - dt_yr;
+  for (j in 1:n_sum) {
+  out[j, 3, 1] = sum(out[j:(j + dt_yr - 1), 3, 1]); 
+  out[j, 3, 2] = sum(out[j:(j + dt_yr - 1), 3, 2]);
+  }
+return out;
+  }
+}
+
+data {
+  int<lower = 1> n_cnt;             // nb countries
+  int<lower = 1> n_yr;
+  int<lower = 1> niter;           // nb iterations (same for all countries)
+  int<lower = 1> tot_svy;         // nb of surveys accross all countries
+  int<lower = 1> tot_hts;         // nb of year with hivst data all countries
+  int<lower = 1> yr_ind[niter];
+  real dt;
+  int dt_yr; // time steps per year
+  matrix[2, n_cnt] pop;               // row sex col cnt
+  
+  // for prgrm data
+  int<lower = 1> n_hts_by_cnt[n_cnt];   // nb of years with observed HIVST data per cntry
+  int<lower = 1> ind_hts[tot_hts]; // indices pgm data
+  int<lower = 1> hivst[tot_hts];   // nb of HIVST performed per year per cnty
+  real se_hts[tot_hts];            // se for program data
+  
+  // for survey data
+  int<lower = 1> n_svy_by_cnt[n_cnt];     // nb of surveys per country
+  int<lower = 1> ind_svy[tot_svy]; // indices for survey data
+  int<lower = 1> num_svy[tot_svy, 2]; // numerator for survey proportions
+  int<lower = 1> den_svy[tot_svy, 2]; // denominator for survey proportions
+  
+  // indices for the unlist data
+  int<lower = 1> svy_idx_s[n_cnt];
+  int<lower = 1> svy_idx_e[n_cnt]; 
+  int<lower = 1> hts_idx_s[n_cnt];
+  int<lower = 1> hts_idx_e[n_cnt];
+
+  // entry and exit rates for open pop multiple countries
+  matrix[n_yr, n_cnt] entry_m;
+  matrix[n_yr, n_cnt] entry_f;
+  matrix[n_yr, n_cnt] mort_m;
+  matrix[n_yr, n_cnt] mort_f;
+}
+
+parameters {
+  matrix[n_cnt, n_yr] beta_t;          // yearly HIVST rates (rw1) for each country
+  real<lower = 1e-6, upper = 5> sd_rw;    // sd of the rw1 for beta_t
+  real<lower = 1e-6, upper = 5> sd_phi;    // sd of the rw1 for beta_t
+  real<lower = 1e-6, upper = 5> sd_rt;    // sd of the rw1 for beta_t
+  real<lower = 1e-6, upper = 5> sd_male;    // sd of the rw1 for beta_male
+  real beta_retest_overall;            // overall shared re-testing rate
+  real beta_retest[n_cnt];            // country-specific re-testing rates
+  real beta_male_overall;             // overall male relative rate of HIVST
+  real beta_male[n_cnt];             // country specific male relative rate of HIVST
+  real phi_overall;         // overall proportion of HIVST kits used
+  real phi[n_cnt];        // country-specific proportions of HIVST kits used
+}
+
+transformed parameters {
+  matrix[n_cnt, niter] beta_t_dt;
+  matrix[n_cnt, niter] entry_m_dt;
+  matrix[n_cnt, niter] entry_f_dt;
+  matrix[n_cnt, niter] mort_m_dt;
+  matrix[n_cnt, niter] mort_f_dt;
+
+  for (c in 1:n_cnt) {
+    for (i in 1:niter) {
+      int year = yr_ind[i];
+      beta_t_dt[c, i] = beta_t[c, year];
+      entry_m_dt[c, i] = entry_m[year, c]; // extracting in correct format as entrymvec has years as rows and cnt as col
+      entry_f_dt[c, i] = entry_f[year, c];
+      mort_m_dt[c, i] = mort_m[year, c];
+      mort_f_dt[c, i] = mort_f[year, c];
+    }
+  }
+}
+
+model {
+    matrix[niter, n_cnt] hts_mod;
+  // priors
+  // overall prior for the SD of the RW1 for testing rate
+  sd_rw ~ normal(0, 0.5) T[1e-6, 5];
+  sd_phi ~ normal(0, 0.5) T[1e-6, 5];
+  sd_rt ~ normal(0, 0.5) T[1e-6, 5];
+  sd_male ~ normal(0, 0.5) T[0, 5];
+  // overall prior for retesting parameter
+  beta_retest_overall ~ normal(log(1.2), 0.5);
+  // overall prior for the % of tests distributed being used
+  phi_overall ~ normal(logit(0.85), 0.5);
+  // overall prior for male rate ratio
+  beta_male_overall ~ normal(log(1), 0.5);
+
+  // country-specific priors
+  for (c in 1:n_cnt) {
+    beta_retest[c] ~ normal(beta_retest_overall, sd_rt);
+    phi[c] ~ normal(phi_overall, sd_phi);
+    beta_male[c] ~ normal(beta_male_overall, sd_male);
+    beta_t[c, 1] ~ normal(-10, 1);
+    beta_t[c, 2:n_yr] ~ normal(beta_t[c, 1:(n_yr - 1)], sd_rw);
+
+  // model predictions and likelihoods 
+    real model_pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], pop[, c], 
+    dt, dt_yr, to_vector(entry_m_dt[c, ]), to_vector(entry_f_dt[c, ]), to_vector(mort_m_dt[c, ]), to_vector(mort_f_dt[c, ]));
+
+    // fitting to survey data (layer of country and surveys)
+      num_svy[svy_idx_s[c]:svy_idx_e[c], 1] ~ binomial(den_svy[svy_idx_s[c]:svy_idx_e[c], 1], 
+                                              model_pred[ind_svy[svy_idx_s[c]:svy_idx_e[c]], 4, 1]);
+      num_svy[svy_idx_s[c]:svy_idx_e[c], 2] ~ binomial(den_svy[svy_idx_s[c]:svy_idx_e[c], 2], 
+                                              model_pred[ind_svy[svy_idx_s[c]:svy_idx_e[c]], 4, 2]);
+
+    // fitting to program data
+    hts_mod[, c] = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / inv_logit(phi[c]);
+    hivst[hts_idx_s[c]:hts_idx_e[c]] ~ normal(hts_mod[ind_hts[hts_idx_s[c]:hts_idx_e[c]], c], 
+                                              se_hts[hts_idx_s[c]:hts_idx_e[c]]);
+  }
+}
+
+generated quantities {
+    matrix[n_cnt, niter] hivst_prd;  // predicted HIVST rates per time step for all countries
+    matrix[n_cnt, niter] svy_prd_m;  // predicted survey proportions (males) per country
+    matrix[n_cnt, niter] svy_prd_f;  // predicted survey proportions (females) per country
+
+    for (c in 1:n_cnt) {
+    real pred[niter, 4, 2] = hivst_fun(niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], pop[, c], 
+    dt, dt_yr, to_vector(entry_m_dt[c, ]), to_vector(entry_f_dt[c, ]), to_vector(mort_m_dt[c, ]), to_vector(mort_f_dt[c, ]));
+        
+        // survey prediction
+            svy_prd_m[c, ] = to_row_vector(pred[, 4, 1]);  // males ever used HIVST
+            svy_prd_f[c, ] = to_row_vector(pred[, 4, 2]);  // females ever used HIVST
+        
+        // hts predictions 
+        hivst_prd[c, ] = to_row_vector(to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / inv_logit(phi[c]);
+        }
+}
+'
+
+# Compiling the model and exposing functions
+expose_stan_functions(stanc(model_code = hivst_mod))
+hivst_stan <- stan_model(model_code = hivst_mod)
+
+#------ Survey & program data for multiple countries ------------
+cnt_data <- list(
+  kenya = list(
+    yr_svy = c(2012.5, 2018.5, 2022.5),
+    ind_svy = (c(2012.5, 2018.5, 2022.5) - start) / dt,
+    den_svy = round(cbind(c(4605, 16082, 11562), c(6350, 17880, 25725))),
+    num_svy = round(cbind(c(148, 340, 1044), c(116, 436, 1242))),
+    yr_hts = c(2018,  2019,   2020,    2021,   2022,  2023),
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(197200, 400000, 595953, 630000, 342610, 617317),
+    se_hts = c(197200, 400000, 595953, 630000, 342610, 617317) * 0.1
+  ),
+  ghana = list(
+    yr_svy = c(2017.5, 2022.5),
+    ind_svy = (c(2017.5, 2022.5) - start) / dt,
+    den_svy = round(cbind(c(2553, 4558), c(5575, 6250))),
+    num_svy = round(cbind(c(37, 83), c(132, 151))),
+    yr_hts = c(2020,  2021,   2022,  2023),
+    ind_hts = (c(2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(20000, 1323, 235000, 140500),
+    se_hts = c(20000, 1323, 235000, 140500) * 0.1
+)
+)
+
+# list of survey years for each country
+n_cnt <- length(cnt_data)
+n_svy_by_cnt <- unlist(lapply(cnt_data, function(x) length(x$yr_svy))) 
+n_hts_by_cnt <- unlist(lapply(cnt_data, function(x) length(x$ind_hts)))
+
+# survey
+svy_idx_s <- NULL
+svy_idx_e <- NULL
+svy_idx_s[1] <- 1  
+svy_idx_e[1] <- n_svy_by_cnt[1]
+# hts
+hts_idx_s <- NULL
+hts_idx_e <- NULL
+hts_idx_s[1] <- 1  
+hts_idx_e[1] <- n_hts_by_cnt[1]
+
+# remaining countries
+for (c in 2:n_cnt) {
+  # survey
+  svy_idx_s[c] <- svy_idx_s[c - 1] + n_svy_by_cnt[c - 1]
+  svy_idx_e[c] <- svy_idx_s[c] + n_svy_by_cnt[c] - 1   
+  # hts
+  hts_idx_s[c] <- hts_idx_s[c - 1] + n_hts_by_cnt[c - 1]
+  hts_idx_e[c] <- hts_idx_s[c] + n_hts_by_cnt[c] - 1
+}
+
+# adding svy_dat, lci,uci after list as the operations cant be performed inside list
+cnt_data <- lapply(cnt_data, function(x) {
+  x$svy_dat <- x$num_svy / x$den_svy
+  x$lci_svy <- x$svy_dat - qnorm(0.975) * sqrt(x$svy_dat * (1 - x$svy_dat) / x$den_svy)
+  x$uci_svy <- x$svy_dat + qnorm(0.975) * sqrt(x$svy_dat * (1 - x$svy_dat) / x$den_svy)
+  return(x)
+})
+
+#combining svy and pgm data for all countries
+num_svy <- do.call(rbind, lapply(cnt_data, function(x) x$num_svy)) #rows=countries, cols=surveys
+den_svy <- do.call(rbind, lapply(cnt_data, function(x) x$den_svy))
+ind_svy <- unlist(lapply(cnt_data, function(x) x$ind_svy))
+hts_dat <- unlist(lapply(cnt_data, function(x) x$hts_dat)) #rows=countries, cols=time points
+se_hts <- unlist(lapply(cnt_data, function(x) x$se_hts))
+ind_hts <- unlist(lapply(cnt_data, function(x) x$ind_hts))
+
+# fitting data for running in stan
+data_stan <- list(
+  n_cnt = length(cnt_data),            
+  n_yr = n_yr,                         
+  yr_ind = yr_ind,                     
+  niter = niter,                       
+  dt = dt,    
+  dt_yr = 1 / dt, 
+  pop = pop,                           
+  n_svy_by_cnt = n_svy_by_cnt,                
+  n_hts_by_cnt = n_hts_by_cnt, 
+  tot_svy = sum(n_svy_by_cnt),
+  tot_hts = sum(n_hts_by_cnt),
+  ind_svy = ind_svy,                   
+  ind_hts = ind_hts,
+  svy_idx_s = svy_idx_s,
+  hts_idx_s = hts_idx_s,
+  svy_idx_e = svy_idx_e,
+  hts_idx_e = hts_idx_e,
+  hivst = hts_dat,                     
+  se_hts = se_hts,                     
+  num_svy = num_svy,                   
+  den_svy = den_svy,
+  # new rates for open pop 
+  entry_m = entry_m_vec,
+  entry_f = entry_f_vec,
+  mort_m = mort_m_vec,
+  mort_f = mort_f_vec
+)
+rstan_options(auto_write = TRUE)
+
+
+# fitting the model
+options(mc.cores = parallel::detectCores())
+fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4,
+                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
+
+
+# traceplots
+traceplot(fit, pars = "beta_t")
+traceplot(fit, pars = "sd_rw")
+traceplot(fit, pars = "sd_phi")
+traceplot(fit, pars = "sd_rt")
+traceplot(fit, pars = "beta_retest_overall")
+traceplot(fit, pars = "beta_retest")
+traceplot(fit, pars = "beta_male_overall")
+traceplot(fit, pars = "beta_male")
+traceplot(fit, pars = "phi_overall")
+traceplot(fit, pars = "phi")
+
+
+#summary(fit)
+
+# parameters
+r <- as.data.frame(rstan::summary(fit, pars = c("beta_t"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+exp(r$`50%`)
+
+rr_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_retest_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+exp(rr_overall$`50%`)
+rr <- as.data.frame(rstan::summary(fit, pars = c("beta_retest"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+exp(rr$`50%`)
+exp(rr$`2.5%`)
+exp(rr$`97.5%`)
+
+rr_m <- as.data.frame(rstan::summary(fit, pars = c("beta_male"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+exp(rr_m$`50%`)
+exp(rr_m$`2.5%`)
+exp(rr_m$`97.5%`)
+
+phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+phi_overall$`50%`
+phi_overall$`2.5%`
+phi_overall$`97.5%`
+
+phi <- as.data.frame(rstan::summary(fit, pars = c("phi"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+phi$`50%`
+phi$`2.5%`
+phi$`97.5%`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
