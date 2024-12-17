@@ -25,14 +25,14 @@ pop <- sapply(countries, get_popdata)#2by2 matrix of male & female pop in 6 coun
 
 # time specification
 start <- 2009 #same starting year for all countries
-end <- 2024  #same for all
-dt <- 0.1 #unchanged
+end <- 2024  
+dt <- 0.1 
 time <- seq(start, end - dt, by = dt) 
 niter <- (end - start) / dt
 n_yr <- end - start
 
 # mapping HIVST rate to the appropriate yearly indices
-beta_ind <- seq(1, niter, by = 1 / dt) #15 indices of testing rate indicating beginning of each year
+beta_ind <- seq(1, niter, by = 1 / dt) 
 yr_ind <- rep(1, niter) 
 for (i in 2:length(beta_ind)) {
   yr_ind[beta_ind[i - 1]:(beta_ind[i] - 1)] <- i - 1
@@ -354,6 +354,7 @@ fit <- sampling(hivst_stan, data = data_stan, iter = 2000, chains = 4, init = in
 
 shinystan::launch_shinystan(fit)
 
+
 # traceplots
 traceplot(fit, pars = "beta_t")
 traceplot(fit, pars = "sd_rw")
@@ -370,7 +371,7 @@ traceplot(fit, pars = "phi_overall")
 traceplot(fit, pars = "phi_raw")
 traceplot(fit, pars = "phi")
 
-summary(fit)
+#summary(fit)
 
 # parameters
 r <- as.data.frame(rstan::summary(fit, pars = c("beta_t"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -394,6 +395,76 @@ phi <- as.data.frame(rstan::summary(fit, pars = c("phi"), probs = c(0.025, 0.25,
 phi$`50%`
 phi$`2.5%`
 phi$`97.5%`
+
+
+# function to plot individual output
+svy_m_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+svy_f_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+hts_all <- as.data.frame(rstan::summary(fit, pars = c("hivst_prd"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+
+cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe", "sierraleone")
+plot_country_fit <- function(c_idx, cnt_lowercase, time, 
+                             svy_m_all, svy_f_all, hts_all,
+                             cnt_data,
+                             niter) {
+  cn <- cnt_lowercase[c_idx] # cn now matches cnt_data keys exactly
+  
+  start_row <- (c_idx - 1)*niter + 1
+  end_row <- c_idx*niter
+  
+  svy_m_country <- svy_m_all[start_row:end_row, ]
+  svy_f_country <- svy_f_all[start_row:end_row, ]
+  hts_country <- hts_all[start_row:end_row, ]
+  
+  svy_dat_c <- cnt_data[[cn]]$svy_dat
+  lci_svy_c <- cnt_data[[cn]]$lci_svy
+  uci_svy_c <- cnt_data[[cn]]$uci_svy
+  ind_svy_c <- cnt_data[[cn]]$ind_svy
+  
+  hts_dat_c <- cnt_data[[cn]]$hts_dat
+  ind_hts_c <- cnt_data[[cn]]$ind_hts
+  
+  par(mfrow = c(1, 2), oma = c(0, 0, 3, 0), mar = c(4, 4, 1, 1))
+  plot(svy_m_country$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, 
+       ylab = "Ever used HIVST", ylim = c(0, max(svy_m_country$`97.5%`, svy_f_country$`97.5%`)))
+  
+  polygon(x = c(time, rev(time)),
+          y = c(svy_m_country$`2.5%`, rev(svy_m_country$`97.5%`)),
+          col = yarrr::transparent("steelblue4", trans.val = 0.5), border = NA)
+  
+  polygon(x = c(time, rev(time)),
+          y = c(svy_f_country$`2.5%`, rev(svy_f_country$`97.5%`)),
+          col = yarrr::transparent("pink3", trans.val = 0.5), border = NA)
+  
+  lines(svy_f_country$`50%` ~ time, col = "pink3", lwd = 3)
+  
+  points(svy_dat_c[, 1] ~ time[ind_svy_c], pch = 16, col = "blue4")
+  points(svy_dat_c[, 2] ~ time[ind_svy_c], pch = 16, col = "firebrick4")
+  
+  segments(x0 = time[ind_svy_c], y0 = lci_svy_c[, 1],
+           x1 = time[ind_svy_c], y1 = uci_svy_c[, 1], col = "blue4")
+  segments(x0 = time[ind_svy_c], y0 = lci_svy_c[, 2],
+           x1 = time[ind_svy_c], y1 = uci_svy_c[, 2], col = "firebrick4")
+  
+  legend("topleft", legend = c("men", "women"), col = c("steelblue4", "pink4"), lwd = 4, bty = "n")
+  
+  plot(hts_country$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, 
+       ylab = "Number of HIVST kits",
+       ylim = c(0, max(hts_country$`97.5%`)))
+  
+  polygon(x = c(time, rev(time)),
+          y = c(hts_country$`2.5%`, rev(hts_country$`97.5%`)),
+          col = yarrr::transparent("cyan4", trans.val = 0.5), border = NA)
+  
+  points(hts_dat_c ~ time[ind_hts_c], pch = 16, col = "goldenrod3", cex = 1.25)
+  
+  mtext(cn, outer = TRUE, side = 3, line = 1, cex = 1.5)
+}
+
+for (c_idx in seq_along(cnt_lowercase)) {
+  plot_country_fit(c_idx, cnt_lowercase, time, svy_m_all, svy_f_all, hts_all, cnt_data, niter)
+}
+
 
 #------ combined fit ------------
 extracted_fit <- extract(fit)
