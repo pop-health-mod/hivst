@@ -741,13 +741,13 @@ lines(time, female_med_perc, col = "deeppink1", lwd = 2)
 
 title("Estimated trends in HIVST uptake in SSA by sex")
 
-legend("topleft",
+
+
+legend("top",
        legend = c("Men", "Women"),
        col = c("deepskyblue4", "deeppink1"),
        lwd = 2,
-       pch = c(15, 15),
+       lty = 1,
        pt.cex = 1.5,
        pt.bg = c("lightblue", "pink"),
-       bty = "n")
-
-
+       bty = "l")
