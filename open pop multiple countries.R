@@ -549,9 +549,77 @@ invlogit(phi$`2.5%`)
 invlogit(phi$`97.5%`)
 
 
+# function to plot individual output
+svy_m_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+svy_f_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+hts_all <- as.data.frame(rstan::summary(fit, pars = c("hivst_prd"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+
+cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe", "sierraleone")
+plot_country_fit <- function(c_idx, cnt_lowercase, time, 
+                             svy_m_all, svy_f_all, hts_all,
+                             cnt_data,
+                             niter) {
+  cn <- cnt_lowercase[c_idx] # to match cnt_data keys exactly
+  
+  start_row <- (c_idx - 1)*niter + 1
+  end_row <- c_idx*niter
+  
+  svy_m_country <- svy_m_all[start_row:end_row, ]
+  svy_f_country <- svy_f_all[start_row:end_row, ]
+  hts_country <- hts_all[start_row:end_row, ]
+  
+  svy_dat_c <- cnt_data[[cn]]$svy_dat
+  lci_svy_c <- cnt_data[[cn]]$lci_svy
+  uci_svy_c <- cnt_data[[cn]]$uci_svy
+  ind_svy_c <- cnt_data[[cn]]$ind_svy
+  
+  hts_dat_c <- cnt_data[[cn]]$hts_dat
+  ind_hts_c <- cnt_data[[cn]]$ind_hts
+  
+  par(mfrow = c(1, 2), oma = c(0, 0, 3, 0), mar = c(4, 4, 1, 1))
+  plot(svy_m_country$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, 
+       ylab = "Ever used HIVST", ylim = c(0, max(svy_m_country$`97.5%`, svy_f_country$`97.5%`)))
+  
+  polygon(x = c(time, rev(time)),
+          y = c(svy_m_country$`2.5%`, rev(svy_m_country$`97.5%`)),
+          col = yarrr::transparent("steelblue4", trans.val = 0.5), border = NA)
+  
+  polygon(x = c(time, rev(time)),
+          y = c(svy_f_country$`2.5%`, rev(svy_f_country$`97.5%`)),
+          col = yarrr::transparent("pink3", trans.val = 0.5), border = NA)
+  
+  lines(svy_f_country$`50%` ~ time, col = "pink3", lwd = 3)
+  
+  points(svy_dat_c[, 1] ~ time[ind_svy_c], pch = 16, col = "blue4")
+  points(svy_dat_c[, 2] ~ time[ind_svy_c], pch = 16, col = "firebrick4")
+  
+  segments(x0 = time[ind_svy_c], y0 = lci_svy_c[, 1],
+           x1 = time[ind_svy_c], y1 = uci_svy_c[, 1], col = "blue4")
+  segments(x0 = time[ind_svy_c], y0 = lci_svy_c[, 2],
+           x1 = time[ind_svy_c], y1 = uci_svy_c[, 2], col = "firebrick4")
+  
+  legend("topleft", legend = c("men", "women"), col = c("steelblue4", "pink4"), lwd = 4, bty = "n")
+  
+  plot(hts_country$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, 
+       ylab = "Number of HIVST kits",
+       ylim = c(0, max(hts_country$`97.5%`)))
+  
+  polygon(x = c(time, rev(time)),
+          y = c(hts_country$`2.5%`, rev(hts_country$`97.5%`)),
+          col = yarrr::transparent("cyan4", trans.val = 0.5), border = NA)
+  
+  points(hts_dat_c ~ time[ind_hts_c], pch = 16, col = "goldenrod3", cex = 1.25)
+  
+  mtext(cn, outer = TRUE, side = 3, line = 1, cex = 1.5)
+}
+
+for (c_idx in seq_along(cnt_lowercase)) {
+  plot_country_fit(c_idx, cnt_lowercase, time, svy_m_all, svy_f_all, hts_all, cnt_data, niter)
+}
+
+
 #----verification step: checking wpp pop with model predictions-----------
 # need to change this block's functions to match with the name changes (checking now)--- 
-# also adding the function to plot individual countries from previous code
 
 post <- rstan::extract(fit)
 beta_t_median <- apply(post$beta_t, c(2,3), median)  # beta_t_median is now [n_cnt, n_yr]
