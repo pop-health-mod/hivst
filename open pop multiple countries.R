@@ -473,7 +473,8 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 init_function <- function() {
   list(
-    beta_t = matrix(rnorm(data_stan$n_cnt * data_stan$n_yr, 0, 0.1), ncol = data_stan$n_yr, nrow = data_stan$n_cnt),   # Random initial value for alpha
+    beta_t = matrix(rnorm(data_stan$n_cnt * data_stan$n_yr, 0, 0.1), 
+                    ncol = data_stan$n_yr, nrow = data_stan$n_cnt),
     sd_rw = runif(1, min = 1.25, max = 2),
     sd_phi = runif(1, min = 0.1, max = 1),
     sd_rt = runif(1, min = 0.1, max = 1),
@@ -554,9 +555,9 @@ plot_country_fit <- function(c_idx, cnt_lowercase, time,
                              niter) {
   cn <- cnt_lowercase[c_idx] # to match cnt_data keys exactly
   
-  start_row <- (c_idx - 1)*niter + 1
-  end_row <- c_idx*niter
-  
+  start_row <- (c_idx - 1)  * niter + 1
+  end_row <- c_idx * niter
+   
   svy_m_country <- svy_m_all[start_row:end_row, ]
   svy_f_country <- svy_f_all[start_row:end_row, ]
   hts_country <- hts_all[start_row:end_row, ]
@@ -571,7 +572,7 @@ plot_country_fit <- function(c_idx, cnt_lowercase, time,
   
   par(mfrow = c(1, 2), oma = c(0, 0, 3, 0), mar = c(4, 4, 1, 1))
   plot(svy_m_country$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, 
-       ylab = "Ever used HIVST", ylim = c(0, max(svy_m_country$`97.5%`, svy_f_country$`97.5%`)))
+       ylab = "Ever used HIVST", ylim = c(0, max(svy_m_country$`97.5%`, svy_f_country$`97.5%`, max(uci_svy_c))))
   
   polygon(x = c(time, rev(time)),
           y = c(svy_m_country$`2.5%`, rev(svy_m_country$`97.5%`)),
