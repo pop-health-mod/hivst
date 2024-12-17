@@ -157,8 +157,9 @@ functions {
     vector entry_m_dt, // kept vector as before as it will loop over each country
     vector entry_f_dt,
     vector mort_m_dt,
-    vector mort_f_dt
-  ) { // converting rates from log scale to exponent
+    vector mort_f_dt) { 
+    
+  // converting rates from log scale to exponent
     vector[niter] rr_t = exp(beta_t_dt);
     real rr_r = exp(beta_retest);
     real rr_m = exp(beta_male);
@@ -171,25 +172,17 @@ functions {
     out[1,1,2] = pop[2];  // Females, never tested
     
     for (i in 2:niter) {
-  // Males
-  real eps_m = entry_m_dt[i]; // entry rate male
-  real delta_m = mort_m_dt[i]; // mortality rate male
-  real lambda_m = rr_t[i] * rr_m;
+    // Males
+    out[i,1,1] = out[i-1,1,1] + dt * (entry_m_dt[i] * (out[i-1,1,1] + out[i-1,2,1]) - rr_t[i] * rr_m * out[i-1,1,1] - mort_m_dt[i] * out[i-1,1,1]);
+    out[i,2,1] = out[i-1,2,1] + dt * (rr_t[i] * rr_m * out[i-1,1,1] - mort_m_dt[i] * out[i-1,2,1]);
+    out[i,3,1] = rr_t[i] * rr_m * (out[i-1,1,1] + rr_r * out[i-1,2,1]);
+    out[i,4,1] = out[i, 2, 1] / (out[i,1,1] + out[i,2,1]);
   
-  out[i,1,1] = out[i-1,1,1] + dt * (eps_m*(out[i-1,1,1] + out[i-1,2,1]) - lambda_m*out[i-1,1,1] - delta_m*out[i-1,1,1]);
-  out[i,2,1] = out[i-1,2,1] + dt * (lambda_m*out[i-1,1,1] - delta_m*out[i-1,2,1]);
-  out[i,3,1] = dt * lambda_m*(out[i-1,1,1] + rr_r*out[i-1,2,1]);
-  out[i,4,1] = out[i, 2, 1] / (out[i,1,1] + out[i,2,1]);
-
-  // Females
-  real eps_f = entry_f_dt[i];  // entry rate female
-  real delta_f = mort_f_dt[i]; // mortality rate female
-  real lambda_f = rr_t[i];
-  
-  out[i,1,2] = out[i-1,1,2] + dt * (eps_f*(out[i-1,1,2] + out[i-1,2,2]) - lambda_f*out[i-1,1,2] - delta_f*out[i-1,1,2]);
-  out[i,2,2] = out[i-1,2,2] + dt * (lambda_f*out[i-1,1,2] - delta_f*out[i-1,2,2]);
-  out[i,3,2] = dt * lambda_f*(out[i-1,1,2] + rr_r*out[i-1,2,2]);
-  out[i,4,2] = out[i,2,2] / (out[i,1,2] + out[i,2,2]);
+    // Females
+    out[i,1,2] = out[i-1,1,2] + dt * (entry_f_dt[i] * (out[i-1,1,2] + out[i-1,2,2]) - rr_t[i] * out[i-1,1,2] - mort_f_dt[i] * out[i-1,1,2]);
+    out[i,2,2] = out[i-1,2,2] + dt * (rr_t[i] * out[i-1,1,2] - mort_f_dt[i] * out[i-1,2,2]);
+    out[i,3,2] = rr_t[i] * (out[i-1,1,2] + rr_r * out[i-1,2,2]);
+    out[i,4,2] = out[i,2,2] / (out[i,1,2] + out[i,2,2]);
     }
 return out;
   }
