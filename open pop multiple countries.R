@@ -1,6 +1,6 @@
 
 # now we have non centered parametrization
-# testing for 6 countries now
+# testing for 9 countries now
 
 rm(list = ls())
 gc()
@@ -19,7 +19,9 @@ data(mxM1)
 data(mxF1) 
 
 #---start of year pop---
-countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", "Sierra Leone")
+countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", 
+               "Sierra Leone", "Zambia", "Mali", "Uganda")
+
 get_pop_2011 <- function(cnt_name) {
   wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(1949:2009))]
   wpp_f <- popF1[popF1$name == cnt_name, !(colnames(popF1) %in% as.character(1949:2009))]
@@ -392,9 +394,38 @@ cnt_data <- list(
     ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(2678, 1173, 50340),
     se_hts = c(2678, 1173, 50340) * 0.1
+  ),
+  zambia = list(
+    yr_svy =  2018.5,
+    ind_svy = (2018.5 - start) / dt,
+    den_svy = round(cbind(3756,2869)),
+    num_svy = round(cbind(104,82)),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(315348, 781175, 639225, 23750, 33153, 95559),
+    se_hts = c(315348, 781175, 639225, 23750, 33153, 95559) * 0.1
+  ),
+  mali = list(
+    yr_svy =  2018.5,
+    ind_svy = (2018.5 - start) / dt,
+    den_svy = round(cbind(3740,2990)),
+    num_svy = round(cbind(15,31)),
+    yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(7763, 169962, 11375, 235729),
+    se_hts = c(7763, 169962, 11375, 235729) * 0.1
+  ),
+  uganda = list(
+    yr_svy =  2016.5,
+    ind_svy = (2016.5 - start) / dt,
+    den_svy = round(cbind(3640,8640)),
+    num_svy = round(cbind(203,389)),
+    yr_hts = c(2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(42570, 306421, 750698, 681602),
+    se_hts = c(42570, 306421, 750698, 681602) * 0.1
   )
 )
-
 
 # list of survey years for each country
 n_cnt <- length(cnt_data)
@@ -488,8 +519,8 @@ init_function <- function() {
   )
 }
 
-fit <- sampling(hivst_stan, data = data_stan, iter = 2000, chains = 4, init = init_function,
-                warmup = 1000, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4, init = init_function,
+                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
 
 # traceplots
 traceplot(fit, pars = "sd_rw")
@@ -548,7 +579,8 @@ svy_m_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(
 svy_f_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 hts_all <- as.data.frame(rstan::summary(fit, pars = c("hivst_prd"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 
-cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe", "sierraleone")
+cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe", 
+                   "sierraleone", "zambia", "mali", "uganda")
 plot_country_fit <- function(c_idx, cnt_lowercase, time, 
                              svy_m_all, svy_f_all, hts_all,
                              cnt_data,
@@ -613,7 +645,6 @@ for (c_idx in seq_along(cnt_lowercase)) {
 
 
 #----verification step: checking wpp pop with model predictions-----------
-# need to change this block's functions to match with the name changes (checking now)--- 
 
 post <- rstan::extract(fit)
 beta_t_median <- apply(post$beta_t, c(2,3), median)  # beta_t_median is now [n_cnt, n_yr]
@@ -641,7 +672,6 @@ for (c_idx in 1:n_cnt) {
     beta_male = beta_male_c,     
     pop = pop_c,
     dt = dt,
-    dt_yr = 1/dt,
     entry_m_dt = entry_m_dt,
     entry_f_dt = entry_f_dt,
     mort_m_dt = mort_m_dt,
