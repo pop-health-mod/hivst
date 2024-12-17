@@ -226,7 +226,7 @@ data {
 }
 
 parameters {
-  matrix[n_cnt, n_yr] beta_t;          // yearly HIVST rates (rw1) for each country
+  matrix<upper = -1>[n_cnt, n_yr] beta_t;          // yearly HIVST rates (rw1) for each country
   real<lower = 1e-6, upper = 5> sd_rw;    // sd of the rw1 for beta_t
   real<lower = 1e-6, upper = 2.5> sd_phi;    // sd of the RE for phi
   real<lower = 1e-6, upper = 2.5> sd_rt;    // sd of the RE for the re-testing rate ratio
@@ -273,7 +273,7 @@ model {
   
   // priors
   // overall prior for the SD of the RW1 for testing rate
-  sd_rw ~ normal(0, 0.5) T[1e-6, 5];
+  sd_rw ~ normal(0, 0.25) T[1e-6, 5];
   sd_phi ~ normal(0, 0.25) T[1e-6, 2.5];
   sd_rt ~ normal(0, 0.25) T[1e-6, 2.5];
   sd_men ~ normal(0, 0.25) T[1e-6, 2.5];
@@ -504,9 +504,9 @@ rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 init_function <- function() {
   list(
-    beta_t = matrix(rnorm(data_stan$n_cnt * data_stan$n_yr, 0, 0.1), 
+    beta_t = matrix(rnorm(data_stan$n_cnt * data_stan$n_yr, -5, 0.1), 
                     ncol = data_stan$n_yr, nrow = data_stan$n_cnt),
-    sd_rw = runif(1, min = 1.25, max = 2),
+    sd_rw = runif(1, min = 0.1, max = 1),
     sd_phi = runif(1, min = 0.1, max = 1),
     sd_rt = runif(1, min = 0.1, max = 1),
     sd_men = runif(1, min = 0.1, max = 1),
@@ -542,8 +542,13 @@ traceplot(fit, pars = "phi")
 # parameters
 
 # testing rate
-r <- as.data.frame(rstan::summary(fit, pars = c("beta_t"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+pars_beta_t <- matrix(paste0("beta_t[", rep(1:data_stan$n_cnt, each = data_stan$n_yr), ",", rep(1:data_stan$n_yr, data_stan$n_cnt), "]"), 
+              nrow = data_stan$n_cnt, ncol = data_stan$n_yr, byrow = TRUE)
+r <- as.data.frame(rstan::summary(fit, pars = pars_beta_t, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(r$`50%`)
+max(exp(r$`50%`))
+max(exp(r$`97.5%`))
+ 
 
 # retesting rate ratio
 rr_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_retest_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
