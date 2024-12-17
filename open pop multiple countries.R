@@ -560,13 +560,39 @@ exp(rr$`97.5%`)
 
 # rate ratio male
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_men_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-exp(rr_overall$`50%`)
-exp(rr_overall$`2.5%`)
-exp(rr_overall$`97.5%`)
+exp(rr_m_overall$`50%`)
+exp(rr_m_overall$`2.5%`)
+exp(rr_m_overall$`97.5%`)
 rr_m <- as.data.frame(rstan::summary(fit, pars = c("beta_male"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(rr_m$`50%`)
 exp(rr_m$`2.5%`)
 exp(rr_m$`97.5%`)
+
+# plot like i discussed
+df_rrm_ <- data.frame(country = names(cnt_data),
+                     median = exp(rr_m$`50%`),
+                     lci = exp(rr_m$`2.5%`),
+                     uci = exp(rr_m$`97.5%`))
+df_rr_m <- rbind(df_rrm_,
+          data.frame( country = "overall",
+                          median = exp(rr_m_overall$`50%`),
+                          lci = exp(rr_m_overall$`2.5%`),
+                          uci = exp(rr_m_overall$`97.5%`)))
+df_rr_m$country <- factor(df_rr_m$country, levels = rev(c(setdiff(df_rr_m$country, "overall"), "overall")))
+df_rr_m$style <- ifelse(df_rr_m$country == "overall", "pooled", "individual")
+
+# Forest plot
+library(ggplot2)
+ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "steelblue4", "pooled" = "firebrick4")) +  # Colors
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "", x = "Country", y = "Rate ratio for men", color = "Legend") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
+  theme(legend.position = "right")
+
 
 # phi
 phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
