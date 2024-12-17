@@ -352,11 +352,11 @@ init_function <- function() {
 fit <- sampling(hivst_stan, data = data_stan, iter = 2000, chains = 4, init = init_function,
                 warmup = 1000, thin = 1, control = list(adapt_delta = 0.9))
 
-shinystan::launch_shinystan(fit)
+# shinystan::launch_shinystan(fit)
 
 
 # traceplots
-traceplot(fit, pars = "beta_t")
+# traceplot(fit, pars = "beta_t")
 traceplot(fit, pars = "sd_rw")
 traceplot(fit, pars = "sd_phi")
 traceplot(fit, pars = "sd_rt")
