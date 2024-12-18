@@ -431,8 +431,8 @@ cnt_data <- list(
     ind_svy = (2020.5 - start) / dt,
     den_svy = round(cbind(4729,5038)),
     num_svy = round(cbind(474,435)),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023),
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(58917, 42650, 164236, 281277, 301762, 262915),
     se_hts = c(58917, 42650, 164236, 281277, 301762, 262915) * 0.1
   ),
@@ -441,8 +441,8 @@ cnt_data <- list(
     ind_svy = (2021.5 - start) / dt,
     den_svy = round(cbind(1483,1590)),
     num_svy = round(cbind(128,174)),
-    yr_hts = c(2021, 2022, 2023),
-    ind_hts = (c(2021, 2022, 2023) - start) / dt,
+    yr_hts = c(2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(67883, 203966, 683345),
     se_hts = c(67883, 203966, 683345) * 0.1
   ),
@@ -451,8 +451,8 @@ cnt_data <- list(
     ind_svy = (2019.5 - start) / dt,
     den_svy = round(cbind(3840,10700)),
     num_svy = round(cbind(62,140)),
-    yr_hts = 2023,
-    ind_hts = (2023 - start) / dt,
+    yr_hts = 2023 + 0.5,
+    ind_hts = (2023 - start + 0.5) / dt,
     hts_dat = 62683,
     se_hts = 62683 * 0.1
   )
