@@ -1,6 +1,6 @@
 
 # now we have non centered parametrization
-# testing for 9 countries now
+# testing for 12 countries now
 
 rm(list = ls())
 gc()
@@ -20,7 +20,8 @@ data(mxF1)
 
 #---start of year pop---
 countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", 
-               "Sierra Leone", "Zambia", "Mali", "Uganda")
+               "Sierra Leone", "Zambia", "Mali", "Uganda",
+               "Lesotho", "Mozambique", "Rwanda")
 
 get_pop_2011 <- function(cnt_name) {
   wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(1949:2009))]
@@ -424,6 +425,36 @@ cnt_data <- list(
     ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(42570, 306421, 750698, 681602),
     se_hts = c(42570, 306421, 750698, 681602) * 0.1
+  ),
+  lesotho  = list(
+    yr_svy =  2020.5,
+    ind_svy = (2020.5 - start) / dt,
+    den_svy = round(cbind(4729,5038)),
+    num_svy = round(cbind(474,435)),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023),
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start) / dt,
+    hts_dat = c(58917, 42650, 164236, 281277, 301762, 262915),
+    se_hts = c(58917, 42650, 164236, 281277, 301762, 262915) * 0.1
+  ),
+  mozambique = list(
+    yr_svy =  2021.5,
+    ind_svy = (2021.5 - start) / dt,
+    den_svy = round(cbind(1483,1590)),
+    num_svy = round(cbind(128,174)),
+    yr_hts = c(2021, 2022, 2023),
+    ind_hts = (c(2021, 2022, 2023) - start) / dt,
+    hts_dat = c(67883, 203966, 683345),
+    se_hts = c(67883, 203966, 683345) * 0.1
+  ),
+  rwanda = list(
+    yr_svy =  2019.5,
+    ind_svy = (2019.5 - start) / dt,
+    den_svy = round(cbind(3840,10700)),
+    num_svy = round(cbind(62,140)),
+    yr_hts = 2023,
+    ind_hts = (2023 - start) / dt,
+    hts_dat = 62683,
+    se_hts = 62683 * 0.1
   )
 )
 
@@ -553,20 +584,79 @@ max(exp(r$`97.5%`))
 # retesting rate ratio
 rr_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_retest_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(rr_overall$`50%`)
+exp(rr_overall$`2.5%`)
+exp(rr_overall$`97.5%`)
+
 rr <- as.data.frame(rstan::summary(fit, pars = c("beta_retest"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(rr$`50%`)
 exp(rr$`2.5%`)
 exp(rr$`97.5%`)
 
+# forest plot for RR retesting
+df_rr_rt <- data.frame(country = names(cnt_data),
+                      median = exp(rr$`50%`),
+                      lci = exp(rr$`2.5%`),
+                      uci = exp(rr$`97.5%`))
+df_rr_ov <- rbind(df_rr_rt,
+                 data.frame( country = "overall",
+                             median = exp(rr_overall$`50%`),
+                             lci = exp(rr_overall$`2.5%`),
+                             uci = exp(rr_overall$`97.5%`)))
+df_rr_ov$country <- factor(df_rr_ov$country, levels = rev(c(setdiff(df_rr_ov$country, "overall"), "overall")))
+df_rr_ov$style <- ifelse(df_rr_ov$country == "overall", "pooled", "individual")
+
+
+# Forest plot
+ggplot(df_rr_ov, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "coral2", "pooled" = "coral4")) +  # Colors
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "", x = "Country", y = "Re-testing rate ratio", color = "Legend") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
+  theme(legend.position = "right") +
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
+
+
 # rate ratio male
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_men_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-exp(rr_overall$`50%`)
-exp(rr_overall$`2.5%`)
-exp(rr_overall$`97.5%`)
+exp(rr_m_overall$`50%`)
+exp(rr_m_overall$`2.5%`)
+exp(rr_m_overall$`97.5%`)
+
 rr_m <- as.data.frame(rstan::summary(fit, pars = c("beta_male"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(rr_m$`50%`)
 exp(rr_m$`2.5%`)
 exp(rr_m$`97.5%`)
+
+# forest plot for RR male
+df_rrm_ <- data.frame(country = names(cnt_data),
+                      median = exp(rr_m$`50%`),
+                      lci = exp(rr_m$`2.5%`),
+                      uci = exp(rr_m$`97.5%`))
+df_rr_m <- rbind(df_rrm_,
+                 data.frame( country = "overall",
+                             median = exp(rr_m_overall$`50%`),
+                             lci = exp(rr_m_overall$`2.5%`),
+                             uci = exp(rr_m_overall$`97.5%`)))
+df_rr_m$country <- factor(df_rr_m$country, levels = rev(c(setdiff(df_rr_m$country, "overall"), "overall")))
+df_rr_m$style <- ifelse(df_rr_m$country == "overall", "pooled", "individual")
+
+
+# Forest plot
+ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "steelblue4", "pooled" = "firebrick4")) +  # Colors
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "", x = "Country", y = "Rate ratio for men", color = "Legend") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
+  theme(legend.position = "right") +
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
+
+
 
 # phi
 phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -578,6 +668,33 @@ invlogit(phi$`50%`)
 invlogit(phi$`2.5%`)
 invlogit(phi$`97.5%`)
 
+# forest plot for phi
+df_phi <- data.frame(country = names(cnt_data),
+                       median = invlogit(phi$`50%`),
+                       lci = invlogit(phi$`2.5%`),
+                       uci = invlogit(phi$`97.5%`))
+df_phi_ov <- rbind(df_phi,
+                  data.frame( country = "overall",
+                              median = invlogit(phi_overall$`50%`),
+                              lci = invlogit(phi_overall$`2.5%`),
+                              uci = invlogit(phi_overall$`97.5%`)))
+df_phi_ov$country <- factor(df_phi_ov$country, levels = rev(c(setdiff(df_phi_ov$country, "overall"), "overall")))
+df_phi_ov$style <- ifelse(df_phi_ov$country == "overall", "pooled", "individual")
+
+
+# Forest plot
+ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "violetred1", "pooled" = "violetred4")) +  # Colors
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "", x = "Country", y = "Proportion of distributed HIVST kits that are used", color = "Legend") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
+  theme(legend.position = "right") +
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
+
+
 
 # function to plot individual output
 svy_m_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -585,7 +702,8 @@ svy_f_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(
 hts_all <- as.data.frame(rstan::summary(fit, pars = c("hivst_prd"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 
 cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe", 
-                   "sierraleone", "zambia", "mali", "uganda")
+                   "sierraleone", "zambia", "mali", "uganda",
+                   "lesotho", "mozambique", "rwanda")
 plot_country_fit <- function(c_idx, cnt_lowercase, time, 
                              svy_m_all, svy_f_all, hts_all,
                              cnt_data,
@@ -641,7 +759,8 @@ plot_country_fit <- function(c_idx, cnt_lowercase, time,
   
   points(hts_dat_c ~ time[ind_hts_c], pch = 16, col = "goldenrod3", cex = 1.25)
   
-  mtext(cn, outer = TRUE, side = 3, line = 1, cex = 1.5)
+  mtext(paste0(toupper(substring(cn, 1, 1)), substring(cn, 2)), 
+        outer = TRUE, side = 3, line = 1, cex = 1.5)
 }
 
 for (c_idx in seq_along(cnt_lowercase)) {
@@ -841,6 +960,7 @@ female_uci_perc <- female_uci * 100
 
 y_lim <- c(0, max(male_uci_perc, female_uci_perc))
 
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
 plot(time, male_med_perc, type = "n",
      xlab = "Year",
      ylab = "Proportion of people having ever used HIVST (%)",
