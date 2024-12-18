@@ -550,8 +550,8 @@ init_function <- function() {
   )
 }
 
-fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4, init = init_function,
-                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 4000, chains = 4, init = init_function,
+                warmup = 2000, thin = 1, control = list(adapt_delta = 0.9))
 
 # traceplots
 traceplot(fit, pars = "sd_rw")
