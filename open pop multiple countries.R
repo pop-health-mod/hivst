@@ -645,6 +645,20 @@ df_rr_m$style <- ifelse(df_rr_m$country == "overall", "pooled", "individual")
 
 
 # Forest plot
+df_rrm_ <- data.frame(country = names(cnt_data),
+                     median = exp(rr_m$`50%`),
+                     lci = exp(rr_m$`2.5%`),
+                     uci = exp(rr_m$`97.5%`))
+df_rr_m <- rbind(df_rrm_,
+          data.frame( country = "overall",
+                          median = exp(rr_m_overall$`50%`),
+                          lci = exp(rr_m_overall$`2.5%`),
+                          uci = exp(rr_m_overall$`97.5%`)))
+df_rr_m$country <- factor(df_rr_m$country, levels = rev(c(setdiff(df_rr_m$country, "overall"), "overall")))
+df_rr_m$style <- ifelse(df_rr_m$country == "overall", "pooled", "individual")
+
+# Forest plot
+
 ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
   scale_color_manual(values = c("individual" = "steelblue4", "pooled" = "firebrick4")) +  # Colors
@@ -655,7 +669,7 @@ ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
-
+  theme(legend.position = "right")
 
 
 # phi
