@@ -1,4 +1,6 @@
 
+# all 26 countries with program data
+
 rm(list = ls())
 gc()
 
@@ -22,7 +24,7 @@ countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe",
                "Burkina Faso", "Burundi", "Cameroon", "Cote d'Ivoire",
                 "Guinea", "Liberia", "Senegal", "South Africa", 
                "United Republic of Tanzania", "Namibia", "Botswana", 
-               "Guinea-Bissau", "Democratic Republic of the Congo")
+               "Guinea-Bissau", "Democratic Republic of the Congo", "Eswatini")
 
 get_pop_2011 <- function(cnt_name) {
   wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(1949:2009))]
@@ -586,6 +588,16 @@ drc = list(
   ind_hts = (c(2018, 2020, 2021) - start + 0.5) / dt,
   hts_dat = c(500, 7158, 7480),
   se_hts = c(500, 7158, 7480) * 0.1
+),
+eswatini = list(
+  yr_svy = c(2021.5, 2022.5),
+  ind_svy = (c(2021.5, 2022.5) - start) / dt,
+  den_svy = round(cbind(c(2040, 1327), c(3394, 1606))),
+  num_svy = round(cbind(c(399, 339), c(694, 494))),
+  yr_hts = c(2018, 2019, 2020, 2021, 2022) + 0.5,
+  ind_hts = (c(2018, 2019, 2020, 2021, 2022) - start + 0.5) / dt,
+  hts_dat = c(33159, 32531, 191990, 78570, 111912),
+  se_hts = c(33159, 32531, 191990, 78570, 111912) * 0.1
 )
 )
 
@@ -851,7 +863,7 @@ cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe",
                    "lesotho", "mozambique", "rwanda",
                    "burkinafaso", "burundi", "cameroon", "cotedivoire",
                    "guinea", "liberia", "senegal", "southafrica","tanzania",
-                   "namibia", "botswana", "guineabissau","drc")
+                   "namibia", "botswana", "guineabissau","drc", "eswatini")
 
 plot_country_fit <- function(c_idx, cnt_lowercase, time, 
                              svy_m_all, svy_f_all, hts_all,
