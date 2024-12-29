@@ -1,7 +1,4 @@
 
-# now we have non centered parametrization
-# testing for 12 countries now
-
 rm(list = ls())
 gc()
 
@@ -21,7 +18,11 @@ data(mxF1)
 #---start of year pop---
 countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", 
                "Sierra Leone", "Zambia", "Mali", "Uganda",
-               "Lesotho", "Mozambique", "Rwanda")
+               "Lesotho", "Mozambique", "Rwanda",
+               "Burkina Faso", "Burundi", "Cameroon", "Cote d'Ivoire",
+                "Guinea", "Liberia", "Senegal", "South Africa", 
+               "United Republic of Tanzania", "Namibia", "Botswana", 
+               "Guinea-Bissau", "Democratic Republic of the Congo")
 
 get_pop_2011 <- function(cnt_name) {
   wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(1949:2009))]
@@ -357,10 +358,10 @@ cnt_data <- list(
     se_hts = c(20000, 1323, 235000, 140500) * 0.1
   ),
   malawi = list(
-    yr_svy = c(2015.5, 2020.5),
-    ind_svy = (c(2015.5, 2020.5) - start) / dt,
-    den_svy = round(cbind(c(2796, 5165), c(14792, 5920))),
-    num_svy = round(cbind(c(30, 406), c(136, 373))),
+    yr_svy = c(2015.5, 2019.5, 2020.5),
+    ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+    den_svy = round(cbind(c(2796, 2150, 5165), c(14792, 6669, 5920))),
+    num_svy = round(cbind(c(30, 214, 406), c(136, 443, 373))),
     yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
     ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(408900, 101256, 561282, 602657, 735385, 910088),
@@ -382,9 +383,9 @@ cnt_data <- list(
     den_svy = round(cbind(c(6717, 3343, 6576), c(7964, 8104, 10058))),
     num_svy = round(cbind(c(118, 171, 381), c(21, 447, 594))),
     yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(174566, 240434, 459517, 414499, 513090),
-    se_hts = c(174566, 240434, 459517, 414499, 513090) * 0.1
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(197408, 174566, 240434, 459517, 414499, 513090),
+    se_hts = c(197408, 174566, 240434, 459517, 414499, 513090) * 0.1
   ),
   sierraleone = list(
     yr_svy = c(2017.5, 2019.5),
@@ -427,10 +428,10 @@ cnt_data <- list(
     se_hts = c(42570, 306421, 750698, 681602) * 0.1
   ),
   lesotho  = list(
-    yr_svy =  2020.5,
-    ind_svy = (2020.5 - start) / dt,
-    den_svy = round(cbind(4729,5038)),
-    num_svy = round(cbind(474,435)),
+    yr_svy =  c(2020.5, 2023.5),
+    ind_svy = (c(2020.5, 2023.5) - start) / dt,
+    den_svy = round(cbind(c(4729, 2284), c(5038,5131))),
+    num_svy = round(cbind(c(474, 837), c(435, 2529))),
     yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
     ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(58917, 42650, 164236, 281277, 301762, 262915),
@@ -455,7 +456,137 @@ cnt_data <- list(
     ind_hts = (2023 - start + 0.5) / dt,
     hts_dat = 62683,
     se_hts = 62683 * 0.1
-  )
+  ),
+burkinafaso = list(
+  yr_svy =  2021.5,
+  ind_svy = (2021.5 - start) / dt,
+  den_svy = round(cbind(3570,11000)),
+  num_svy = round(cbind(18,27)),
+  yr_hts = c(2022, 2023) + 0.5,
+  ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(968, 3367),
+  se_hts = c(968, 3367) * 0.1
+),
+burundi = list(
+  yr_svy =  2016.5,
+  ind_svy = (2016.5 - start) / dt,
+  den_svy = round(cbind(6620,6340)),
+  num_svy = round(cbind(25,16)),
+  yr_hts = 2023 + 0.5,
+  ind_hts = (2023 - start + 0.5) / dt,
+  hts_dat = 78013,
+  se_hts = 78013 * 0.1
+),
+cameroon = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy = round(cbind(2660,7090)),
+  num_svy = round(cbind(90,147)),
+  yr_hts = c(2021, 2022) + 0.5,
+  ind_hts = (c(2021,2022) - start + 0.5) / dt,
+  hts_dat = c(15000, 33073),
+  se_hts = c(15000,33073) * 0.1
+),
+cotedivoire = list(
+  yr_svy =  2021.5,
+  ind_svy = (2021.5 - start) / dt,
+  den_svy = round(cbind(2490,3900)),
+  num_svy = round(cbind(31,41)),
+  yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(1159, 111184, 117556, 41774, 60154),
+  se_hts = c(1159, 111184, 117556, 41774, 60154) * 0.1
+),
+guinea = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy = round(cbind(3580,3570)),
+  num_svy = round(cbind(14,29)),
+  yr_hts = c(2019, 2022) + 0.5,
+  ind_hts = (c(2019, 2022) - start + 0.5) / dt,
+  hts_dat = c(12, 152),
+  se_hts = c(12, 152) * 0.1
+),
+liberia = list(
+  yr_svy =  2019.5,
+  ind_svy = (2019.5 - start) / dt,
+  den_svy = round(cbind(2350,3630)),
+  num_svy = round(cbind(29,55)),
+  yr_hts = 2023 + 0.5,
+  ind_hts = (2023 - start + 0.5) / dt,
+  hts_dat = 12129,
+  se_hts = 12129 * 0.1
+),
+senegal = list(
+  yr_svy =  2017.5,
+  ind_svy = (2017.5 - start) / dt,
+  den_svy = round(cbind(2080,12000)),
+  num_svy = round(cbind(3,21)),
+  yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(7307, 18860, 5505, 4056, 11932),
+  se_hts = c(7307, 18860, 5505, 4056, 11932) * 0.1
+),
+southafrica = list(
+  yr_svy =  2016.5,
+  ind_svy = (2016.5 - start) / dt,
+  den_svy = round(cbind(1150,4290)),
+  num_svy = round(cbind(30,127)),
+  yr_hts = c(2018, 2019, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2019, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(1200000, 794034, 913418, 212000),
+  se_hts = c(1200000, 794034, 913418, 212000) * 0.1
+),
+tanzania = list(
+  yr_svy =  2022.5,
+  ind_svy = (2022.5 - start) / dt,
+  den_svy = round(cbind(3110,4980)),
+  num_svy = round(cbind(141,160)),
+  yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(25810, 14940, 19000, 38717, 809603, 1447029),
+  se_hts = c(25810, 14940, 19000, 38717, 809603, 1447029) * 0.1
+),
+namibia = list(
+  yr_svy =  2017.5,
+  ind_svy = (2017.5 - start) / dt,
+  den_svy = round(cbind(3651,3881)),
+  num_svy = round(cbind(148,93)),
+  yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(3910, 40075, 47258, 130000, 27974),
+  se_hts = c(3910, 40075, 47258, 130000, 27974) * 0.1
+),
+botswana = list(
+  yr_svy =  2021.5,
+  ind_svy = (2021.5 - start) / dt,
+  den_svy = round(cbind(3108,2911)),
+  num_svy = round(cbind(59,68)),
+  yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(7000, 3848, 8403, 16405),
+  se_hts = c(7000, 3848, 8403, 16405) * 0.1
+),
+guineabissau = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy = round(cbind(376,2518)),
+  num_svy = round(cbind(15,63)),
+  yr_hts = 2020 + 0.5,
+  ind_hts = (2020 - start + 0.5) / dt,
+  hts_dat = 37500,
+  se_hts = 37500 * 0.1
+),
+drc = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy = round(cbind(4891,17405)),
+  num_svy = round(cbind(146,296)),
+  yr_hts = c(2018, 2020, 2021) + 0.5,
+  ind_hts = (c(2018, 2020, 2021) - start + 0.5) / dt,
+  hts_dat = c(500, 7158, 7480),
+  se_hts = c(500, 7158, 7480) * 0.1
+)
 )
 
 # list of survey years for each country
@@ -717,7 +848,11 @@ hts_all <- as.data.frame(rstan::summary(fit, pars = c("hivst_prd"), probs = c(0.
 
 cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe", 
                    "sierraleone", "zambia", "mali", "uganda",
-                   "lesotho", "mozambique", "rwanda")
+                   "lesotho", "mozambique", "rwanda",
+                   "burkinafaso", "burundi", "cameroon", "cotedivoire",
+                   "guinea", "liberia", "senegal", "southafrica","tanzania",
+                   "namibia", "botswana", "guineabissau","drc")
+
 plot_country_fit <- function(c_idx, cnt_lowercase, time, 
                              svy_m_all, svy_f_all, hts_all,
                              cnt_data,
