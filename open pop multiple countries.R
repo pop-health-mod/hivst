@@ -227,6 +227,9 @@ data {
   matrix[n_yr, n_cnt] entry_f;
   matrix[n_yr, n_cnt] mort_m;
   matrix[n_yr, n_cnt] mort_f;
+  
+  // for each country adding a single max allowable number of tests
+  real max_tests[n_cnt];
 }
 
 parameters {
@@ -311,6 +314,14 @@ model {
     hts_mod[, c] = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / inv_logit(phi[c]);
     hivst[hts_idx_s[c]:hts_idx_e[c]] ~ normal(hts_mod[ind_hts[hts_idx_s[c]:hts_idx_e[c]], c], 
                                               se_hts[hts_idx_s[c]:hts_idx_e[c]]);
+  
+  // constraint with a large negative penalty if hts mod is greater than max tests
+    for (i in 1:niter) {
+      // we have one max tests per country
+      if (hts_mod[i, c] > max_tests[c]) {
+  target += -1e10;
+      }
+    }
   }
 }
 
@@ -601,6 +612,13 @@ eswatini = list(
 )
 )
 
+# adding max number of tests for each country from max observed hts_dat
+max_tests <- sapply(cnt_data, function(x) {
+  max(x$hts_dat, na.rm = TRUE)
+})
+max_tests <- unname(sapply(cnt_data, function(x) max(x$hts_dat, na.rm = TRUE))) # removing country names 
+
+
 # list of survey years for each country
 n_cnt <- length(cnt_data)
 n_svy_by_cnt <- unlist(lapply(cnt_data, function(x) length(x$yr_svy))) 
@@ -635,7 +653,7 @@ cnt_data <- lapply(cnt_data, function(x) {
   return(x)
 })
 
-#combining svy and pgm data for all countries
+# combining svy and pgm data for all countries
 num_svy <- do.call(rbind, lapply(cnt_data, function(x) x$num_svy)) #rows=countries, cols=surveys
 den_svy <- do.call(rbind, lapply(cnt_data, function(x) x$den_svy))
 ind_svy <- unlist(lapply(cnt_data, function(x) x$ind_svy))
@@ -669,7 +687,9 @@ data_stan <- list(
   entry_m = entry_m_vec,
   entry_f = entry_f_vec,
   mort_m = mort_m_vec,
-  mort_f = mort_f_vec
+  mort_f = mort_f_vec,
+  # max number of tests
+  max_tests = max_tests
 )
 rstan_options(auto_write = TRUE)
 
@@ -852,7 +872,7 @@ ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
 
 
-
+#------- step to check each country's pred with pprogram point-----------------
 # function to plot individual output
 svy_m_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 svy_f_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
