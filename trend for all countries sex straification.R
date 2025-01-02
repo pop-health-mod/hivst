@@ -128,7 +128,7 @@ transformed parameters {
   
   beta_retest = beta_retest_overall + sd_rt * beta_rt_raw;
   beta_male = beta_men_overall + sd_men * beta_men_raw;
-  phi = phi_overall + sd_phi * phi_raw;
+  phi = 0.5 + (1 - 0.5) * inv_logit(phi_overall + sd_phi * phi_raw);
   
   // mapping beta_t to beta_t_dt
   matrix[n_cnt, niter] beta_t_dt;  // yearly HIVST rates mapped to time steps
@@ -151,7 +151,7 @@ model {
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(log(1.2), 0.5);
   // overall prior for the % of tests distributed being used
-  phi_overall ~ normal(logit(0.85), 0.5);
+  phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 0.5); // 0.5 + plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 0.5) * (1 - 0.5)
   beta_men_overall ~ normal(log(1), 0.5);
   
   beta_rt_raw ~ std_normal();
@@ -173,7 +173,7 @@ model {
                                               model_pred[ind_svy[svy_idx_s[c]:svy_idx_e[c]], 4, 2]);
 
     // fitting to program data(layer of country & years we are modeling)
-    hts_mod[, c] = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / inv_logit(phi[c]);
+    hts_mod[, c] = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / phi[c];
     hivst[hts_idx_s[c]:hts_idx_e[c]] ~ normal(hts_mod[ind_hts[hts_idx_s[c]:hts_idx_e[c]], c], 
                                               se_hts[hts_idx_s[c]:hts_idx_e[c]]);
   }
@@ -192,7 +192,7 @@ generated quantities {
             svy_prd_f[c, ] = to_row_vector(pred[, 4, 2]);  // females ever used HIVST
         
         // hts predictions (slicing operator : takes all niter for each country)
-        hivst_prd[c, ] = to_row_vector(to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / inv_logit(phi[c]);
+        hivst_prd[c, ] = to_row_vector(to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / phi[c];
         }
 }
 '
