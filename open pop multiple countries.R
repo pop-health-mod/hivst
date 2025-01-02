@@ -166,9 +166,9 @@ functions {
     vector mort_f_dt) { 
     
   // converting rates from log scale to exponent
-    vector[niter] rr_t = exp(beta_t_dt);
-    real rr_r = exp(beta_retest);
-    real rr_m = exp(beta_male);
+    vector[niter] rr_t = beta_t_dt;
+    real rr_r = beta_retest;
+    real rr_m = beta_male;
     
     real out[niter,4,2];
     out = rep_array(0.0, niter,4,2);
@@ -249,11 +249,10 @@ transformed parameters {
   vector[n_cnt] beta_male;
   vector[n_cnt] phi;
   
-  beta_retest = beta_retest_overall + sd_rt * beta_rt_raw;
-  beta_male = beta_men_overall + sd_men * beta_men_raw;
+  beta_retest = 0.5 + (2 - 0.5) * inv_logit(beta_retest_overall + sd_rt * beta_rt_raw);
+  beta_male = exp(beta_men_overall + sd_men * beta_men_raw);
   phi = 0.5 + (1 - 0.5) * inv_logit(phi_overall + sd_phi * phi_raw);
 
-  
   // entry and death rates
   matrix[n_cnt, niter] beta_t_dt;
   matrix[n_cnt, niter] entry_m_dt;
@@ -264,7 +263,7 @@ transformed parameters {
   for (c in 1:n_cnt) {
     for (i in 1:niter) {
       int year = yr_ind[i];
-      beta_t_dt[c, i] = beta_t[c, year];
+      beta_t_dt[c, i] = exp(beta_t[c, year]);
       entry_m_dt[c, i] = entry_m[year, c]; // extracting in correct format as entrymvec has years as rows and cnt as col
       entry_f_dt[c, i] = entry_f[year, c];
       mort_m_dt[c, i] = mort_m[year, c];
@@ -283,9 +282,9 @@ model {
   sd_rt ~ normal(0, 0.25) T[1e-6, 2.5];
   sd_men ~ normal(0, 0.25) T[1e-6, 2.5];
   // overall prior for retesting parameter
-  beta_retest_overall ~ normal(log(1.2), 0.5);
+  beta_retest_overall ~ normal(logit(1.2 - 0.5) / (5 - 0.5), 0.5); // 0.5 + (5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.5)
   // overall prior for the % of tests distributed being used
-  phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 0.5); // 0.5 + plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 0.5) * (1 - 0.5)
+  phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 1); // 0.5 + (1 - 0.5) * plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 1)
   beta_men_overall ~ normal(log(1), 0.5);
   
   beta_rt_raw ~ std_normal();
@@ -688,15 +687,15 @@ init_function <- function() {
     sd_men = runif(1, min = 0.1, max = 1),
     beta_restest_overall = rnorm(1, log(1), 0.5),
     beta_rt_raw = rnorm(data_stan$n_cnt, 0, 0.5),
-    beta_men_overall = rnorm(1, log(1.2), 0.2),
+    beta_men_overall = rnorm(1, qlogis((1.2 - 0.5) / (2 - 0.5)), 0.2),
     beta_men_raw = rnorm(data_stan$n_cnt, 0, 0.2),
-    beta_phi_overall = rnorm(1, qlogis(0.8), 0.2),
+    beta_phi_overall = rnorm(1, qlogis((0.8 - 0.5) / (1 - 0.5)), 0.2),
     phi_raw = rnorm(data_stan$n_cnt, 0, 0.2)
   )
 }
 
-fit <- sampling(hivst_stan, data = data_stan, iter = 4000, chains = 4, init = init_function,
-                warmup = 2000, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4, init = init_function,
+                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
 
 # traceplots
 traceplot(fit, pars = "sd_rw")
@@ -766,25 +765,25 @@ ggplot(df_rr_ov, aes(x = country, y = median, color = style)) +
 
 # rate ratio male
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_men_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-exp(rr_m_overall$`50%`)
-exp(rr_m_overall$`2.5%`)
-exp(rr_m_overall$`97.5%`)
+0.5 + (5 - 0.5) * invlogit(rr_m_overall$`50%`)
+0.5 + (5 - 0.5) * invlogit(rr_m_overall$`2.5%`)
+0.5 + (5 - 0.5) * invlogit(rr_m_overall$`97.5%`)
 
 rr_m <- as.data.frame(rstan::summary(fit, pars = c("beta_male"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-exp(rr_m$`50%`)
-exp(rr_m$`2.5%`)
-exp(rr_m$`97.5%`)
+rr_m$`50%`
+rr_m$`2.5%`
+rr_m$`97.5%`
 
 # forest plot for RR male
 df_rrm_ <- data.frame(country = names(cnt_data),
-                      median = exp(rr_m$`50%`),
-                      lci = exp(rr_m$`2.5%`),
-                      uci = exp(rr_m$`97.5%`))
+                      median = rr_m$`50%`,
+                      lci = rr_m$`2.5%`,
+                      uci = rr_m$`97.5%`)
 df_rr_m <- rbind(df_rrm_,
                  data.frame( country = "overall",
-                             median = exp(rr_m_overall$`50%`),
-                             lci = exp(rr_m_overall$`2.5%`),
-                             uci = exp(rr_m_overall$`97.5%`)))
+                             median = 0.5 + (5 - 0.5) * invlogit(rr_m_overall$`50%`),
+                             lci = 0.5 + (5 - 0.5) * invlogit(rr_m_overall$`2.5%`),
+                             uci = 0.5 + (5 - 0.5) * invlogit(rr_m_overall$`97.5%`)))
 df_rr_m$country <- factor(df_rr_m$country, levels = rev(c(setdiff(df_rr_m$country, "overall"), "overall")))
 df_rr_m$style <- ifelse(df_rr_m$country == "overall", "pooled", "individual")
 
@@ -819,24 +818,24 @@ ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
 
 # phi
 phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-invlogit(phi_overall$`50%`)
-invlogit(phi_overall$`2.5%`)
-invlogit(phi_overall$`97.5%`)
+0.5 + (1 - 0.5) * invlogit(phi_overall$`50%`)
+0.5 + (1 - 0.5) * invlogit(phi_overall$`2.5%`)
+0.5 + (1 - 0.5) * invlogit(phi_overall$`97.5%`)
 phi <- as.data.frame(rstan::summary(fit, pars = c("phi"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-invlogit(phi$`50%`)
-invlogit(phi$`2.5%`)
-invlogit(phi$`97.5%`)
+phi$`50%`
+phi$`2.5%`
+phi$`97.5%`
 
 # forest plot for phi
 df_phi <- data.frame(country = names(cnt_data),
-                       median = invlogit(phi$`50%`),
-                       lci = invlogit(phi$`2.5%`),
-                       uci = invlogit(phi$`97.5%`))
+                       median = phi$`50%`,
+                       lci = phi$`2.5%`,
+                       uci = phi$`97.5%`)
 df_phi_ov <- rbind(df_phi,
                   data.frame( country = "overall",
-                              median = invlogit(phi_overall$`50%`),
-                              lci = invlogit(phi_overall$`2.5%`),
-                              uci = invlogit(phi_overall$`97.5%`)))
+                              median = 0.5 + (1 - 0.5) * invlogit(phi_overall$`50%`),
+                              lci = 0.5 + (1 - 0.5) * invlogit(phi_overall$`2.5%`),
+                              uci = 0.5 + (1 - 0.5) * invlogit(phi_overall$`97.5%`)))
 df_phi_ov$country <- factor(df_phi_ov$country, levels = rev(c(setdiff(df_phi_ov$country, "overall"), "overall")))
 df_phi_ov$style <- ifelse(df_phi_ov$country == "overall", "pooled", "individual")
 
