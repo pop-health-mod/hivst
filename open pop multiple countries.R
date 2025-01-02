@@ -685,9 +685,9 @@ init_function <- function() {
     sd_phi = runif(1, min = 0.1, max = 1),
     sd_rt = runif(1, min = 0.1, max = 1),
     sd_men = runif(1, min = 0.1, max = 1),
-    beta_restest_overall = rnorm(1, log(1), 0.5),
+    beta_restest_overall = rnorm(1, qlogis((1.2 - 0.5) / (5 - 0.5)), 0.5),
     beta_rt_raw = rnorm(data_stan$n_cnt, 0, 0.5),
-    beta_men_overall = rnorm(1, qlogis((1.2 - 0.5) / (2 - 0.5)), 0.2),
+    beta_men_overall = rnorm(1, log(1), 0.2),
     beta_men_raw = rnorm(data_stan$n_cnt, 0, 0.2),
     beta_phi_overall = rnorm(1, qlogis((0.8 - 0.5) / (1 - 0.5)), 0.2),
     phi_raw = rnorm(data_stan$n_cnt, 0, 0.2)
