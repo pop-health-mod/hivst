@@ -232,9 +232,9 @@ data {
 parameters {
   matrix<upper = -1>[n_cnt, n_yr] beta_t;          // yearly HIVST rates (rw1) for each country
   real<lower = 1e-6, upper = 5> sd_rw;    // sd of the rw1 for beta_t
-  real<lower = 1e-6, upper = 2.5> sd_phi;    // sd of the RE for phi
-  real<lower = 1e-6, upper = 2.5> sd_rt;    // sd of the RE for the re-testing rate ratio
-  real<lower = 1e-6, upper = 2.5> sd_men;    // sd of the RE of the male rate ratio
+  real<lower = 1e-6, upper = 5> sd_phi;    // sd of the RE for phi
+  real<lower = 1e-6, upper = 5> sd_rt;    // sd of the RE for the re-testing rate ratio
+  real<lower = 1e-6, upper = 5> sd_men;    // sd of the RE of the male rate ratio
   real beta_retest_overall;            // overall shared re-testing rate
   vector[n_cnt] beta_rt_raw;            // country-specific re-testing rates
   real beta_men_overall;               //overall male relative rate of HIVST
@@ -249,7 +249,7 @@ transformed parameters {
   vector[n_cnt] beta_male;
   vector[n_cnt] phi;
   
-  beta_retest = 0.5 + (2 - 0.5) * inv_logit(beta_retest_overall + sd_rt * beta_rt_raw);
+  beta_retest = 0.5 + (5 - 0.5) * inv_logit(beta_retest_overall + sd_rt * beta_rt_raw);
   beta_male = exp(beta_men_overall + sd_men * beta_men_raw);
   phi = 0.5 + (1 - 0.5) * inv_logit(phi_overall + sd_phi * phi_raw);
 
@@ -278,9 +278,9 @@ model {
   // priors
   // overall prior for the SD of the RW1 for testing rate
   sd_rw ~ normal(0, 0.25) T[1e-6, 5];
-  sd_phi ~ normal(0, 0.25) T[1e-6, 2.5];
-  sd_rt ~ normal(0, 0.25) T[1e-6, 2.5];
-  sd_men ~ normal(0, 0.25) T[1e-6, 2.5];
+  sd_phi ~ normal(0, 0.5) T[1e-6, 5];
+  sd_rt ~ normal(0, 0.5) T[1e-6, 5];
+  sd_men ~ normal(0, 0.5) T[1e-6, 5];
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(logit(1.2 - 0.5) / (5 - 0.5), 0.5); // 0.5 + (5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.5)
   // overall prior for the % of tests distributed being used
@@ -738,9 +738,9 @@ rr$`97.5%`
 
 # forest plot for RR retesting
 df_rr_rt <- data.frame(country = names(cnt_data),
-                      median = exp(rr$`50%`),
-                      lci = exp(rr$`2.5%`),
-                      uci = exp(rr$`97.5%`))
+                      median = rr$`50%`,
+                      lci = rr$`2.5%`,
+                      uci = rr$`97.5%`)
 df_rr_ov <- rbind(df_rr_rt,
                  data.frame( country = "overall",
                              median = 0.5 + (5 - 0.5) * invlogit(rr_overall$`50%`),
