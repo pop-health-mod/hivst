@@ -227,9 +227,6 @@ data {
   matrix[n_yr, n_cnt] entry_f;
   matrix[n_yr, n_cnt] mort_m;
   matrix[n_yr, n_cnt] mort_f;
-  
-  // for each country adding a single max allowable number of tests
-  real max_tests[n_cnt];
 }
 
 parameters {
@@ -254,7 +251,8 @@ transformed parameters {
   
   beta_retest = beta_retest_overall + sd_rt * beta_rt_raw;
   beta_male = beta_men_overall + sd_men * beta_men_raw;
-  phi = phi_overall + sd_phi * phi_raw;
+  phi = 0.5 + (1 - 0.5) * inv_logit(phi_overall + sd_phi * phi_raw);
+
   
   // entry and death rates
   matrix[n_cnt, niter] beta_t_dt;
@@ -287,7 +285,7 @@ model {
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(log(1.2), 0.5);
   // overall prior for the % of tests distributed being used
-  phi_overall ~ normal(logit(0.85), 0.5);
+  phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 0.5); // 0.5 + plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 0.5) * (1 - 0.5)
   beta_men_overall ~ normal(log(1), 0.5);
   
   beta_rt_raw ~ std_normal();
@@ -311,17 +309,9 @@ model {
                                               model_pred[ind_svy[svy_idx_s[c]:svy_idx_e[c]], 4, 2]);
 
     // fitting to program data
-    hts_mod[, c] = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / inv_logit(phi[c]);
+    hts_mod[, c] = (to_vector(model_pred[, 3, 1]) + to_vector(model_pred[, 3, 2])) / phi[c];
     hivst[hts_idx_s[c]:hts_idx_e[c]] ~ normal(hts_mod[ind_hts[hts_idx_s[c]:hts_idx_e[c]], c], 
                                               se_hts[hts_idx_s[c]:hts_idx_e[c]]);
-  
-  // constraint with a large negative penalty if hts mod is greater than max tests
-    for (i in 1:niter) {
-      // we have one max tests per country
-      if (hts_mod[i, c] > max_tests[c]) {
-  target += -1e10;
-      }
-    }
   }
 }
 
@@ -339,7 +329,7 @@ generated quantities {
             svy_prd_f[c, ] = to_row_vector(pred[, 4, 2]);  // females ever used HIVST
         
         // hts predictions 
-        hivst_prd[c, ] = to_row_vector(to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / inv_logit(phi[c]);
+        hivst_prd[c, ] = to_row_vector(to_vector(pred[, 3, 1]) + to_vector(pred[, 3, 2])) / phi[c];
         }
 }
 '
@@ -612,12 +602,6 @@ eswatini = list(
 )
 )
 
-# adding max number of tests for each country from max observed hts_dat
-max_tests <- sapply(cnt_data, function(x) {
-  max(x$hts_dat, na.rm = TRUE)
-})
-max_tests <- unname(sapply(cnt_data, function(x) max(x$hts_dat, na.rm = TRUE))) # removing country names 
-
 
 # list of survey years for each country
 n_cnt <- length(cnt_data)
@@ -687,9 +671,7 @@ data_stan <- list(
   entry_m = entry_m_vec,
   entry_f = entry_f_vec,
   mort_m = mort_m_vec,
-  mort_f = mort_f_vec,
-  # max number of tests
-  max_tests = max_tests
+  mort_f = mort_f_vec
 )
 rstan_options(auto_write = TRUE)
 
