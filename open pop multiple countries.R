@@ -720,21 +720,21 @@ traceplot(fit, pars = "phi")
 pars_beta_t <- matrix(paste0("beta_t[", rep(1:data_stan$n_cnt, each = data_stan$n_yr), ",", rep(1:data_stan$n_yr, data_stan$n_cnt), "]"), 
               nrow = data_stan$n_cnt, ncol = data_stan$n_yr, byrow = TRUE)
 r <- as.data.frame(rstan::summary(fit, pars = pars_beta_t, probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-exp(r$`50%`)
-max(exp(r$`50%`))
-max(exp(r$`97.5%`))
+r$`50%`
+max(r$`50%`)
+max(r$`97.5%`)
  
 
 # retesting rate ratio
 rr_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_retest_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-exp(rr_overall$`50%`)
-exp(rr_overall$`2.5%`)
-exp(rr_overall$`97.5%`)
+0.5 + (5 - 0.5) * invlogit(rr_overall$`50%`)
+0.5 + (5 - 0.5) * invlogit(rr_overall$`2.5%`)
+0.5 + (5 - 0.5) * invlogit(rr_overall$`97.5%`)
 
 rr <- as.data.frame(rstan::summary(fit, pars = c("beta_retest"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-exp(rr$`50%`)
-exp(rr$`2.5%`)
-exp(rr$`97.5%`)
+rr$`50%`
+rr$`2.5%`
+rr$`97.5%`
 
 # forest plot for RR retesting
 df_rr_rt <- data.frame(country = names(cnt_data),
@@ -743,9 +743,9 @@ df_rr_rt <- data.frame(country = names(cnt_data),
                       uci = exp(rr$`97.5%`))
 df_rr_ov <- rbind(df_rr_rt,
                  data.frame( country = "overall",
-                             median = exp(rr_overall$`50%`),
-                             lci = exp(rr_overall$`2.5%`),
-                             uci = exp(rr_overall$`97.5%`)))
+                             median = 0.5 + (5 - 0.5) * invlogit(rr_overall$`50%`),
+                             lci = 0.5 + (5 - 0.5) * invlogit(rr_overall$`2.5%`),
+                             uci = 0.5 + (5 - 0.5) * invlogit(rr_overall$`97.5%`)))
 df_rr_ov$country <- factor(df_rr_ov$country, levels = rev(c(setdiff(df_rr_ov$country, "overall"), "overall")))
 df_rr_ov$style <- ifelse(df_rr_ov$country == "overall", "pooled", "individual")
 
@@ -765,9 +765,9 @@ ggplot(df_rr_ov, aes(x = country, y = median, color = style)) +
 
 # rate ratio male
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_men_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-0.5 + (5 - 0.5) * invlogit(rr_m_overall$`50%`)
-0.5 + (5 - 0.5) * invlogit(rr_m_overall$`2.5%`)
-0.5 + (5 - 0.5) * invlogit(rr_m_overall$`97.5%`)
+exp(rr_m_overall$`50%`)
+exp(rr_m_overall$`2.5%`)
+exp(rr_m_overall$`97.5%`)
 
 rr_m <- as.data.frame(rstan::summary(fit, pars = c("beta_male"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 rr_m$`50%`
@@ -781,28 +781,13 @@ df_rrm_ <- data.frame(country = names(cnt_data),
                       uci = rr_m$`97.5%`)
 df_rr_m <- rbind(df_rrm_,
                  data.frame( country = "overall",
-                             median = 0.5 + (5 - 0.5) * invlogit(rr_m_overall$`50%`),
-                             lci = 0.5 + (5 - 0.5) * invlogit(rr_m_overall$`2.5%`),
-                             uci = 0.5 + (5 - 0.5) * invlogit(rr_m_overall$`97.5%`)))
-df_rr_m$country <- factor(df_rr_m$country, levels = rev(c(setdiff(df_rr_m$country, "overall"), "overall")))
-df_rr_m$style <- ifelse(df_rr_m$country == "overall", "pooled", "individual")
-
-
-# Forest plot
-df_rrm_ <- data.frame(country = names(cnt_data),
-                     median = exp(rr_m$`50%`),
-                     lci = exp(rr_m$`2.5%`),
-                     uci = exp(rr_m$`97.5%`))
-df_rr_m <- rbind(df_rrm_,
-          data.frame( country = "overall",
-                          median = exp(rr_m_overall$`50%`),
-                          lci = exp(rr_m_overall$`2.5%`),
-                          uci = exp(rr_m_overall$`97.5%`)))
+                             median = exp(rr_m_overall$`50%`),
+                             lci = exp(rr_m_overall$`2.5%`),
+                             uci = exp(rr_m_overall$`97.5%`)))
 df_rr_m$country <- factor(df_rr_m$country, levels = rev(c(setdiff(df_rr_m$country, "overall"), "overall")))
 df_rr_m$style <- ifelse(df_rr_m$country == "overall", "pooled", "individual")
 
 # Forest plot
-
 ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
   scale_color_manual(values = c("individual" = "steelblue4", "pooled" = "firebrick4")) +  # Colors
