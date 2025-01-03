@@ -249,7 +249,7 @@ transformed parameters {
   vector[n_cnt] beta_male;
   vector[n_cnt] phi;
   
-  beta_retest = 0.5 + (5 - 0.5) * inv_logit(beta_retest_overall + sd_rt * beta_rt_raw);
+  beta_retest = 0.5 + (2.5 - 0.5) * inv_logit(beta_retest_overall + sd_rt * beta_rt_raw);
   beta_male = exp(beta_men_overall + sd_men * beta_men_raw);
   phi = 0.5 + (1 - 0.5) * inv_logit(phi_overall + sd_phi * phi_raw);
 
@@ -282,7 +282,7 @@ model {
   sd_rt ~ normal(0, 0.5) T[1e-6, 5];
   sd_men ~ normal(0, 0.5) T[1e-6, 5];
   // overall prior for retesting parameter
-  beta_retest_overall ~ normal(logit(1.2 - 0.5) / (5 - 0.5), 0.2); // 0.5 + (5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.2)
+  beta_retest_overall ~ normal(logit(1.2 - 0.5) / (2.5 - 0.5), 0.5); // 0.5 + (2.5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (2.5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.5)
   // overall prior for the % of tests distributed being used
   phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 1); // 0.5 + (1 - 0.5) * plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 1)
   beta_men_overall ~ normal(log(1), 0.5);
@@ -685,11 +685,11 @@ init_function <- function() {
     sd_phi = runif(1, min = 0.1, max = 1),
     sd_rt = runif(1, min = 0.1, max = 1),
     sd_men = runif(1, min = 0.1, max = 1),
-    beta_restest_overall = rnorm(1, qlogis((1.2 - 0.5) / (5 - 0.5)), 0.5),
+    beta_restest_overall = rnorm(1, qlogis((1.2 - 0.5) / (2.5 - 0.5)), 0.1),
     beta_rt_raw = rnorm(data_stan$n_cnt, 0, 0.5),
-    beta_men_overall = rnorm(1, log(1), 0.2),
-    beta_men_raw = rnorm(data_stan$n_cnt, 0, 0.2),
-    beta_phi_overall = rnorm(1, qlogis((0.8 - 0.5) / (1 - 0.5)), 0.2),
+    beta_men_overall = rnorm(1, log(1), 0.1),
+    beta_men_raw = rnorm(data_stan$n_cnt, 0, 0.1),
+    beta_phi_overall = rnorm(1, qlogis((0.8 - 0.5) / (1 - 0.5)), 0.1),
     phi_raw = rnorm(data_stan$n_cnt, 0, 0.2)
   )
 }
@@ -727,9 +727,9 @@ max(r$`97.5%`)
 
 # retesting rate ratio
 rr_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_retest_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-0.5 + (5 - 0.5) * invlogit(rr_overall$`50%`)
-0.5 + (5 - 0.5) * invlogit(rr_overall$`2.5%`)
-0.5 + (5 - 0.5) * invlogit(rr_overall$`97.5%`)
+0.5 + (2.5 - 0.5) * invlogit(rr_overall$`50%`)
+0.5 + (2.5 - 0.5) * invlogit(rr_overall$`2.5%`)
+0.5 + (2.5 - 0.5) * invlogit(rr_overall$`97.5%`)
 
 rr <- as.data.frame(rstan::summary(fit, pars = c("beta_retest"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 rr$`50%`
@@ -743,9 +743,9 @@ df_rr_rt <- data.frame(country = names(cnt_data),
                       uci = rr$`97.5%`)
 df_rr_ov <- rbind(df_rr_rt,
                  data.frame( country = "overall",
-                             median = 0.5 + (5 - 0.5) * invlogit(rr_overall$`50%`),
-                             lci = 0.5 + (5 - 0.5) * invlogit(rr_overall$`2.5%`),
-                             uci = 0.5 + (5 - 0.5) * invlogit(rr_overall$`97.5%`)))
+                             median = 0.5 + (2.5 - 0.5) * invlogit(rr_overall$`50%`),
+                             lci = 0.5 + (2.5 - 0.5) * invlogit(rr_overall$`2.5%`),
+                             uci = 0.5 + (2.5 - 0.5) * invlogit(rr_overall$`97.5%`)))
 df_rr_ov$country <- factor(df_rr_ov$country, levels = rev(c(setdiff(df_rr_ov$country, "overall"), "overall")))
 df_rr_ov$style <- ifelse(df_rr_ov$country == "overall", "pooled", "individual")
 
@@ -797,7 +797,7 @@ ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   labs(title = "", x = "Country", y = "Rate ratio for men", color = "Legend") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
-  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
   theme(legend.position = "right")
 
 
