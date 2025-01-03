@@ -282,7 +282,7 @@ model {
   sd_rt ~ normal(0, 0.5) T[1e-6, 5];
   sd_men ~ normal(0, 0.5) T[1e-6, 5];
   // overall prior for retesting parameter
-  beta_retest_overall ~ normal(logit(1.2 - 0.5) / (5 - 0.5), 0.5); // 0.5 + (5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.5)
+  beta_retest_overall ~ normal(logit(1.2 - 0.2) / (5 - 0.5), 0.5); // 0.5 + (5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.2)
   // overall prior for the % of tests distributed being used
   phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 1); // 0.5 + (1 - 0.5) * plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 1)
   beta_men_overall ~ normal(log(1), 0.5);
@@ -854,7 +854,7 @@ cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe",
 plot_country_fit <- function(c_idx, cnt_lowercase, time, 
                              svy_m_all, svy_f_all, hts_all,
                              cnt_data,
-                             niter) {
+                             niter, using_layout = FALSE) {
   cn <- cnt_lowercase[c_idx] # to match cnt_data keys exactly
   
   start_row <- (c_idx - 1)  * niter + 1
@@ -872,9 +872,10 @@ plot_country_fit <- function(c_idx, cnt_lowercase, time,
   hts_dat_c <- cnt_data[[cn]]$hts_dat
   ind_hts_c <- cnt_data[[cn]]$ind_hts
   
-  par(mfrow = c(1, 2), oma = c(0, 0, 3, 0), mar = c(4, 4, 1, 1))
+  if (using_layout == FALSE) { par(mfrow = c(1, 2), oma = c(0, 0, 3, 0), mar = c(4, 4, 1, 1)) }
   plot(svy_m_country$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, 
-       ylab = "Ever used HIVST", ylim = c(0, max(svy_m_country$`97.5%`, svy_f_country$`97.5%`, max(uci_svy_c))))
+       ylab = "Ever used HIVST", ylim = c(0, max(svy_m_country$`97.5%`, svy_f_country$`97.5%`, max(uci_svy_c))),
+       main = paste0(toupper(substring(cn, 1, 1)), substring(cn, 2)))
   
   polygon(x = c(time, rev(time)),
           y = c(svy_m_country$`2.5%`, rev(svy_m_country$`97.5%`)),
@@ -910,9 +911,13 @@ plot_country_fit <- function(c_idx, cnt_lowercase, time,
         outer = TRUE, side = 3, line = 1, cex = 1.5)
 }
 
+png("./figs/plots.png", width = 8, height = 26, units = "in", res = 320)
+nf <- layout(mat = matrix(1:52, nrow = 13, ncol = 4, byrow = TRUE),
+       widths = rep(lcm(5), 4), heights = rep(lcm(5), 13), respect = TRUE)
 for (c_idx in seq_along(cnt_lowercase)) {
-  plot_country_fit(c_idx, cnt_lowercase, time, svy_m_all, svy_f_all, hts_all, cnt_data, niter)
+  plot_country_fit(c_idx, cnt_lowercase, time, svy_m_all, svy_f_all, hts_all, cnt_data, niter, using_layout = TRUE)
 }
+dev.off()
 
 
 #----verification step: checking wpp pop with model predictions-----------
