@@ -917,8 +917,8 @@ png("./figs/plots.png", width = 8, height = 26, units = "in", res = 320)
 nf <- layout(mat = matrix(1:52, nrow = 13, ncol = 4, byrow = TRUE),
        widths = rep(lcm(5), 4), heights = rep(lcm(5), 13), respect = TRUE)
 par(oma = c(0, 0, 0, 0), mar = c(3, 4, 2, 1))
-alphabetical_cnt <- sort(cnt_lowercase)
-for (c_idx in seq_along(alphabetical_cnt)) {
+alphabetical_cnt <- order(cnt_lowercase)
+for (c_idx in alphabetical_cnt) {
   plot_country_fit(c_idx, cnt_lowercase, time, svy_m_all, svy_f_all, hts_all, cnt_data, niter, using_layout = TRUE)
 }
 dev.off()
