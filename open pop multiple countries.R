@@ -282,7 +282,7 @@ model {
   sd_rt ~ normal(0, 0.5) T[1e-6, 5];
   sd_men ~ normal(0, 0.5) T[1e-6, 5];
   // overall prior for retesting parameter
-  beta_retest_overall ~ normal(logit(1.2 - 0.2) / (5 - 0.5), 0.5); // 0.5 + (5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.2)
+  beta_retest_overall ~ normal(logit(1.2 - 0.5) / (5 - 0.5), 0.2); // 0.5 + (5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.2)
   // overall prior for the % of tests distributed being used
   phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 1); // 0.5 + (1 - 0.5) * plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 1)
   beta_men_overall ~ normal(log(1), 0.5);
