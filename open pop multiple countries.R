@@ -872,7 +872,9 @@ plot_country_fit <- function(c_idx, cnt_lowercase, time,
   hts_dat_c <- cnt_data[[cn]]$hts_dat
   ind_hts_c <- cnt_data[[cn]]$ind_hts
   
-  if (using_layout == FALSE) { par(mfrow = c(1, 2), oma = c(0, 0, 3, 0), mar = c(4, 4, 1, 1)) }
+  if (using_layout == FALSE) { 
+    par(mfrow = c(1, 2), oma = c(0, 0, 3, 0), mar = c(4, 4, 1, 1)) 
+  }
   plot(svy_m_country$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, 
        ylab = "Ever used HIVST", ylim = c(0, max(svy_m_country$`97.5%`, svy_f_country$`97.5%`, max(uci_svy_c))),
        main = paste0(toupper(substring(cn, 1, 1)), substring(cn, 2)))
@@ -914,6 +916,7 @@ plot_country_fit <- function(c_idx, cnt_lowercase, time,
 png("./figs/plots.png", width = 8, height = 26, units = "in", res = 320)
 nf <- layout(mat = matrix(1:52, nrow = 13, ncol = 4, byrow = TRUE),
        widths = rep(lcm(5), 4), heights = rep(lcm(5), 13), respect = TRUE)
+par(oma = c(0, 0, 0, 0), mar = c(3, 4, 2, 1))
 for (c_idx in seq_along(cnt_lowercase)) {
   plot_country_fit(c_idx, cnt_lowercase, time, svy_m_all, svy_f_all, hts_all, cnt_data, niter, using_layout = TRUE)
 }
