@@ -8,7 +8,8 @@ library(wpp2024)
 library(rstan)
 library(LaplacesDemon)
 library(ggplot2)
-library(scales) 
+library(scales)
+library(patchwork)
 
 # male & female pop data from wpp
 data(popM1)
@@ -694,8 +695,8 @@ init_function <- function() {
   )
 }
 
-fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4, init = init_function,
-                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 4000, chains = 4, init = init_function,
+                warmup = 2000, thin = 1, control = list(adapt_delta = 0.9))
 
 # traceplots
 traceplot(fit, pars = "sd_rw")
@@ -725,7 +726,7 @@ max(r$`50%`)
 max(r$`97.5%`)
  
 
-# retesting rate ratio
+# ------ retesting rate ratio --------
 rr_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_retest_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 0.5 + (2.5 - 0.5) * invlogit(rr_overall$`50%`)
 0.5 + (2.5 - 0.5) * invlogit(rr_overall$`2.5%`)
@@ -736,7 +737,7 @@ rr$`50%`
 rr$`2.5%`
 rr$`97.5%`
 
-# forest plot for RR retesting
+# dataframe for forest plot of RR retesting
 df_rr_rt <- data.frame(country = names(cnt_data),
                       median = rr$`50%`,
                       lci = rr$`2.5%`,
@@ -746,24 +747,46 @@ df_rr_ov <- rbind(df_rr_rt,
                              median = 0.5 + (2.5 - 0.5) * invlogit(rr_overall$`50%`),
                              lci = 0.5 + (2.5 - 0.5) * invlogit(rr_overall$`2.5%`),
                              uci = 0.5 + (2.5 - 0.5) * invlogit(rr_overall$`97.5%`)))
-df_rr_ov$country <- factor(df_rr_ov$country, levels = rev(c(setdiff(df_rr_ov$country, "overall"), "overall")))
-df_rr_ov$style <- ifelse(df_rr_ov$country == "overall", "pooled", "individual")
 
+# Renaming selected countries
+df_rr_ov$country <- as.character(df_rr_ov$country)
+rename_map <- c(
+  "burkinafaso"  = "Burkina Faso",
+  "cotedivoire"  = "Côte d'Ivoire",
+  "southafrica"  = "South Africa",
+  "guineabissau" = "Guinea-Bissau",
+  "drc"          = "DRC"
+)
+for (old_name in names(rename_map)) {
+  df_rr_ov$country[df_rr_ov$country == old_name] <- rename_map[[old_name]]
+}
 
-# Forest plot
-ggplot(df_rr_ov, aes(x = country, y = median, color = style)) +
+cap_first_letter <- function(x) {
+  if (x == "overall") return("Overall")   
+  if (nchar(x) == 0)   return(x)      
+  paste0(toupper(substring(x, 1, 1)), substring(x, 2))
+}
+df_rr_ov$country <- sapply(df_rr_ov$country, cap_first_letter, USE.NAMES = FALSE)
+
+countries_no_overall <- setdiff(df_rr_ov$country, "Overall")
+countries_sorted     <- sort(countries_no_overall)    
+new_levels           <- c("Overall", rev(countries_sorted))
+df_rr_ov$country     <- factor(df_rr_ov$country, levels = new_levels)
+df_rr_ov$style <- ifelse(df_rr_ov$country == "Overall", "pooled", "individual")
+
+rr_retesting_forest <- ggplot(df_rr_ov, aes(x = country, y = median, color = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
-  scale_color_manual(values = c("individual" = "coral2", "pooled" = "coral4")) +  # Colors
-  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
+  scale_color_manual(values = c("individual" = "coral2", "pooled" = "coral4")) +
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Re-testing rate ratio", color = "Legend") +
-  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
-  theme(legend.position = "right") +
-  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
+  labs(title = "", x = "Country", y = "Re-testing rate ratio", color = "Estimates (95% CrI)") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  theme(legend.position = "right")
 
 
-# rate ratio male
+
+#-------- rate ratio male ---------------
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_men_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(rr_m_overall$`50%`)
 exp(rr_m_overall$`2.5%`)
@@ -774,7 +797,7 @@ rr_m$`50%`
 rr_m$`2.5%`
 rr_m$`97.5%`
 
-# forest plot for RR male
+# dataframe and forest plot for RR male
 df_rrm_ <- data.frame(country = names(cnt_data),
                       median = rr_m$`50%`,
                       lci = rr_m$`2.5%`,
@@ -784,24 +807,49 @@ df_rr_m <- rbind(df_rrm_,
                              median = exp(rr_m_overall$`50%`),
                              lci = exp(rr_m_overall$`2.5%`),
                              uci = exp(rr_m_overall$`97.5%`)))
-df_rr_m$country <- factor(df_rr_m$country, levels = rev(c(setdiff(df_rr_m$country, "overall"), "overall")))
-df_rr_m$style <- ifelse(df_rr_m$country == "overall", "pooled", "individual")
 
-# Forest plot
-ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
+# Renaming selected countries
+df_rr_m$country <- as.character(df_rr_m$country)
+rename_map <- c(
+  "burkinafaso"  = "Burkina Faso",
+  "cotedivoire"  = "Côte d'Ivoire",
+  "southafrica"  = "South Africa",
+  "guineabissau" = "Guinea-Bissau",
+  "drc"          = "DRC"
+)
+for (old_name in names(rename_map)) {
+  df_rr_m$country[df_rr_m$country == old_name] <- rename_map[[old_name]]
+}
+
+cap_first_letter <- function(x) {
+  if (x == "overall") return("Overall")   
+  if (nchar(x) == 0)   return(x)      
+  paste0(toupper(substring(x, 1, 1)), substring(x, 2))
+}
+df_rr_m$country <- sapply(df_rr_m$country, cap_first_letter, USE.NAMES = FALSE)
+
+countries_no_overall <- setdiff(df_rr_m$country, "Overall")
+countries_sorted     <- sort(countries_no_overall)    
+new_levels           <- c("Overall", rev(countries_sorted))
+
+df_rr_m$country     <- factor(df_rr_m$country, levels = new_levels)
+df_rr_m$style <- ifelse(df_rr_m$country == "Overall", "pooled", "individual")
+
+
+rr_male_forest <- ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
   scale_color_manual(values = c("individual" = "steelblue4", "pooled" = "firebrick4")) +  # Colors
   scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Rate ratio for men", color = "Legend") +
+  labs(title = "", x = "Country", y = "Rate ratio for men", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
   theme(legend.position = "right")
 
 
-# phi
+# ------- phi -----------------
 phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 0.5 + (1 - 0.5) * invlogit(phi_overall$`50%`)
 0.5 + (1 - 0.5) * invlogit(phi_overall$`2.5%`)
@@ -811,7 +859,7 @@ phi$`50%`
 phi$`2.5%`
 phi$`97.5%`
 
-# forest plot for phi
+# df and forest plot for phi
 df_phi <- data.frame(country = names(cnt_data),
                        median = phi$`50%`,
                        lci = phi$`2.5%`,
@@ -821,24 +869,49 @@ df_phi_ov <- rbind(df_phi,
                               median = 0.5 + (1 - 0.5) * invlogit(phi_overall$`50%`),
                               lci = 0.5 + (1 - 0.5) * invlogit(phi_overall$`2.5%`),
                               uci = 0.5 + (1 - 0.5) * invlogit(phi_overall$`97.5%`)))
-df_phi_ov$country <- factor(df_phi_ov$country, levels = rev(c(setdiff(df_phi_ov$country, "overall"), "overall")))
-df_phi_ov$style <- ifelse(df_phi_ov$country == "overall", "pooled", "individual")
+
+# Renaming selected countries
+df_phi_ov$country <- as.character(df_phi_ov$country)
+rename_map <- c(
+  "burkinafaso"  = "Burkina Faso",
+  "cotedivoire"  = "Côte d'Ivoire",
+  "southafrica"  = "South Africa",
+  "guineabissau" = "Guinea-Bissau",
+  "drc"          = "DRC"
+)
+for (old_name in names(rename_map)) {
+  df_phi_ov$country[df_phi_ov$country == old_name] <- rename_map[[old_name]]
+}
+
+cap_first_letter <- function(x) {
+  if (x == "overall") return("Overall")   
+  if (nchar(x) == 0)   return(x)      
+  paste0(toupper(substring(x, 1, 1)), substring(x, 2))
+}
+df_phi_ov$country <- sapply(df_phi_ov$country, cap_first_letter, USE.NAMES = FALSE)
+
+countries_no_overall <- setdiff(df_phi_ov$country, "Overall")
+countries_sorted     <- sort(countries_no_overall)    
+new_levels           <- c("Overall", rev(countries_sorted))
+
+df_phi_ov$country     <- factor(df_phi_ov$country, levels = new_levels)
+df_phi_ov$style <- ifelse(df_phi_ov$country == "Overall", "pooled", "individual")
 
 
-# Forest plot
-ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
+phi_forest <- ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
   scale_color_manual(values = c("individual" = "violetred1", "pooled" = "violetred4")) +  # Colors
   scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Proportion of distributed HIVST kits that are used", color = "Legend") +
+  labs(title = "", x = "Country", y = "Proportion of distributed HIVST kits that are used", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
 
 
-#------- step to check each country's pred with pprogram point-----------------
+
+#------- step to check each country's pred with program point-----------------
 # function to plot individual output
 svy_m_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 svy_f_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -1133,7 +1206,6 @@ lines(time, female_med_perc, col = "deeppink1", lwd = 2)
 
 title("Estimated trends in HIVST uptake in SSA by sex")
 
-
 legend("top",
        legend = c("Men", "Women"),
        col = c("deepskyblue4", "deeppink1"),
@@ -1142,3 +1214,235 @@ legend("top",
        pt.cex = 1.5,
        pt.bg = c("lightblue", "pink"),
        bty = "l")
+
+# ------gg plot object for 4 panel figure--------
+df_sextrend <- data.frame(
+  time = time,
+  male_med  = male_med_perc,
+  male_lci  = male_lci_perc,
+  male_uci  = male_uci_perc,
+  female_med = female_med_perc,
+  female_lci = female_lci_perc,
+  female_uci = female_uci_perc
+)
+
+sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
+  geom_ribbon(
+    aes(ymin = male_lci, ymax = male_uci),
+    fill = "lightblue", alpha = 0.3, show.legend = FALSE
+  ) +
+  geom_line(
+    aes(y = male_med, color = "Male"),
+    size = 1.1
+  ) +
+  geom_ribbon(
+    aes(ymin = female_lci, ymax = female_uci),
+    fill = "pink", alpha = 0.3, show.legend = FALSE
+  ) +
+  geom_line(
+    aes(y = female_med, color = "Female"),
+    size = 1.1
+  ) +
+  scale_color_manual(
+    name = "Sex",
+    values = c("Male" = "deepskyblue4", "Female" = "deeppink1")
+  ) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 10, by = 2)) +
+  labs(
+    x = "Year",
+    y = "Proportion having ever used HIVST (%)"
+  ) +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background  = element_rect(fill = "white", color = NA),
+    panel.grid       = element_blank(),  # no grid lines
+    axis.line.x      = element_line(color = "black"),
+    axis.line.y      = element_line(color = "black"),
+    plot.margin      = margin(t = 1, r = 1, b = 3, l = 1, unit = "cm"),
+    plot.title       = element_text(hjust = 0.5, vjust = -12, size = 14)
+  ) + 
+  coord_cartesian(clip = "off") +
+theme(
+  legend.position       = c(1, 0.5),   
+  legend.justification  = c(1, 0.5),   
+  plot.margin           = margin(t = 1, r = 1, b = 3, l = 1, unit = "cm")
+)
+
+
+# 2by2 plot (4 panel figure)
+p1 <- sex_trend_plot + 
+  labs(title = "(a) Trends in proportion of people who have ever used HIVST in Africa by sex") +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5, vjust = 1),
+    legend.position = "right",  
+    legend.justification = "center",
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1, unit = "cm")
+  )
+
+p2 <- rr_male_forest +
+  labs(title = "(b) Overall and country-specific rate ratio estimates between males and females") +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5),
+    legend.position = "right",
+    legend.justification = "center",
+    plot.margin = margin(t = 1, r = 1, b = 1, l = 1, unit = "cm")
+  )
+
+p3 <- rr_retesting_forest +
+  labs(title = "(c) Overall and country-specific rate ratio estimates between first time testing and re-testing using HIVST") +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+
+p4 <- phi_forest +
+  labs(title = "(d) Overall and country-specific estimates for proportion of distributed HIVST kits being used") +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5))
+
+combined_plot <- (p1 | p2) /
+  (p3 | p4) +
+  plot_layout(nrow = 2, heights = c(1, 1))
+
+
+
+
+
+# --getting the estimates for Lesotho----
+
+# function to plot individual output
+svy_m_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+svy_f_all <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+hts_all <- as.data.frame(rstan::summary(fit, pars = c("hivst_prd"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+
+cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe", 
+                   "sierraleone", "zambia", "mali", "uganda",
+                   "lesotho", "mozambique", "rwanda",
+                   "burkinafaso", "burundi", "cameroon", "cotedivoire",
+                   "guinea", "liberia", "senegal", "southafrica","tanzania",
+                   "namibia", "botswana", "guineabissau","drc", "eswatini")
+
+plot_country_fit <- function(c_idx, cnt_lowercase, time, 
+                             svy_m_all, svy_f_all, hts_all,
+                             cnt_data,
+                             niter, using_layout = FALSE) {
+  cn <- cnt_lowercase[c_idx] # to match cnt_data keys exactly
+  
+  start_row <- (c_idx - 1)  * niter + 1
+  end_row <- c_idx * niter
+  
+  svy_m_country <- svy_m_all[start_row:end_row, ]
+  svy_f_country <- svy_f_all[start_row:end_row, ]
+  hts_country <- hts_all[start_row:end_row, ]
+  
+  svy_dat_c <- cnt_data[[cn]]$svy_dat
+  lci_svy_c <- cnt_data[[cn]]$lci_svy
+  uci_svy_c <- cnt_data[[cn]]$uci_svy
+  ind_svy_c <- cnt_data[[cn]]$ind_svy
+  
+  hts_dat_c <- cnt_data[[cn]]$hts_dat
+  ind_hts_c <- cnt_data[[cn]]$ind_hts
+  
+  if (using_layout == FALSE) { par(mfrow = c(1, 2), oma = c(0, 0, 3, 0), mar = c(4, 4, 1, 1)) }
+  plot(svy_m_country$`50%` ~ time, type = "l", col = "steelblue4", lwd = 3, 
+       ylab = "Ever used HIVST", ylim = c(0, max(svy_m_country$`97.5%`, svy_f_country$`97.5%`, max(uci_svy_c))),
+       main = paste0(toupper(substring(cn, 1, 1)), substring(cn, 2)))
+  
+  polygon(x = c(time, rev(time)),
+          y = c(svy_m_country$`2.5%`, rev(svy_m_country$`97.5%`)),
+          col = yarrr::transparent("steelblue4", trans.val = 0.5), border = NA)
+  
+  polygon(x = c(time, rev(time)),
+          y = c(svy_f_country$`2.5%`, rev(svy_f_country$`97.5%`)),
+          col = yarrr::transparent("pink3", trans.val = 0.5), border = NA)
+  
+  lines(svy_f_country$`50%` ~ time, col = "pink3", lwd = 3)
+  
+  points(svy_dat_c[, 1] ~ time[ind_svy_c], pch = 16, col = "blue4")
+  points(svy_dat_c[, 2] ~ time[ind_svy_c], pch = 16, col = "firebrick4")
+  
+  segments(x0 = time[ind_svy_c], y0 = lci_svy_c[, 1],
+           x1 = time[ind_svy_c], y1 = uci_svy_c[, 1], col = "blue4")
+  segments(x0 = time[ind_svy_c], y0 = lci_svy_c[, 2],
+           x1 = time[ind_svy_c], y1 = uci_svy_c[, 2], col = "firebrick4")
+  
+  legend("topleft", legend = c("men", "women"), col = c("steelblue4", "pink4"), lwd = 4, bty = "n")
+  
+  plot(hts_country$`50%` ~ time, type = "l", col = "cyan4", lwd = 3, 
+       ylab = "Number of HIVST kits",
+       ylim = c(0, max(hts_country$`97.5%`)))
+  
+  polygon(x = c(time, rev(time)),
+          y = c(hts_country$`2.5%`, rev(hts_country$`97.5%`)),
+          col = yarrr::transparent("cyan4", trans.val = 0.5), border = NA)
+  
+  points(hts_dat_c ~ time[ind_hts_c], pch = 16, col = "goldenrod3", cex = 1.25)
+  
+  mtext(paste0(toupper(substring(cn, 1, 1)), substring(cn, 2)), 
+        outer = TRUE, side = 3, line = 1, cex = 1.5)
+}
+
+png("D:/Downloads/MSc Thesis/hivst/figs/all_plot.png", width = 8, height = 26, units = "in", res = 320)
+nf <- layout(mat = matrix(1:52, nrow = 13, ncol = 4, byrow = TRUE),
+             widths = rep(lcm(5), 4), heights = rep(lcm(5), 13), respect = TRUE)
+for (c_idx in seq_along(cnt_lowercase)) {
+  plot_country_fit(c_idx, cnt_lowercase, time, svy_m_all, svy_f_all, hts_all, cnt_data, niter, using_layout = TRUE)
+}
+dev.off()
+
+
+
+
+
+
+# Specify Lesotho index
+lesotho_index <- which(cnt_lowercase == "lesotho")
+
+# Update the plotting function call for Lesotho
+png("D:/Downloads/MSc Thesis/hivst/figs/leso_plot.png", width = 8, height = 4, units = "in", res = 320)
+
+# Call the plotting function for Lesotho only
+plot_country_fit(
+  c_idx = lesotho_index,
+  cnt_lowercase = cnt_lowercase,
+  time = time,
+  svy_m_all = svy_m_all,
+  svy_f_all = svy_f_all,
+  hts_all = hts_all,
+  cnt_data = cnt_data,
+  niter = niter,
+  using_layout = FALSE # No layout needed for a single plot
+)
+
+dev.off()
+
+
+# Extract the start and end rows for Lesotho
+start_row <- (lesotho_index - 1) * niter + 1
+end_row <- lesotho_index * niter
+
+# Extract the values for svy_m_all and svy_f_all for Lesotho
+svy_m_lesotho <- svy_m_all[start_row:end_row, ]
+svy_f_lesotho <- svy_f_all[start_row:end_row, ]
+
+data_stan$pop
+
+# Extract male and female population for Lesotho from data_stan$pop
+male_pop <- data_stan$pop[1, "Lesotho"]
+female_pop <- data_stan$pop[2, "Lesotho"]
+
+# Calculate total population
+total_pop <- male_pop + female_pop
+
+# Calculate overall proportions for all time steps
+overall_proportion <- (svy_m_lesotho$`50%` * male_pop + svy_f_lesotho$`50%` * female_pop) / total_pop
+# Calculate confidence intervals for the overall proportions
+overall_lower <- (svy_m_lesotho$`2.5%` * male_pop + svy_f_lesotho$`2.5%` * female_pop) / total_pop
+overall_upper <- (svy_m_lesotho$`97.5%` * male_pop + svy_f_lesotho$`97.5%` * female_pop) / total_pop
+
+
+
+
+
+
+
