@@ -10,6 +10,7 @@ library(LaplacesDemon)
 library(ggplot2)
 library(scales)
 library(patchwork)
+library(ggsci)
 
 # male & female pop data from wpp
 data(popM1)
@@ -753,6 +754,7 @@ df_rr_ov$country <- as.character(df_rr_ov$country)
 rename_map <- c(
   "burkinafaso"  = "Burkina Faso",
   "cotedivoire"  = "Côte d'Ivoire",
+  "sierraleone"  = "Sierra Leone",
   "southafrica"  = "South Africa",
   "guineabissau" = "Guinea-Bissau",
   "drc"          = "DRC"
@@ -813,6 +815,7 @@ df_rr_m$country <- as.character(df_rr_m$country)
 rename_map <- c(
   "burkinafaso"  = "Burkina Faso",
   "cotedivoire"  = "Côte d'Ivoire",
+  "sierraleone"  = "Sierra Leone",
   "southafrica"  = "South Africa",
   "guineabissau" = "Guinea-Bissau",
   "drc"          = "DRC"
@@ -875,6 +878,7 @@ df_phi_ov$country <- as.character(df_phi_ov$country)
 rename_map <- c(
   "burkinafaso"  = "Burkina Faso",
   "cotedivoire"  = "Côte d'Ivoire",
+  "sierraleone"  = "Sierra Leone",
   "southafrica"  = "South Africa",
   "guineabissau" = "Guinea-Bissau",
   "drc"          = "DRC"
