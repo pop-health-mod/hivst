@@ -515,12 +515,12 @@ lines(time, pool_med, col = median_col, lwd = 2)
 axis(1, at = custom_years, labels = custom_years)
 
 legend("topright",
-       legend = c("Combined trend fit for 6 countries with more than one survey", "95% CrI"),
+       legend = c("estimated trend", "95% CrI"),
        lty = c(1, NA),
        pch = c(NA, 15),
        pt.cex = c(1, 1.5),
        col = c(median_col, ci_shade_col),
        bty = "n")
 
-title("Estimated Trend of HIV Self-Test Uptake")
+title("Trends in HIV Self-Test Uptake")
 
