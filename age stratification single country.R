@@ -346,6 +346,7 @@ model {
   beta_male ~ normal(log(1), 0.5);
   beta_age_to_process[1] ~ normal(0, 1); // normal log follow exp(log(1) + c(-1, 1) * qnorm(0.975) * 1)
   beta_age_to_process[2] ~ normal(0, 1);
+  beta_age_to_process[3] ~ normal(0, 1);  
   phi ~ beta(24,6);
 
   // Likelihood: survey
@@ -511,8 +512,6 @@ data_stan <- list(n_yr = n_yr,
 )
 rstan_options(auto_write = TRUE)
 
-#981367
-
 # Fitting 
 options(mc.cores = parallel::detectCores())
 fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4,
@@ -530,8 +529,6 @@ traceplot(fit, pars = "phi")
 
 #-----------------------------------------------
 # format to male and female by age groups
- as.numeric(row[grepl("^Spl_T", colnames(grid_chunk))])
-
 svy_m_ <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_m"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 svy_f_ <- as.data.frame(rstan::summary(fit, pars = c("svy_prd_f"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 
