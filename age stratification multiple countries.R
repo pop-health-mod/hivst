@@ -44,6 +44,8 @@ pop <- lapply(countries, function(ctry) {
 })
 
 
+# pop <- array(unlist(pop), dim = c(4, 2, n_cnt))
+# if stan doesnt understand the pop, we might need to convert it using the code above
 # pop <- do.call(rbind, lapply(countries, function(ctry) {
 #   pop_agegrp_fn(country = ctry, popM = popM1, popF = popF1, age_groups = age_grp)
 # }))
@@ -381,7 +383,6 @@ data {
   // entry and exit rates for open pop multiple countries, age stratified
   matrix[n_yr, n_cnt] entry_m;
   matrix[n_yr, n_cnt] entry_f;
-  
   matrix [n_yr, 4] mort_m[n_cnt]; // array of matrices, each matrix mortality rates of that country, r year c age groups   
   matrix [n_yr, 4] mort_f[n_cnt]; // array of matrices, each matrix mortality rates of that country, r year c age groups
   
@@ -390,40 +391,71 @@ data {
 }
 
 parameters {
-  real beta_t[n_yr];                 
-  real<lower = 0, upper = 5> sd_rw;  
-  real beta_retest;                  
-  real beta_male;
-  vector[3] beta_age_to_process; // RR age
-  real<lower = 0, upper = 1> phi;    
+  // testing rate
+  matrix<upper = -1>[n_cnt, n_yr] beta_t;  // yearly HIVST rates (rw1) for each country
+  
+  // SDs
+  real<lower = 1e-6, upper = 5> sd_rw;     // sd of the rw1 for beta_t
+  real<lower = 1e-6, upper = 5> sd_phi;    // sd of the RE for phi
+  real<lower = 1e-6, upper = 5> sd_rt;    // sd of the RE for the re-testing rate ratio
+  real<lower = 1e-6, upper = 5> sd_male;  // sd of the RE of the male rate ratio
+  real<lower = 1e-6, upper = 5> sd_age;   // sd for RR age
+  
+  // retesting parameters
+  real beta_retest_overall;            // overall shared re-testing rate
+  vector[n_cnt] beta_rt_raw;          // country-specific re-testing rates
+  
+  // male rate ratio parameters
+  real beta_men_overall;              //overall male relative rate of HIVST
+  vector[n_cnt] beta_male_raw;       // country specific male relative rate of HIVST  
+  
+  // phi parameters
+  real phi_overall;           // overall proportion of HIVST kits used
+  vector[n_cnt] phi_raw;      // country-specific proportions of HIVST kits used
+  
+  // age rate ratio parameters
+  vector[3] beta_age_overall;       // overall RR age
+  matrix[n_cnt, 3] beta_age_raw;      
 }
 
- // mapping beta_t, entry rate and exit rate to yearly rate
+
 transformed parameters {
-  vector[niter] beta_t_dt;
-  vector[niter] entry_m_dt;
-  vector[niter] entry_f_dt;
-  matrix[niter, 4] mort_m_dt;
-  matrix[niter, 4] mort_f_dt;
-  vector[4] beta_age;
+// non-centered parameterization
+  vector[n_cnt] beta_retest;
+  vector[n_cnt] beta_male;
+  vector[n_cnt] phi;
+  beta_retest = 0.5 + (2.5 - 0.5) * inv_logit(beta_retest_overall + sd_rt * beta_rt_raw);
+  beta_male = exp(beta_male_overall + sd_male * beta_male_raw);
+  phi = 0.5 + (1 - 0.5) * inv_logit(phi_overall + sd_phi * phi_raw);
   
-  beta_age[1] = log(1);
-  beta_age[2] = beta_age_to_process[1];
-  beta_age[3] = beta_age_to_process[2];  
-  beta_age[4] = beta_age_to_process[3];
-  
-  for (i in 1:niter) {
-  beta_t_dt[i]   = beta_t[yr_ind[i]];
-  entry_m_dt[i]  = entry_m[yr_ind[i]];
-  entry_f_dt[i]  = entry_f[yr_ind[i]];
-  
-  // age grp specific mortality
-  for (a in 1:4) {
-    mort_m_dt[i, a] = mort_m[yr_ind[i], a];
-    mort_f_dt[i, a] = mort_f[yr_ind[i], a];
+  // RR age, not sure if it is correct 
+  matrix[n_cnt, 4] beta_age;
+  for (c in 1:n_cnt) {
+    beta_age[c, 1] = log(1);  // fixed for age group 1
+    for (a in 2:4) {
+      beta_age[c, a] = beta_age_overall[a - 1] + sd_age * beta_age_raw[c, a - 1];
+    }
   }
+
+  // entry and death rates
+  matrix[n_cnt, niter] beta_t_dt;
+  matrix[n_cnt, niter] entry_m_dt;
+  matrix[n_cnt, niter] entry_f_dt;
+  matrix[niter, 4] mort_m_dt[n_cnt]; // array of matrices 
+  matrix[niter, 4] mort_f_dt[n_cnt]; // array as well
+  for (c in 1:n_cnt) {
+    for (i in 1:niter) {
+      int year = yr_ind[i];
+      beta_t_dt[c, i] = exp(beta_t[c, year]);
+      entry_m_dt[c, i] = entry_m[year, c]; 
+      entry_f_dt[c, i] = entry_f[year, c];
+      for (a in 1:4) {
+      mort_m_dt[c][i, a] = mort_m[c][year, a];
+      mort_f_dt[c][i, a] = mort_f[c][year, a];
+     }
+    }
+   }
  }
-}
 
 model {
     // matrix[niter, n_cnt] hts_mod
@@ -434,7 +466,8 @@ model {
   sd_rw ~ normal(0,0.5);
   beta_retest ~ normal(log(1.2), 0.5);
   beta_male ~ normal(log(1), 0.5);
-  beta_age_to_process[1] ~ normal(0, 1); // normal log follow exp(log(1) + c(-1, 1) * qnorm(0.975) * 1)
+  // I need to change these priors
+  beta_age_to_process[1] ~ normal(0, 1); // normal log distributed with exp(log(1) + c(-1, 1) * qnorm(0.975) * 1)
   beta_age_to_process[2] ~ normal(0, 1);
   beta_age_to_process[3] ~ normal(0, 1);  
   phi ~ beta(24,6);
@@ -444,12 +477,14 @@ model {
   sd_phi ~ normal(0, 0.5) T[1e-6, 5];
   sd_rt ~ normal(0, 0.5) T[1e-6, 5];
   sd_male ~ normal(0, 0.5) T[1e-6, 5];
+  sd_age ~ normal(0, 0.5) T[1e-6, 5];
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(logit(1.2 - 0.5) / (2.5 - 0.5), 0.5); // 0.5 + (2.5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (2.5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.5)
   // overall prior for the proportion of tests distributed being used
   phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 1); // 0.5 + (1 - 0.5) * plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 1)
   // overall prior for male rate ratio
   beta_male_overall ~ normal(log(1), 0.5);
+  // need to change here too
   // overall prior for age rate ratio
   beta_age_overall ~
   
