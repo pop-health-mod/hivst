@@ -754,7 +754,7 @@ init_function <- function() {
     beta_rt_raw = rnorm(data_stan$n_cnt, 0, 0.5),
     beta_men_overall = rnorm(1, log(1), 0.1),
     beta_men_raw = rnorm(data_stan$n_cnt, 0, 0.1),
-    beta_age_overall = rnorm(1, log(1), 0.1),
+    beta_age_overall = rnorm(3, log(1), 0.1),
     beta_age_raw1 = rnorm(data_stan$n_cnt, 0, 0.1),  
     beta_age_raw2 = rnorm(data_stan$n_cnt, 0, 0.1),  
     beta_age_raw3 = rnorm(data_stan$n_cnt, 0, 0.1),  
