@@ -4,6 +4,8 @@ gc()
 
 library(wpp2024)
 library(rstan)
+library(ggplot2)
+
 
 # male and female pop
 data(popM1)
@@ -23,15 +25,15 @@ pop_init_m <- numeric(length(age_grp))
 names(pop_init_m) <- names(age_grp)
 for (g in names(age_grp)) {
   pop_2010 <- sum(wpp_m[ age_grp[[g]], "2010" ]) * 1000
-  pop_2011 <- sum(wpp_m[ age_grp[[g]], "2011" ], na.rm = TRUE) * 1000
+  pop_2011 <- sum(wpp_m[ age_grp[[g]], "2011" ]) * 1000
   pop_init_m[g] <- (pop_2010 + pop_2011) / 2
 }
 # female initial pop
 pop_init_f <- numeric(length(age_grp))
 names(pop_init_f) <- names(age_grp)
 for (g in names(age_grp)) {
-  pop_2010 <- sum(wpp_f[ age_grp[[g]], "2010" ], na.rm = TRUE) * 1000
-  pop_2011 <- sum(wpp_f[ age_grp[[g]], "2011" ], na.rm = TRUE) * 1000
+  pop_2010 <- sum(wpp_f[ age_grp[[g]], "2010" ]) * 1000
+  pop_2011 <- sum(wpp_f[ age_grp[[g]], "2011" ]) * 1000
   
   pop_init_f[g] <- (pop_2010 + pop_2011) / 2
 }
@@ -716,4 +718,221 @@ polygon(x = c(total_svy_f$time, rev(total_svy_f$time)),
 points(time[ind_svy], prop_total_f, pch = 16, col = "red")
 segments(x0 = time[ind_svy], y0 = lci_total_f,
          x1 = time[ind_svy], y1 = uci_total_f, col = "red")
+
+#---------- verification by sex------------
+# comparing total pop from model predictions vs wpp
+# posteriors
+post <- rstan::extract(fit)
+# taking median values of the parameters before calling hivst_fun()
+beta_t_median     <- apply(post$beta_t, 2, median)
+beta_retest_median<- median(post$beta_retest)
+beta_male_median  <- median(post$beta_male)
+beta_age_median   <- apply(post$beta_age, 2, median)
+phi_median        <- median(post$phi)
+beta_t_dt <- beta_t_median[ yr_ind ]   # length = niter
+entry_m_dt <- entry_m_vec[ yr_ind ]    # length = niter
+entry_f_dt <- entry_f_vec[ yr_ind ]    # length = niter
+mort_m_dt  <- mort_mat_m[ yr_ind, ]    # dimension = niter x 4
+mort_f_dt  <- mort_mat_f[ yr_ind, ]    # dimension = niter x 4
+
+
+# calling the function (model_out_raw[[i]] is a list of length 4 (4 compartments))
+model_out_raw <- hivst_fun(
+  niter        = niter,
+  beta_t_dt    = beta_t_dt,
+  beta_retest  = beta_retest_median,
+  beta_male    = beta_male_median,
+  beta_age     = beta_age_median, 
+  pop          = pop,  
+  dt           = dt,
+  entry_m_dt   = entry_m_dt,
+  entry_f_dt   = entry_f_dt,
+  mort_m_dt    = mort_m_dt,
+  mort_f_dt    = mort_f_dt,
+  alpha        = alpha 
+)
+
+#--Female--
+# model_out_raw[[i]][[1]][[2]] is the female sub-list, length 4 (the 4 age groups)
+# summing never tested and ever tested for females (across all age groups)
+pop_f_i <- sum(
+  model_out_raw[[i]][[1]][[2]],  # compartment=1, sex=2
+  model_out_raw[[i]][[2]][[2]]   # compartment=2, sex=2
+)
+
+model_female_pop <- sapply(1:niter, function(i) {
+  sum(
+    model_out_raw[[i]][[1]][[2]],
+    model_out_raw[[i]][[2]][[2]]
+  )
+})
+
+# time steps
+steps_per_year <- 1 / dt    # 
+year_seq <- start:(end-1)   # 2011-2023
+
+# now making a df with model pred vs wpp pop
+df_compare <- data.frame(
+  Year         = year_seq,
+  ModelFemale  = NA_real_,
+  WPPFemale    = NA_real_
+)
+
+for (j in seq_along(year_seq)) {
+  # iteration index for the mid-year step
+  mid_i <- (j - 1)*steps_per_year + (steps_per_year / 2)
+  mid_i <- as.integer(mid_i) # optional
+  
+  # predicted female population at mid-year
+  df_compare$ModelFemale[j] <- model_female_pop[mid_i]
+  
+  # WPP female pop for that same year
+  year_j <- year_seq[j]
+  df_compare$WPPFemale[j] <-
+    sum(wpp_f[16:101, as.character(year_j)]) * 1000
+}
+
+# plotting total female population (model vs wpp)
+options(scipen=999)
+ggplot(df_compare, aes(x = Year)) +
+  geom_line(aes(y = ModelFemale, color = "Model")) +
+  geom_line(aes(y = WPPFemale, color = "WPP")) +
+  labs(y = "Female Population(Age 15+)", color = "") +
+  scale_x_continuous(breaks = df_compare$Year) +
+  theme_minimal()
+
+
+#--Men--
+# summing never-tested and ever-tested for MALES (across all age groups)
+model_male_pop <- sapply(1:niter, function(i) {
+  sum(
+    model_out_raw[[i]][[1]][[1]],  
+    model_out_raw[[i]][[2]][[1]]   
+  )
+})
+
+# t
+steps_per_year <- 1 / dt
+year_seq <- start:(end - 1)   # e.g. 2011:2023
+
+# df
+df_compare_male <- data.frame(
+  Year     = year_seq,
+  ModelMale= NA_real_,
+  WPPMale  = NA_real_
+)
+
+for (j in seq_along(year_seq)) {
+  mid_i <- (j - 1)*steps_per_year + (steps_per_year / 2)
+  mid_i <- as.integer(mid_i)  
+  
+  # Model-predicted male pop at mid-year
+  df_compare_male$ModelMale[j] <- model_male_pop[mid_i]
+  
+  # WPP male pop for same year
+  year_j <- year_seq[j]
+  df_compare_male$WPPMale[j] <- sum(wpp_m[16:101, as.character(year_j)], na.rm=TRUE) * 1000
+}
+
+# Plot for total male population (model vs wpp)
+options(scipen=999)
+ggplot(df_compare_male, aes(x = Year)) +
+  geom_line(aes(y = ModelMale, color = "Model")) +
+  geom_line(aes(y = WPPMale, color = "WPP")) +
+  labs(y = "Male Population (Age 15+)", color = "") +
+  scale_x_continuous(breaks = df_compare_male$Year) +
+  theme_minimal()
+
+
+#---------- verification by sex and age group------------
+#  --Female--
+# matrix: r = niter i, c = age groups
+model_female_pop_byage <- matrix(0, nrow = niter, ncol = 4)
+for (i in seq_len(niter)) {
+  never_tested_vec <- model_out_raw[[i]][[1]][[2]] 
+  ever_tested_vec  <- model_out_raw[[i]][[2]][[2]]  
+  model_female_pop_byage[i, ] <- never_tested_vec + ever_tested_vec
+}
+
+steps_per_year <- 1 / dt       
+year_seq <- start:(end - 1)    
+age_grp <- list(
+  "15-24" = 16:25,
+  "25-34" = 26:35,
+  "35-49" = 36:50,
+  "50+"   = 51:101
+)
+
+df_compare_byage <- data.frame(
+  Year    = rep(year_seq, each = 4),
+  AgeBand = rep(names(age_grp), times = length(year_seq)),
+  ModelPop = NA_real_,
+  WPPPop   = NA_real_
+)
+
+for (j in seq_along(year_seq)) {
+  mid_i <- (j - 1)*steps_per_year + (steps_per_year / 2)
+  mid_i <- as.integer(mid_i)  
+  year_j <- year_seq[j]
+  row_start <- (j - 1)*4 + 1
+  row_end   <- j*4
+  for (a_idx in 1:4) {
+    row_current <- row_start + (a_idx - 1)
+    model_val <- model_female_pop_byage[mid_i, a_idx]
+    wpp_val <- sum(wpp_f[ age_grp[[a_idx]], as.character(year_j) ])*1000
+    df_compare_byage$ModelPop[row_current] <- model_val
+    df_compare_byage$WPPPop[row_current]   <- wpp_val
+  }
+}
+
+ggplot(df_compare_byage, aes(x = Year, group = AgeBand)) +
+  geom_line(aes(y = ModelPop, color = "Model")) +
+  geom_line(aes(y = WPPPop,  color = "WPP")) +
+  facet_wrap(~ AgeBand, scales = "free_y") +
+  labs(y = "Female Population in Age Group", color = "") +
+  scale_x_continuous(breaks = df_compare_byage$Year) +
+  theme_minimal()
+
+# -- Male --
+model_male_pop_byage <- matrix(0, nrow = niter, ncol = 4)
+for (i in seq_len(niter)) {
+  never_tested_vec <- model_out_raw[[i]][[1]][[1]]  # never tested, male, length=4 age groups
+  ever_tested_vec  <- model_out_raw[[i]][[2]][[1]]  # ever tested, male, length=4
+    model_male_pop_byage[i, ] <- never_tested_vec + ever_tested_vec
+}
+
+df_compare_byage_male <- data.frame(
+  Year    = rep(year_seq, each = 4),
+  AgeBand = rep(names(age_grp), times = length(year_seq)),
+  ModelPop = NA_real_,
+  WPPPop   = NA_real_
+)
+
+for (j in seq_along(year_seq)) {
+  mid_i <- (j - 1)*steps_per_year + (steps_per_year / 2)
+  mid_i <- as.integer(mid_i)
+  
+  year_j <- year_seq[j]
+  row_start <- (j - 1)*4 + 1
+  row_end   <- j*4
+  
+  for (a_idx in 1:4) {
+    row_current <- row_start + (a_idx - 1)
+    model_val <- model_male_pop_byage[mid_i, a_idx]
+    wpp_val <- sum(wpp_m[ age_grp[[a_idx]], as.character(year_j) ])*1000
+    df_compare_byage_male$ModelPop[row_current] <- model_val
+    df_compare_byage_male$WPPPop[row_current]   <- wpp_val
+  }
+}
+
+
+ggplot(df_compare_byage_male, aes(x = Year, group = AgeBand)) +
+  geom_line(aes(y = ModelPop, color = "Model")) +
+  geom_line(aes(y = WPPPop,  color = "WPP")) +
+  facet_wrap(~ AgeBand, scales = "free_y") +
+  labs(y = "Male Population in Age Group", color = "") +
+  scale_x_continuous(breaks = df_compare_byage_male$Year) +
+  theme_minimal()
+
+
 
