@@ -59,7 +59,7 @@ yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
 
 
 #-- open pop, age stratified model ----
-# new entry to 15-24 year old group only instead of entry to total popl
+# entry rate is applied to 15-24 year old group only instead of entry to total pop, but the denominator is all age groups' sum
 
 # Entry rates for 15y old male (current year's 15y pop / total pop aged 15–100)
 entry_rates_m <- numeric(end - start + 1)
@@ -477,8 +477,8 @@ uci_svy_f <- svy_dat_f + qnorm(0.975) * sqrt(svy_dat_f * (1 - svy_dat_f) / den_s
 lci_svy_m <- svy_dat_m - qnorm(0.975) * sqrt(svy_dat_m * (1 - svy_dat_m) / den_svy_m)
 uci_svy_m <- svy_dat_m + qnorm(0.975) * sqrt(svy_dat_m * (1 - svy_dat_m) / den_svy_m)
 
-ind_hts <- (c( 2018,  2019,   2020,    2021,   2022,  2023) - start) / dt
-yr_hts <- c( 2018,   2019,   2020,    2021,   2022,  2023)
+ind_hts <- (c( 2018,  2019,   2020,    2021,   2022,  2023) - start +0.5 ) / dt
+yr_hts <- c( 2018,   2019,   2020,    2021,   2022,  2023) + 0.5
 hts_dat <- c(197200, 400000, 595953, 630000, 342610, 617317)
 se_hts <- hts_dat * 0.1
 
@@ -566,7 +566,7 @@ phi$`97.5%`
 
 
 
-# plot ( I will modify it by age structure)
+# plot ( sex and age stratified)
 options(scipen = 999)
 par(mfrow = c(1, 3), oma = c(0, 0, 0, 0), mar = c(4, 4, 3, 1))
 # survey fit
@@ -617,50 +617,103 @@ mtext("Kenya", outer = TRUE, side = 3, line = 1, cex = 1.5)
 # AISHI. We have the most disaggregated plot here. But it would be good to have
 # the one by sex again (so take the age-disaggregated results and add them up).
 
-#pop_2010_5_m <- sum(wpp_m[16:101, "2010"]) * 1000
-#pop_2011_5_m <- sum(wpp_m[16:101, "2011"]) * 1000
-#pop_2010_5_f <- sum(wpp_f[16:101, "2010"]) * 1000
-#pop_2011_5_f <- sum(wpp_f[16:101, "2011"]) * 1000
-#pop_2011_0_m <- (pop_2010_5_m + pop_2011_5_m) / 2
-#pop_2011_0_f <- (pop_2010_5_f + pop_2011_5_f) / 2
-#pop <- c(pop_2011_0_m, pop_2011_0_f)
+# plot for overall sex again with age aggregated
+# each time
+# denominator for taking weighted average 
+pop_male   <- pop[, "Male"]     # vector of length 4 (age groups)
+pop_female <- pop[, "Female"]
+total_pop_male   <- sum(pop_male)
+total_pop_female <- sum(pop_female)
+# pop_male[1] # total men in first age group 15-24
 
-# weighted male mortality rate (without age group): not using now
-#mx_male_kenya <- mxM1[mxM1$name == "Kenya", c("name", "age", as.character(2010:2024))]
+# ---------aggregated plot by sex from the age‐disaggregated results-------
+# for each time step, taking weighted average 
+total_svy_m <- data.frame(
+  time   = time,
+  lower  = (svy_m[[1]]$`2.5%` * pop_male[1] # svy_m[1] is first age grp and so on
+            + svy_m[[2]]$`2.5%` * pop_male[2] +
+              svy_m[[3]]$`2.5%` * pop_male[3] +
+              svy_m[[4]]$`2.5%` * pop_male[4]) / total_pop_male,
+  q25    = (svy_m[[1]]$`25%`  * pop_male[1] +
+              svy_m[[2]]$`25%`  * pop_male[2] +
+              svy_m[[3]]$`25%`  * pop_male[3] +
+              svy_m[[4]]$`25%`  * pop_male[4]) / total_pop_male,
+  median = (svy_m[[1]]$`50%`  * pop_male[1] +
+              svy_m[[2]]$`50%`  * pop_male[2] +
+              svy_m[[3]]$`50%`  * pop_male[3] +
+              svy_m[[4]]$`50%`  * pop_male[4]) / total_pop_male,
+  q75    = (svy_m[[1]]$`75%`  * pop_male[1] +
+              svy_m[[2]]$`75%`  * pop_male[2] +
+              svy_m[[3]]$`75%`  * pop_male[3] +
+              svy_m[[4]]$`75%`  * pop_male[4]) / total_pop_male,
+  upper  = (svy_m[[1]]$`97.5%`* pop_male[1] +
+              svy_m[[2]]$`97.5%`* pop_male[2] +
+              svy_m[[3]]$`97.5%`* pop_male[3] +
+              svy_m[[4]]$`97.5%`* pop_male[4]) / total_pop_male
+)
 
-# wt_mort_rate_m <- numeric(end - start + 1)
-# for (t in as.character(start:end)) 
-# {
-# if (t == "2024") {pop_male <- wpp_m[(15 + 1):(100 + 1), "2023"] * 1000
-# mort_male <- mx_male_kenya[(15 + 1):(100 + 1), "2024"]
-# } else {
-# pop_male <- wpp_m[(15 + 1):(100 + 1), t] * 1000
-# mort_male <- mx_male_kenya[(15 + 1):(100 + 1), t]
-# }
-# wt_deaths_m <- (pop_male) * (mort_male)
-# tot_deaths_m <- sum(wt_deaths_m)
-# tot_pop_m <- sum(pop_male)
-# wt_mort_rate_m[as.numeric(t) - start + 1] <- tot_deaths_m / tot_pop_m
-# }
+total_svy_f <- data.frame(
+  time   = time,
+  lower  = (svy_f[[1]]$`2.5%` * pop_female[1] +
+              svy_f[[2]]$`2.5%` * pop_female[2] +
+              svy_f[[3]]$`2.5%` * pop_female[3] +
+              svy_f[[4]]$`2.5%` * pop_female[4]) / total_pop_female,
+  q25    = (svy_f[[1]]$`25%`  * pop_female[1] +
+              svy_f[[2]]$`25%`  * pop_female[2] +
+              svy_f[[3]]$`25%`  * pop_female[3] +
+              svy_f[[4]]$`25%`  * pop_female[4]) / total_pop_female,
+  median = (svy_f[[1]]$`50%`  * pop_female[1] +
+              svy_f[[2]]$`50%`  * pop_female[2] +
+              svy_f[[3]]$`50%`  * pop_female[3] +
+              svy_f[[4]]$`50%`  * pop_female[4]) / total_pop_female,
+  q75    = (svy_f[[1]]$`75%`  * pop_female[1] +
+              svy_f[[2]]$`75%`  * pop_female[2] +
+              svy_f[[3]]$`75%`  * pop_female[3] +
+              svy_f[[4]]$`75%`  * pop_female[4]) / total_pop_female,
+  upper  = (svy_f[[1]]$`97.5%`* pop_female[1] +
+              svy_f[[2]]$`97.5%`* pop_female[2] +
+              svy_f[[3]]$`97.5%`* pop_female[3] +
+              svy_f[[4]]$`97.5%`* pop_female[4]) / total_pop_female
+)
 
-# wt_mort_male <- data.frame(Year = as.integer(start:end), MortalityRate = wt_mort_rate_m)
+# sex stratified total survey data from before
+den_svy_total <- cbind( c(4605, 16082, 11562),   # males
+                        c(6350, 17880, 25725))   # females
+num_svy_total <- cbind( c(148, 340, 1044),        # males
+                        c(116, 436, 1242))        # females
 
-# female mortality rate
-# mx_female_kenya <- mxF1[mxF1$name == "Kenya", c("name", "age", as.character(2010:2024))]
+prop_total_m <- num_svy_total[,1] / den_svy_total[,1]
+prop_total_f <- num_svy_total[,2] / den_svy_total[,2]
 
-# wt_mort_rate_f <- numeric(end - start + 1)
-# for (t in as.character(start:end)) {
-#  if (t == "2024") {
-   # pop_female <- wpp_f[(15 + 1):(100 + 1), "2023"] * 1000
-   # mort_female <- mx_female_kenya[(15 + 1):(100 + 1), "2024"]
- # } else {
- #   pop_female <- wpp_f[(15 + 1):(100 + 1), t] * 1000
-  #  mort_female <- mx_female_kenya[(15 + 1):(100 + 1), t]
- # }
-#  wt_deaths_f <- (pop_female) * (mort_female)
-#  tot_deaths_f <- sum(wt_deaths_f)
- # tot_pop_f <- sum(pop_female)
-#  wt_mort_rate_f[as.numeric(t) - start + 1] <- tot_deaths_f / tot_pop_f
-# }
-# wt_mort_female <- data.frame(Year = as.integer(start:end), MortalityRate = wt_mort_rate_f)
+lci_total_m <- prop_total_m - qnorm(0.975) * sqrt(prop_total_m * (1 - prop_total_m) / den_svy_total[,1])
+uci_total_m <- prop_total_m + qnorm(0.975) * sqrt(prop_total_m * (1 - prop_total_m) / den_svy_total[,1])
+lci_total_f <- prop_total_f - qnorm(0.975) * sqrt(prop_total_f * (1 - prop_total_f) / den_svy_total[,2])
+uci_total_f <- prop_total_f + qnorm(0.975) * sqrt(prop_total_f * (1 - prop_total_f) / den_svy_total[,2])
+
+# plot code
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+
+# Men 
+plot(total_svy_m$median ~ total_svy_m$time, type = "l", col = "steelblue4", lwd = 3,
+     ylab = "Ever used HIVST (%)", xlab = "Time",
+     ylim = c(0, max(total_svy_m$upper, uci_total_m, na.rm = TRUE)),
+     main = "Men")
+polygon(x = c(total_svy_m$time, rev(total_svy_m$time)),
+        y = c(total_svy_m$lower, rev(total_svy_m$upper)),
+        col = yarrr::transparent("steelblue4", trans.val = 0.5), border = NA)
+points(time[ind_svy], prop_total_m, pch = 16, col = "red")
+segments(x0 = time[ind_svy], y0 = lci_total_m,
+         x1 = time[ind_svy], y1 = uci_total_m, col = "red")
+
+# Women
+plot(total_svy_f$median ~ total_svy_f$time, type = "l", col = "violetred4", lwd = 3,
+     ylab = "Ever used HIVST (%)", xlab = "Time",
+     ylim = c(0, max(total_svy_f$upper, uci_total_f, na.rm = TRUE)),
+     main = "Women")
+polygon(x = c(total_svy_f$time, rev(total_svy_f$time)),
+        y = c(total_svy_f$lower, rev(total_svy_f$upper)),
+        col = yarrr::transparent("violetred4", trans.val = 0.5), border = NA)
+points(time[ind_svy], prop_total_f, pch = 16, col = "red")
+segments(x0 = time[ind_svy], y0 = lci_total_f,
+         x1 = time[ind_svy], y1 = uci_total_f, col = "red")
 
