@@ -463,7 +463,7 @@ model {
   // overall prior for male rate ratio
   beta_male_overall ~ normal(log(1), 0.5);
   // overall prior for age rate ratio
-  beta_age_overall ~ normal(log(1), 0.25); // exp(log(1 + c(-1,1) * qnorm(0.975) * 0.25))
+  beta_age_overall ~ normal(log(1), 0.5); // exp(log(1) + c(-1,1) * qnorm(0.975) * 0.5)
   
   // for non-centered parameterization
   beta_rt_raw ~ std_normal();
