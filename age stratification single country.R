@@ -67,33 +67,33 @@ yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
 entry_rates_m <- numeric(end - start + 1)
 for (t in start:end) {
   if (t == 2024) {
-    numerator <- wpp_m[(15 + 1), "2023"] * 1000
+    numerator <- wpp_m[(15), "2023"] * 1000
     denominator <- sum(wpp_m[(15 + 1):(100 + 1), "2023"], na.rm = TRUE) * 1000
   } else {
-    numerator <- wpp_m[(15 + 1), as.character(t)] * 1000
-    denominator <- sum(wpp_m[(15 + 1):(100 + 1), as.character(t)], na.rm = TRUE) * 1000
+    numerator <- wpp_m[(15), as.character(t)] * 1000
+    denominator <- sum(wpp_m[(15 + 1):(100 + 1), as.character(t - 1)], na.rm = TRUE) * 1000
   }
   
   entry_rates_m[t - start + 1] <- numerator / denominator
 }
 entry_rate_male <- data.frame(Year = start:end, EntryRate = entry_rates_m)
-entry_m_vec <- entry_rate_male$EntryRate[2:14] # 2011 not needed
+entry_m_vec <- -log(1 - entry_rate_male$EntryRate[2:14]) # 2011 not needed
 
 # entry rates for 15y old female
 entry_rates_f <- numeric(end - start + 1)
 for (t in start:end) {
   if (t == 2024) {
-    numerator <- wpp_f[(15 + 1), "2023"] * 1000
+    numerator <- wpp_f[(15), "2023"] * 1000
     denominator <- sum(wpp_f[(15 + 1):(100 + 1), "2023"], na.rm = TRUE) * 1000
   } else {
-    numerator <- wpp_f[(15 + 1), as.character(t)] * 1000
-    denominator <- sum(wpp_f[(15 + 1):(100 + 1), as.character(t)], na.rm = TRUE) * 1000
+    numerator <- wpp_f[(15), as.character(t)] * 1000
+    denominator <- sum(wpp_f[(15 + 1):(100 + 1), as.character(t - 1)], na.rm = TRUE) * 1000
   }
   
   entry_rates_f[t - start + 1] <- numerator / denominator
 }
 entry_rate_female <- data.frame(Year = start:end, EntryRate = entry_rates_f)
-entry_f_vec <- entry_rate_female$EntryRate[2:14] # 2011 not needed
+entry_f_vec <- -log(1 - entry_rate_female$EntryRate[2:14]) # 2011 not needed
 
 #--- mortality rate: age-stratified model, 4 age groups: 15–24,25–34,35–49,50+ ---
 # male mortality rate (with age group)
@@ -107,11 +107,11 @@ calc_mort_agegrp <- function(year_int, wpp_popM, mx_male, age_grp) {
       wpp_popM[age_rows, "2023"] * 1000 
     else 
       wpp_popM[age_rows, as.character(year_int)] * 1000
-    mx_vec <- if (year_int == 2024) 
+      mx_vec <- if (year_int == 2024) 
       mx_male[age_rows, "2024"] 
     else 
       mx_male[age_rows, as.character(year_int)]
-    sum(pop_vec * mx_vec) / sum(pop_vec)
+      -log(1 - (sum(pop_vec * (1 - exp(-mx_vec))) / sum(pop_vec)))
   })
   return(out_vec)
 }
@@ -136,7 +136,7 @@ calc_mort_agegrp_f <- function(year_int, wpp_popF, mx_female, age_grp) {
       mx_female[age_rows, "2024"] 
     else 
       mx_female[age_rows, as.character(year_int)]
-    sum(pop_vec * mx_vec) / sum(pop_vec)
+    -log(1 - (sum(pop_vec * (1 - exp(-mx_vec))) / sum(pop_vec)))
   })
   return(out_vec)
 }
@@ -516,8 +516,8 @@ rstan_options(auto_write = TRUE)
 
 # Fitting 
 options(mc.cores = parallel::detectCores())
-fit <- sampling(hivst_stan, data = data_stan, iter = 3000, chains = 4,
-                warmup = 1500, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 1000, chains = 4,
+                warmup = 500, thin = 1, control = list(adapt_delta = 0.9))
 
 #summary(fit)
 
@@ -739,7 +739,7 @@ mort_f_dt  <- mort_mat_f[ yr_ind, ]    # dimension = niter x 4
 # calling the function (model_out_raw[[i]] is a list of length 4 (4 compartments))
 model_out_raw <- hivst_fun(
   niter        = niter,
-  beta_t_dt    = beta_t_dt,
+  beta_t_dt    = rep(log(0), niter),
   beta_retest  = beta_retest_median,
   beta_male    = beta_male_median,
   beta_age     = beta_age_median, 
@@ -799,6 +799,7 @@ ggplot(df_compare, aes(x = Year)) +
   geom_line(aes(y = WPPFemale, color = "WPP")) +
   labs(y = "Female Population(Age 15+)", color = "") +
   scale_x_continuous(breaks = df_compare$Year) +
+  ylim(0, max(df_compare)) + 
   theme_minimal()
 
 
@@ -891,6 +892,7 @@ ggplot(df_compare_byage, aes(x = Year, group = AgeBand)) +
   facet_wrap(~ AgeBand, scales = "free_y") +
   labs(y = "Female Population in Age Group", color = "") +
   scale_x_continuous(breaks = df_compare_byage$Year) +
+  ylim(0, max(c(df_compare_byage$ModelPop, df_compare_byage$WPPPop))) + 
   theme_minimal()
 
 # -- Male --
@@ -932,6 +934,7 @@ ggplot(df_compare_byage_male, aes(x = Year, group = AgeBand)) +
   facet_wrap(~ AgeBand, scales = "free_y") +
   labs(y = "Male Population in Age Group", color = "") +
   scale_x_continuous(breaks = df_compare_byage_male$Year) +
+  ylim(0, max(c(df_compare_byage$ModelPop, df_compare_byage$WPPPop))) + 
   theme_minimal()
 
 
