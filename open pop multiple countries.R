@@ -1,6 +1,8 @@
 
 # all 26 countries with program data
 
+# add Benin
+
 rm(list = ls())
 gc()
 
@@ -26,7 +28,7 @@ countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe",
                "Burkina Faso", "Burundi", "Cameroon", "Cote d'Ivoire",
                 "Guinea", "Liberia", "Senegal", "South Africa", 
                "United Republic of Tanzania", "Namibia", "Botswana", 
-               "Guinea-Bissau", "Democratic Republic of the Congo", "Eswatini")
+               "Guinea-Bissau", "Democratic Republic of the Congo", "Eswatini", "Benin")
 
 get_pop_2011 <- function(cnt_name) {
   wpp_m <- popM1[popM1$name == cnt_name, !(colnames(popM1) %in% as.character(1949:2009))]
@@ -600,6 +602,16 @@ eswatini = list(
   ind_hts = (c(2018, 2019, 2020, 2021, 2022) - start + 0.5) / dt,
   hts_dat = c(33159, 32531, 191990, 78570, 111912),
   se_hts = c(33159, 32531, 191990, 78570, 111912) * 0.1
+),
+benin = list(
+  yr_svy =  2017.5,
+  ind_svy = (2017.5 - start) / dt,
+  den_svy = round(cbind(6766,12443)),
+  num_svy = round(cbind(33,77)),
+  yr_hts = c(2022, 2023) + 0.5,
+  ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(5173, 8149),
+  se_hts = c(5173, 8149) * 0.1
 )
 )
 
@@ -926,7 +938,7 @@ cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe",
                    "lesotho", "mozambique", "rwanda",
                    "burkinafaso", "burundi", "cameroon", "cotedivoire",
                    "guinea", "liberia", "senegal", "southafrica","tanzania",
-                   "namibia", "botswana", "guineabissau","drc", "eswatini")
+                   "namibia", "botswana", "guineabissau","drc", "eswatini", "benin")
 
 plot_country_fit <- function(c_idx, cnt_lowercase, time, 
                              svy_m_all, svy_f_all, hts_all,
@@ -1002,7 +1014,6 @@ dev.off()
 
 
 #----verification step: checking wpp pop with model predictions-----------
-
 post <- rstan::extract(fit)
 beta_t_median <- apply(post$beta_t, c(2,3), median)  # beta_t_median is now [n_cnt, n_yr]
 beta_retest_median <- apply(post$beta_retest, 2, median) # length n_cnt
@@ -1328,7 +1339,7 @@ cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe",
                    "lesotho", "mozambique", "rwanda",
                    "burkinafaso", "burundi", "cameroon", "cotedivoire",
                    "guinea", "liberia", "senegal", "southafrica","tanzania",
-                   "namibia", "botswana", "guineabissau","drc", "eswatini")
+                   "namibia", "botswana", "guineabissau","drc", "eswatini", "benin")
 
 plot_country_fit <- function(c_idx, cnt_lowercase, time, 
                              svy_m_all, svy_f_all, hts_all,
