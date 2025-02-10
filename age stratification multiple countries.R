@@ -16,7 +16,8 @@ data(mxM1)
 data(mxF1)  
 
 #---pop at the beginning of the year (as wpp reports mid year pop)----
-countries <- c("Kenya", "Ghana")
+countries <- c("Kenya", "Ghana", "Malawi","Madagascar", "Zimbabwe", 
+               "Sierra Leone")
 age_grp <- list("15-24" = 16:25, "25-34" = 26:35, "35-49" = 36:50, "50+"   = 51:101)
 # matrix with 4 age groups rows for each country, c1=Male, c2=Female
 pop_agegrp_fn <- function(country, popM, popF, age_groups) {
@@ -69,11 +70,11 @@ get_entry_rates_m <- function(cn, start, end) {
   entry_rates_m <- numeric(end - start + 1)
   for (t in start:end) {
     if (t == 2024) {
-      numerator <- wpp_m[(15 + 1), "2023"] * 1000
+      numerator <- wpp_m[(15), "2023"] * 1000
       denominator <- sum(wpp_m[(15 + 1):(100 + 1), "2023"]) * 1000
     } else {
-      numerator <- wpp_m[(15 + 1), as.character(t)] * 1000
-      denominator <- sum(wpp_m[(15 + 1):(100 + 1), as.character(t)]) * 1000
+      numerator <- wpp_m[(15), as.character(t)] * 1000
+      denominator <- sum(wpp_m[(15 + 1):(100 + 1), as.character(t - 1)]) * 1000
     }
     entry_rates_m[t - start + 1] <- numerator / denominator
   }
@@ -83,6 +84,8 @@ get_entry_rates_m <- function(cn, start, end) {
 # matrix [r:years,c:country]  
 entry_m_vec <- do.call(cbind, lapply(countries, 
                       function(cn) get_entry_rates_m(cn, start, end)$EntryRate_m[2:14])) # 2011 not needed
+entry_m_vec <- -log(1 - entry_m_vec)
+
 
 # female
 get_entry_rates_f <- function(cn_f, start, end) {
@@ -90,11 +93,11 @@ get_entry_rates_f <- function(cn_f, start, end) {
   entry_rates_f <- numeric(end - start + 1)
   for (t in start:end) {
     if (t == 2024) {
-      numerator <- wpp_f[(15 + 1), "2023"] * 1000
+      numerator <- wpp_f[(15), "2023"] * 1000
       denominator <- sum(wpp_f[(15 + 1):(100 + 1), "2023"]) * 1000
     } else {
-      numerator <- wpp_f[(15 + 1), as.character(t)] * 1000
-      denominator <- sum(wpp_f[(15 + 1):(100 + 1), as.character(t)]) * 1000
+      numerator <- wpp_f[(15), as.character(t)] * 1000
+      denominator <- sum(wpp_f[(15 + 1):(100 + 1), as.character(t -1)]) * 1000
     }
     entry_rates_f[t - start + 1] <- numerator / denominator
   }
@@ -104,29 +107,30 @@ get_entry_rates_f <- function(cn_f, start, end) {
 # matrix [r:years,c:country]  
 entry_f_vec <- do.call(cbind, lapply(countries, 
               function(cn_f) get_entry_rates_f(cn_f, start, end)$EntryRate_f[2:14])) # 2011 not needed
+entry_f_vec <- -log(1 - entry_f_vec)
+
 
 
 #--- mortality rate: 4 age groups: 15–24, 25–34, 35–49, 50+ ---
 # male mortality rate (with age group)
+
 calc_mort_agegrp_m <- function(year_int, wpp_popM, mx_male, age_grp) {
   sapply(seq_along(age_grp), function(g) {
     age_rows <- age_grp[[g]]
-    # pop
-    pop_vec <- if (year_int == 2024) {
+        pop_vec <- if (year_int == 2024) {
       wpp_popM[age_rows, "2023"] * 1000
     } else {
       wpp_popM[age_rows, as.character(year_int)] * 1000
     }
-    # Mortality
-    mx_vec <- if (year_int == 2024) {
+        mx_vec <- if (year_int == 2024) {
       mx_male[age_rows, "2024"]
     } else {
       mx_male[age_rows, as.character(year_int)]
     }
-
-    sum(pop_vec * mx_vec) / sum(pop_vec)
+        -log(1 - (sum(pop_vec * (1 - exp(-mx_vec))) / sum(pop_vec)))
   })
 }
+
 
 # function to loop over start to end for one country
 mort_rate_m_agegrp <- function(cn, start_yr, end_yr, age_grp) {
@@ -169,8 +173,7 @@ calc_mort_agegrp_f <- function(year_int, wpp_popF, mx_female, age_grp) {
     } else {
       mx_female[age_rows, as.character(year_int)]
     }
-    
-    sum(pop_vec * mx_vec) / sum(pop_vec)
+    -log(1 - (sum(pop_vec * (1 - exp(-mx_vec))) / sum(pop_vec)))
   })
 }
 
@@ -619,7 +622,6 @@ num_svy_f = matrix(
   c(52, 72, 47, -999, # 2017
     42, 97, 51, -999), # 2022
   nrow = 2, byrow = TRUE),
-
 den_svy_m = matrix(
   c(1927, 645, 856, -999, # 2017 
     1604, 1547, 1222, -999), # 2022 
@@ -632,7 +634,116 @@ yr_hts = c(2020,  2021,   2022,  2023) + 0.5,
 ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
 hts_dat = c(20000, 1323, 235000, 140500),
 se_hts = c(20000, 1323, 235000, 140500) * 0.1
+),
+
+malawi = list(
+  yr_svy = c(2015.5, 2019.5, 2020.5),
+  ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+  den_svy_f = matrix(
+    c( 6698, 4260, 4117, -999, # 2015
+       8372, 5690, 5570, -999, # 2019
+      3544, 2504, 3145, 1530), # 2020
+    nrow = 3, byrow = TRUE),
+  num_svy_f = matrix(
+    c(50, 48, 39, -999, # 2015
+      540, 412, 273, -999, # 2019
+       273, 193, 169, 24), # 2020
+    nrow = 3, byrow = TRUE),
+  den_svy_m = matrix(
+    c(858, 1041, 1061, -999, # 2015 
+      2546, 1368, 1519, -999,# 2019
+      2217, 2199, 2377, 1440), # 2020 
+    nrow = 3, byrow = TRUE),
+  num_svy_m = matrix(
+    c(6, 17, 12, -999, # 2015
+     230, 131, 109, -999, # 2019 
+      190, 219, 163, 49), # 2020
+    nrow = 3, byrow = TRUE),
+  yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(408900, 101256, 561282, 602657, 735385, 910088),
+  se_hts =  c(408900, 101256, 561282, 602657, 735385, 910088) * 0.1 
+),
+madagascar = list(
+  yr_svy = c(2018.5, 2021.5),
+  ind_svy = (c(2018.5, 2021.5) - start) / dt,
+  den_svy_f = matrix(
+    c(3796, 1712, 2117, -999, # 2018
+       4793, 1859, 4414, -999), # 2021
+    nrow = 2, byrow = TRUE),
+  num_svy_f = matrix(
+    c( 41, 48, 30, -999, # 2018
+       10, 9, 10, -999), # 2021
+    nrow = 2, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1188, 888, 1711, -999, # 2018 
+      2971, 2607, 1610, -999), # 2021 
+    nrow = 2, byrow = TRUE),
+  num_svy_m = matrix(
+    c(9, 17, 18, -999, # 2018
+       13, 18, 17, -999), # 2021
+    nrow = 2, byrow = TRUE),
+  yr_hts = c(2022,  2023) + 0.5,
+  ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(2500, 2500),
+  se_hts = c(2500, 2500) * 0.1
+),
+
+zimbabwe = list(
+  yr_svy = c(2015.5, 2019.5, 2020.5),
+  ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+  den_svy_f = matrix(
+    c(4078, 2387, 1661, -999, # 2015
+      2332, 1954, 1978, -999, # 2019
+      2759, 2343, 3081, 1876), # 2020
+    nrow = 3, byrow = TRUE),
+  num_svy_f = matrix(
+    c(8, 11, 3, -999, # 2015
+       116, 137, 95, -999, # 2019
+       166, 213, 177, 42), # 2020
+    nrow = 3, byrow = TRUE),
+  den_svy_m = matrix(
+    c(2254, 1950, 1453, -999, # 2015 
+       998, 611, 870, -999,# 2019
+      2124, 1340, 1960, 1137), # 2020 
+    nrow = 3, byrow = TRUE),
+  num_svy_m = matrix(
+    c(22, 34, 35, -999, # 2015
+      39, 46, 47, -999, # 2019 
+      112, 117, 122, 31), # 2020
+    nrow = 3, byrow = TRUE),
+  yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(197408, 174566, 240434, 459517, 414499, 513090),
+  se_hts = c(197408, 174566, 240434, 459517, 414499, 513090) * 0.1
+),
+
+sierraleone = list(
+  yr_svy = c(2017.5, 2019.5),
+  ind_svy = (c(2017.5, 2019.5) - start) / dt,
+  den_svy_f = matrix(
+    c(5854, 4421, 4019, -999, # 2017
+       2203, 1346, 2236, -999), # 2019
+    nrow = 2, byrow = TRUE),
+  num_svy_f = matrix(
+    c(167, 170, 125, -999, # 2017
+       70, 68, 80, -999), # 2019
+    nrow = 2, byrow = TRUE),
+  den_svy_m = matrix(
+    c(5854, 4421, 4019, -999, # 2017 
+      1609, 541, 1157, -999), # 2019 
+    nrow = 2, byrow = TRUE),
+  num_svy_m = matrix(
+    c(167, 170, 125, -999, # 2017
+       22, 17, 24, -999), # 2022
+    nrow = 2, byrow = TRUE),
+  yr_hts = c(2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(2678, 1173, 50340),
+  se_hts = c(2678, 1173, 50340) * 0.1
 )
+
+# single survey country, nrow=1
 )
 
 # adding svy_dat,lci,uci after list as the operations cant be performed inside list
