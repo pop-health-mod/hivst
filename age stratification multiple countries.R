@@ -818,7 +818,7 @@ lesotho  = list(
     nrow = 2, byrow = TRUE),
   den_svy_m = matrix(
     c(1449, 1254, 1643, 1014, # 2020
-      388, 478, 490, ,-999), # 2023
+      388, 478, 490, -999), # 2023
     nrow = 2, byrow = TRUE),
   num_svy_m = matrix(
     c(146, 182, 126, 24, # 2020
@@ -1076,16 +1076,16 @@ botswana = list(
   yr_svy =  2021.5,
   ind_svy = (2021.5 - start) / dt,
   den_svy_f = matrix(
-    c( -999), 
+    c(1958, 2002, 3199, 811), 
     nrow = 1, byrow = TRUE),
   num_svy_f = matrix(
-    c( -999), 
+    c(50, 71, 46, 6), 
     nrow = 1, byrow = TRUE),
   den_svy_m = matrix(
-    c( -999),  
+    c(1559, 1401, 2348, 475),  
     nrow = 1, byrow = TRUE),
   num_svy_m = matrix(
-    c( -999), 
+    c(22, 30, 50, 3), 
     nrow = 1, byrow = TRUE),
   yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
   ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
