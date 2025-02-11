@@ -1,7 +1,6 @@
 
-# all 26 countries with program data
+# all 27 countries with program data
 
-# add Benin
 
 rm(list = ls())
 gc()
@@ -799,6 +798,116 @@ rr_retesting_forest <- ggplot(df_rr_ov, aes(x = country, y = median, color = sty
   theme(legend.position = "right")
 
 
+# ---plots for poster-----
+
+# Updated rr_male_forest: using orangered and red3
+rr_male_forest <- ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "salmon", "pooled" = "firebrick")) +
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Country", y = "Rate ratio for men",
+       color = "Estimates (95% CrI)") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)),
+                                               substring(x, 2))) +
+  theme(legend.position = "right")
+
+# Updated phi_forest: using orange and orangered
+phi_forest <- ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "orange", "pooled" = "orangered")) +
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Country", y = "Proportion of distributed HIVST kits that are used",
+       color = "Estimates (95% CrI)") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)),
+                                               substring(x, 2))) +
+  theme(legend.position = "right")
+
+# Updated rr_retesting_forest: using tomato and red
+rr_retesting_forest <- ggplot(df_rr_ov, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "pink", "pooled" = "darkred")) +
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Country", y = "Re-testing rate ratio",
+       color = "Estimates (95% CrI)") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  theme(legend.position = "right")
+
+# top row: rr_male_forest and phi_forest; bottom row: rr_retesting_forest
+combined_plot <- (rr_retesting_forest + phi_forest) /  rr_male_forest +
+  plot_annotation(tag_levels = "A")
+
+# side by side
+library(patchwork)
+
+# Arrange all three plots in a single row
+combined_plot <- rr_retesting_forest + phi_forest + rr_male_forest +
+  plot_annotation(tag_levels = "A") +
+  plot_layout(ncol = 3)
+
+# Print the combined plot
+combined_plot
+
+#3nnewww---------
+
+
+
+library(ggplot2)
+library(patchwork)
+
+# Your updated plots (assuming these are defined as shown)
+rr_male_forest <- ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "salmon", "pooled" = "firebrick")) +
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Country", y = "Rate ratio for men",
+       color = "Estimates (95% CrI)") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)),
+                                               substring(x, 2))) +
+  theme(legend.position = "right")  # This will be overridden by the patchwork theme
+
+phi_forest <- ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "orange", "pooled" = "orangered")) +
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Country", y = "Proportion of distributed HIVST kits that are used",
+       color = "Estimates (95% CrI)") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)),
+                                               substring(x, 2))) +
+  theme(legend.position = "right")  # This will be overridden
+
+rr_retesting_forest <- ggplot(df_rr_ov, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "pink", "pooled" = "darkred")) +
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Country", y = "Re-testing rate ratio",
+       color = "Estimates (95% CrI)") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
+  theme(legend.position = "right")  # This will be overridden
+
+# Arrange the plots side by side and collect the legends
+combined_plot <- rr_retesting_forest + phi_forest + rr_male_forest +
+  plot_annotation(tag_levels = "A") +
+  plot_layout(ncol = 3, guides = "collect") &
+  theme(legend.position = "bottom")
+
+combined_plot
+
 
 #-------- rate ratio male ---------------
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_men_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -1162,6 +1271,7 @@ for (cn in countries) {
 extracted_fit <- extract(fit)
 ext_fit_m <- extracted_fit$svy_prd_m
 ext_fit_f <- extracted_fit$svy_prd_f
+# 8000 sample, 27 countries, 130 iterations
 n_sample <- dim(ext_fit_m)[1] 
 n_cnt <- dim(ext_fit_m)[2]
 niter <- dim(ext_fit_m)[3]
@@ -1171,16 +1281,17 @@ male_prp <- matrix(NA, nrow = n_sample, ncol = niter)
 female_prp <- matrix(NA, nrow = n_sample, ncol = niter)
 
 # total sum of m and f pop (deno)
-total_male_pop <- sum(data_stan$pop[1, ])    
-total_female_pop <- sum(data_stan$pop[2, ])  
+total_male_pop <- sum(data_stan$pop[1, ]) # first column of pop matrix stores total male in each country   
+total_female_pop <- sum(data_stan$pop[2, ])  # second column of pop matrix stores total female in each country
 
+# looping over all samples
 for (i in 1:n_sample) {
-  ext_fit_mi <- ext_fit_m[i, , ] * data_stan$pop[1, ]  
-  ext_fit_fi <- ext_fit_f[i, , ] * data_stan$pop[2, ]
-  male_numbers <- colSums(ext_fit_mi)   
-  female_numbers <- colSums(ext_fit_fi)    
-  male_prp[i, ] <- male_numbers / total_male_pop
-  female_prp[i, ] <- female_numbers / total_female_pop
+  ext_fit_mi <- ext_fit_m[i, , ] * data_stan$pop[1, ] # 130 iteration's male pred where each row is one country * total male pop in that country 
+  ext_fit_fi <- ext_fit_f[i, , ] * data_stan$pop[2, ] # 130 iteration's female pred where each row is one country * total female pop in that country 
+  male_numbers <- colSums(ext_fit_mi)   # numerator for male proportion
+  female_numbers <- colSums(ext_fit_fi) # numerator for female proportion
+  male_prp[i, ] <- male_numbers / total_male_pop # male proportion
+  female_prp[i, ] <- female_numbers / total_female_pop # female proportion
 }
 
 # apply quantile function over the columns (denoted by margin=2)
@@ -1234,7 +1345,608 @@ legend("top",
        pt.bg = c("lightblue", "pink"),
        bty = "l")
 
-# ------gg plot object for 4 panel figure--------
+# --------- individual country at last iteration--------
+
+# ext_fit_m and ext_fit_f have dimensions: n_sample x n_cnt x niter
+
+# Extract the last iteration (iteration 130) for each sample and each country
+male_prp_country <- ext_fit_m[ , , niter]   # dimensions: n_sample x n_cnt
+female_prp_country <- ext_fit_f[ , , niter]   # dimensions: n_sample x n_cnt
+
+colnames(male_prp_country) <- colnames(data_stan$pop)
+colnames(female_prp_country) <- colnames(data_stan$pop)
+
+# median, 2.5% and 97.5% proportion for each country in 2024:
+
+male_prop_summary <- data.frame(
+  country = colnames(male_prp_country),
+  median  = apply(male_prp_country, 2, median),
+  lci     = apply(male_prp_country, 2, quantile, probs = 0.025),
+  uci     = apply(male_prp_country, 2, quantile, probs = 0.975)
+)
+
+female_prop_summary <- data.frame(
+  country = colnames(female_prp_country),
+  median  = apply(female_prp_country, 2, median),
+  lci     = apply(female_prp_country, 2, quantile, probs = 0.025),
+  uci     = apply(female_prp_country, 2, quantile, probs = 0.975)
+)
+
+# Multiply estimates by 100
+male_prop_summary$median <- male_prop_summary$median * 100
+male_prop_summary$lci    <- male_prop_summary$lci * 100
+male_prop_summary$uci    <- male_prop_summary$uci * 100
+
+# Create discrete groups using cut()
+male_prop_summary$group <- cut(male_prop_summary$median,
+                               breaks = c(0, 5, 10, 20, Inf),
+                               include.lowest = TRUE,
+                               right = FALSE,
+                               labels = c("0-5%", "5-10%", "10-20%", "20%+"))
+
+
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+
+# ---- region wise plot-----
+country_to_region <- c(
+  "Kenya"                         = "Eastern", 
+  "Madagascar"                    = "Eastern", 
+  "Malawi"                        = "Eastern", 
+  "Mozambique"                    = "Eastern", 
+  "Rwanda"                        = "Eastern", 
+  "United Republic of Tanzania"   = "Eastern",  
+  "Uganda"                        = "Eastern", 
+  "Zambia"                        = "Eastern", 
+  "Zimbabwe"                      = "Eastern", 
+  
+  "Burundi"                       = "Central", 
+  "Cameroon"                      = "Central", 
+  "Democratic Republic of the Congo" = "Central",
+
+  "Botswana"                      = "Southern", 
+  "Eswatini"                      = "Southern", 
+  "Lesotho"                       = "Southern", 
+  "Namibia"                       = "Southern", 
+  "South Africa"                  = "Southern", 
+  
+  "Benin"                         = "Western", 
+  "Burkina Faso"                  = "Western", 
+  "Cote d'Ivoire"                 = "Western", 
+  "Ghana"                         = "Western", 
+  "Guinea"                        = "Western", 
+  "Guinea-Bissau"                 = "Western", 
+  "Liberia"                       = "Western", 
+  "Mali"                          = "Western", 
+  "Senegal"                       = "Western", 
+  "Sierra Leone"                  = "Western"
+)
+
+# Eastern region countries
+eastern_countries <- names(country_to_region[country_to_region == "Eastern"])
+
+# finding the indices in pop corresponding to Eastern countries
+# colnames(data_stan$pop) returns country names
+eastern_idx <- which(colnames(data_stan$pop) %in% eastern_countries)
+
+# total male and female population in Eastern 
+total_male_pop_east   <- sum(data_stan$pop[1, eastern_idx])
+total_female_pop_east <- sum(data_stan$pop[2, eastern_idx])
+
+# matrices to store the computed proportions for each sample and iteration
+male_prp_east   <- matrix(NA, nrow = n_sample, ncol = niter)
+female_prp_east <- matrix(NA, nrow = n_sample, ncol = niter)
+
+# looping over all samples to compute the weighted prediction for Eastern region only
+for (i in 1:n_sample) {
+  ext_fit_mi_east <- ext_fit_m[i, eastern_idx, ] * data_stan$pop[1, eastern_idx]
+  ext_fit_fi_east <- ext_fit_f[i, eastern_idx, ] * data_stan$pop[2, eastern_idx]
+  male_numbers_east   <- colSums(ext_fit_mi_east)   
+  female_numbers_east <- colSums(ext_fit_fi_east)   
+  male_prp_east[i, ]   <- male_numbers_east / total_male_pop_east
+  female_prp_east[i, ] <- female_numbers_east / total_female_pop_east
+}
+
+male_lci_east   <- apply(male_prp_east,   2, quantile, probs = 0.025)
+male_med_east   <- apply(male_prp_east,   2, quantile, probs = 0.5)
+male_uci_east   <- apply(male_prp_east,   2, quantile, probs = 0.975)
+
+female_lci_east <- apply(female_prp_east, 2, quantile, probs = 0.025)
+female_med_east <- apply(female_prp_east, 2, quantile, probs = 0.5)
+female_uci_east <- apply(female_prp_east, 2, quantile, probs = 0.975)
+
+# plotting Eastern
+male_med_perc_east <- male_med_east * 100
+male_lci_perc_east <- male_lci_east * 100
+male_uci_perc_east <- male_uci_east * 100
+
+female_med_perc_east <- female_med_east * 100
+female_lci_perc_east <- female_lci_east * 100
+female_uci_perc_east <- female_uci_east * 100
+
+y_lim_east <- c(0, max(male_uci_perc_east, female_uci_perc_east))
+
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+plot(time, male_med_perc_east, type = "n",
+     xlab = "Year",
+     ylab = "Proportion of people having ever used HIVST (%)",
+     ylim = y_lim_east,
+     las = 1,
+     bty = "l"
+)
+
+polygon(x = c(time, rev(time)),
+        y = c(male_lci_perc_east, rev(male_uci_perc_east)),
+        col = adjustcolor("lightblue", alpha.f = 0.3), border = NA)
+lines(time, male_med_perc_east, col = "deepskyblue4", lwd = 2)
+
+polygon(x = c(time, rev(time)),
+        y = c(female_lci_perc_east, rev(female_uci_perc_east)),
+        col = adjustcolor("pink", alpha.f = 0.3), border = NA)
+lines(time, female_med_perc_east, col = "deeppink1", lwd = 2)
+
+title("Estimated Trends in HIVST Uptake in Eastern Africa by Sex")
+
+legend("top",
+       legend = c("Men", "Women"),
+       col = c("deepskyblue4", "deeppink1"),
+       lwd = 2,
+       lty = 1,
+       pt.cex = 1.5,
+       pt.bg = c("lightblue", "pink"),
+       bty = "l")
+
+
+# ggplot object for Eastern (with no legend, preserving colors)
+df_sextrend_east <- data.frame(
+  time = time,  
+  male_med  = male_med_perc_east,
+  male_lci  = male_lci_perc_east,
+  male_uci  = male_uci_perc_east,
+  female_med = female_med_perc_east,
+  female_lci = female_lci_perc_east,
+  female_uci = female_uci_perc_east
+)
+
+sex_trend_plot_east <- ggplot(df_sextrend_east, aes(x = time)) +
+  geom_ribbon(aes(ymin = male_lci, ymax = male_uci),
+              fill = "lightblue", alpha = 0.3) +
+  geom_line(aes(y = male_med),
+            color = "deepskyblue4", size = 1.1) +
+  geom_ribbon(aes(ymin = female_lci, ymax = female_uci),
+              fill = "pink", alpha = 0.3) +
+  geom_line(aes(y = female_med),
+            color = "deeppink1", size = 1.1) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 10, by = 2)) +
+  labs(x = "Year",
+       y = "Proportion having ever used HIVST (%)") +
+  theme(panel.background = element_rect(fill = "white", color = NA),
+        plot.background  = element_rect(fill = "white", color = NA),
+        panel.grid       = element_blank(),  # remove grid lines
+        axis.line.x      = element_line(color = "black"),
+        axis.line.y      = element_line(color = "black"),
+        plot.margin      = margin(t = 1, r = 1, b = 3, l = 1, unit = "cm"),
+        plot.title       = element_text(hjust = 0.5, vjust = -12, size = 14),
+        legend.position  = "none") +
+  coord_cartesian(clip = "off") +
+  ggtitle("Eastern Africa")
+
+sex_trend_plot_east
+
+
+# Western and Central
+wc_countries <- names(country_to_region)[country_to_region %in% c("Western", "Central")]
+
+wc_idx <- which(colnames(data_stan$pop) %in% wc_countries)
+
+total_male_pop_wc   <- sum(data_stan$pop[1, wc_idx])
+total_female_pop_wc <- sum(data_stan$pop[2, wc_idx])
+
+male_prp_wc   <- matrix(NA, nrow = n_sample, ncol = niter)
+female_prp_wc <- matrix(NA, nrow = n_sample, ncol = niter)
+
+for (i in 1:n_sample) {
+  ext_fit_mi_wc <- ext_fit_m[i, wc_idx, ] * data_stan$pop[1, wc_idx]
+  ext_fit_fi_wc <- ext_fit_f[i, wc_idx, ] * data_stan$pop[2, wc_idx]
+  
+  male_numbers_wc   <- colSums(ext_fit_mi_wc)   # Sum over all WC countries for males
+  female_numbers_wc <- colSums(ext_fit_fi_wc)   # Sum over all WC countries for females
+  
+  male_prp_wc[i, ]   <- male_numbers_wc / total_male_pop_wc
+  female_prp_wc[i, ] <- female_numbers_wc / total_female_pop_wc
+}
+
+male_lci_wc   <- apply(male_prp_wc,   2, quantile, probs = 0.025)
+male_med_wc   <- apply(male_prp_wc,   2, quantile, probs = 0.5)
+male_uci_wc   <- apply(male_prp_wc,   2, quantile, probs = 0.975)
+
+female_lci_wc <- apply(female_prp_wc, 2, quantile, probs = 0.025)
+female_med_wc <- apply(female_prp_wc, 2, quantile, probs = 0.5)
+female_uci_wc <- apply(female_prp_wc, 2, quantile, probs = 0.975)
+
+male_med_perc_wc   <- male_med_wc * 100
+male_lci_perc_wc   <- male_lci_wc * 100
+male_uci_perc_wc   <- male_uci_wc * 100
+
+female_med_perc_wc <- female_med_wc * 100
+female_lci_perc_wc <- female_lci_wc * 100
+female_uci_perc_wc <- female_uci_wc * 100
+
+y_lim_wc <- c(0, 10)
+
+df_sextrend_wc <- data.frame(
+  time = time,  
+  male_med  = male_med_perc_wc,
+  male_lci  = male_lci_perc_wc,
+  male_uci  = male_uci_perc_wc,
+  female_med = female_med_perc_wc,
+  female_lci = female_lci_perc_wc,
+  female_uci = female_uci_perc_wc
+)
+
+sex_trend_plot_wc <- ggplot(df_sextrend_wc, aes(x = time)) +
+  geom_ribbon(aes(ymin = male_lci, ymax = male_uci),
+              fill = "lightblue", alpha = 0.3) +
+  geom_line(aes(y = male_med),
+            color = "deepskyblue4", size = 1.1) +
+  geom_ribbon(aes(ymin = female_lci, ymax = female_uci),
+              fill = "pink", alpha = 0.3) +
+  geom_line(aes(y = female_med),
+            color = "deeppink1", size = 1.1) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(limits = y_lim_wc, breaks = seq(0, 10, by = 2)) +
+  labs(x = "Year",
+       y = "Proportion having ever used HIVST (%)") +
+  theme(panel.background = element_rect(fill = "white", color = NA),
+        plot.background  = element_rect(fill = "white", color = NA),
+        panel.grid       = element_blank(),  # remove grid lines
+        axis.line.x      = element_line(color = "black"),
+        axis.line.y      = element_line(color = "black"),
+        plot.margin      = margin(t = 1, r = 1, b = 3, l = 1, unit = "cm"),
+        plot.title       = element_text(hjust = 0.5, vjust = -12, size = 14),
+        legend.position  = "none") +
+  coord_cartesian(clip = "off") +
+  ggtitle("Western & Central Africa")
+
+sex_trend_plot_wc
+
+# Southern Africa
+southern_countries <- names(country_to_region[country_to_region == "Southern"])
+southern_idx <- which(colnames(data_stan$pop) %in% southern_countries)
+
+total_male_pop_south   <- sum(data_stan$pop[1, southern_idx])
+total_female_pop_south <- sum(data_stan$pop[2, southern_idx])
+
+male_prp_south   <- matrix(NA, nrow = n_sample, ncol = niter)
+female_prp_south <- matrix(NA, nrow = n_sample, ncol = niter)
+
+for (i in 1:n_sample) {
+  ext_fit_mi_south <- ext_fit_m[i, southern_idx, ] * data_stan$pop[1, southern_idx]
+  ext_fit_fi_south <- ext_fit_f[i, southern_idx, ] * data_stan$pop[2, southern_idx]
+  
+  male_numbers_south   <- colSums(ext_fit_mi_south)   # Sum over Southern countries (males)
+  female_numbers_south <- colSums(ext_fit_fi_south)   # Sum over Southern countries (females)
+  
+  male_prp_south[i, ]   <- male_numbers_south / total_male_pop_south
+  female_prp_south[i, ] <- female_numbers_south / total_female_pop_south
+}
+
+male_lci_south   <- apply(male_prp_south,   2, quantile, probs = 0.025)
+male_med_south   <- apply(male_prp_south,   2, quantile, probs = 0.5)
+male_uci_south   <- apply(male_prp_south,   2, quantile, probs = 0.975)
+
+female_lci_south <- apply(female_prp_south, 2, quantile, probs = 0.025)
+female_med_south <- apply(female_prp_south, 2, quantile, probs = 0.5)
+female_uci_south <- apply(female_prp_south, 2, quantile, probs = 0.975)
+
+
+male_med_perc_south <- male_med_south * 100
+male_lci_perc_south <- male_lci_south * 100
+male_uci_perc_south <- male_uci_south * 100
+
+female_med_perc_south <- female_med_south * 100
+female_lci_perc_south <- female_lci_south * 100
+female_uci_perc_south <- female_uci_south * 100
+
+y_lim_south <- c(0, max(male_uci_perc_south, female_uci_perc_south))
+
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+plot(time, male_med_perc_south, type = "n",
+     xlab = "Year",
+     ylab = "Proportion of people having ever used HIVST (%)",
+     ylim = y_lim_south,
+     las = 1,
+     bty = "l"
+)
+
+polygon(x = c(time, rev(time)),
+        y = c(male_lci_perc_south, rev(male_uci_perc_south)),
+        col = adjustcolor("lightblue", alpha.f = 0.3), border = NA)
+lines(time, male_med_perc_south, col = "deepskyblue4", lwd = 2)
+
+polygon(x = c(time, rev(time)),
+        y = c(female_lci_perc_south, rev(female_uci_perc_south)),
+        col = adjustcolor("pink", alpha.f = 0.3), border = NA)
+lines(time, female_med_perc_south, col = "deeppink1", lwd = 2)
+
+title("Estimated Trends in HIVST Uptake in Southern Africa by Sex")
+legend("top",
+       legend = c("Men", "Women"),
+       col = c("deepskyblue4", "deeppink1"),
+       lwd = 2, lty = 1,
+       pt.cex = 1.5, pt.bg = c("lightblue", "pink"),
+       bty = "l")
+
+
+df_sextrend_south <- data.frame(
+  time = time,  
+  male_med  = male_med_perc_south,
+  male_lci  = male_lci_perc_south,
+  male_uci  = male_uci_perc_south,
+  female_med = female_med_perc_south,
+  female_lci = female_lci_perc_south,
+  female_uci = female_uci_perc_south
+)
+
+sex_trend_plot_south <- ggplot(df_sextrend_south, aes(x = time)) +
+  geom_ribbon(aes(ymin = male_lci, ymax = male_uci),
+              fill = "lightblue", alpha = 0.3) +
+  geom_line(aes(y = male_med),
+            color = "deepskyblue4", size = 1.1) +
+  geom_ribbon(aes(ymin = female_lci, ymax = female_uci),
+              fill = "pink", alpha = 0.3) +
+  geom_line(aes(y = female_med),
+            color = "deeppink1", size = 1.1) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 10, by = 2)) +
+  labs(x = "Year",
+       y = "Proportion having ever used HIVST (%)") +
+  theme(panel.background = element_rect(fill = "white", color = NA),
+        plot.background  = element_rect(fill = "white", color = NA),
+        panel.grid       = element_blank(),  # remove grid lines
+        axis.line.x      = element_line(color = "black"),
+        axis.line.y      = element_line(color = "black"),
+        plot.margin      = margin(t = 1, r = 1, b = 3, l = 1, unit = "cm"),
+        plot.title       = element_text(hjust = 0.5, vjust = -12, size = 14),
+        legend.position  = "none") +
+  coord_cartesian(clip = "off") +
+  ggtitle("Southern Africa")
+
+sex_trend_plot_south
+
+
+## Eastern and Southern
+es_countries <- names(country_to_region)[country_to_region %in% c("Eastern", "Southern")]
+es_idx <- which(colnames(data_stan$pop) %in% es_countries)
+total_male_pop_es   <- sum(data_stan$pop[1, es_idx])
+total_female_pop_es <- sum(data_stan$pop[2, es_idx])
+
+male_prp_es   <- matrix(NA, nrow = n_sample, ncol = niter)
+female_prp_es <- matrix(NA, nrow = n_sample, ncol = niter)
+
+for (i in 1:n_sample) {
+  ext_fit_mi_es <- ext_fit_m[i, es_idx, ] * data_stan$pop[1, es_idx]
+  ext_fit_fi_es <- ext_fit_f[i, es_idx, ] * data_stan$pop[2, es_idx]
+  
+  male_numbers_es   <- colSums(ext_fit_mi_es)   # Sum over the selected countries (males)
+  female_numbers_es <- colSums(ext_fit_fi_es)   # Sum over the selected countries (females)
+  
+  male_prp_es[i, ]   <- male_numbers_es / total_male_pop_es
+  female_prp_es[i, ] <- female_numbers_es / total_female_pop_es
+}
+
+male_lci_es   <- apply(male_prp_es,   2, quantile, probs = 0.025)
+male_med_es   <- apply(male_prp_es,   2, quantile, probs = 0.5)
+male_uci_es   <- apply(male_prp_es,   2, quantile, probs = 0.975)
+
+female_lci_es <- apply(female_prp_es, 2, quantile, probs = 0.025)
+female_med_es <- apply(female_prp_es, 2, quantile, probs = 0.5)
+female_uci_es <- apply(female_prp_es, 2, quantile, probs = 0.975)
+
+male_med_perc_es   <- male_med_es   * 100
+male_lci_perc_es   <- male_lci_es   * 100
+male_uci_perc_es   <- male_uci_es   * 100
+
+female_med_perc_es <- female_med_es * 100
+female_lci_perc_es <- female_lci_es * 100
+female_uci_perc_es <- female_uci_es * 100
+
+y_lim_es <- c(0, max(male_uci_perc_es, female_uci_perc_es))
+
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+plot(time, male_med_perc_es, type = "n",
+     xlab = "Year",
+     ylab = "Proportion of people having ever used HIVST (%)",
+     ylim = y_lim_es,
+     las = 1,
+     bty = "l"
+)
+
+polygon(x = c(time, rev(time)),
+        y = c(male_lci_perc_es, rev(male_uci_perc_es)),
+        col = adjustcolor("lightblue", alpha.f = 0.3), border = NA)
+lines(time, male_med_perc_es, col = "deepskyblue4", lwd = 2)
+
+# Add the female ribbon and median line
+polygon(x = c(time, rev(time)),
+        y = c(female_lci_perc_es, rev(female_uci_perc_es)),
+        col = adjustcolor("pink", alpha.f = 0.3), border = NA)
+lines(time, female_med_perc_es, col = "deeppink1", lwd = 2)
+
+title("Estimated Trends in HIVST Uptake in Eastern & Southern Africa by Sex")
+
+legend("top",
+       legend = c("Men", "Women"),
+       col = c("deepskyblue4", "deeppink1"),
+       lwd = 2,
+       lty = 1,
+       pt.cex = 1.5,
+       pt.bg = c("lightblue", "pink"),
+       bty = "l")
+
+
+df_sextrend_es <- data.frame(
+  time = time,  
+  male_med  = male_med_perc_es,
+  male_lci  = male_lci_perc_es,
+  male_uci  = male_uci_perc_es,
+  female_med = female_med_perc_es,
+  female_lci = female_lci_perc_es,
+  female_uci = female_uci_perc_es
+)
+
+sex_trend_plot_es <- ggplot(df_sextrend_es, aes(x = time)) +
+  geom_ribbon(aes(ymin = male_lci, ymax = male_uci),
+              fill = "lightblue", alpha = 0.3) +
+  geom_line(aes(y = male_med),
+            color = "deepskyblue4", size = 1.1) +
+  geom_ribbon(aes(ymin = female_lci, ymax = female_uci),
+              fill = "pink", alpha = 0.3) +
+  geom_line(aes(y = female_med),
+            color = "deeppink1", size = 1.1) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(limits = y_lim_es, breaks = seq(y_lim_es[1], y_lim_es[2], by = 2)) +
+  labs(x = "Year",
+       y = "Proportion having ever used HIVST (%)") +
+  theme(panel.background = element_rect(fill = "white", color = NA),
+        plot.background  = element_rect(fill = "white", color = NA),
+        panel.grid       = element_blank(),  # remove grid lines
+        axis.line.x      = element_line(color = "black"),
+        axis.line.y      = element_line(color = "black"),
+        plot.margin      = margin(t = 1, r = 1, b = 3, l = 1, unit = "cm"),
+        plot.title       = element_text(hjust = 0.5, vjust = -12, size = 14),
+        legend.position  = "none") +
+  coord_cartesian(clip = "off") +
+  ggtitle("Eastern & Southern Africa")
+
+sex_trend_plot_es
+
+# --obtaining information on overall proportion at the end of model by region--
+df_sextrend_wc[130, ]
+df_sextrend_es[130, ]
+
+# western and central
+total_male_pop_wc   <- sum(data_stan$pop[1, wc_idx])
+total_female_pop_wc <- sum(data_stan$pop[2, wc_idx])
+total_pop_wc <- total_male_pop_wc + total_female_pop_wc
+
+overall_prop_wc <- (df_sextrend_wc$male_med * total_male_pop_wc + 
+                      df_sextrend_wc$female_med * total_female_pop_wc) / total_pop_wc
+
+overall_prop_wc_last <- (df_sextrend_wc$male_med[130] * total_male_pop_wc +
+                           df_sextrend_wc$female_med[130] * total_female_pop_wc) / total_pop_wc
+
+overall_lower_wc_last <- (df_sextrend_wc$male_lci[130] * total_male_pop_wc +
+                            df_sextrend_wc$female_lci[130] * total_female_pop_wc) / total_pop_wc
+
+overall_upper_wc_last <- (df_sextrend_wc$male_uci[130] * total_male_pop_wc +
+                            df_sextrend_wc$female_uci[130] * total_female_pop_wc) / total_pop_wc
+
+overall_prop_wc_last
+overall_lower_wc_last
+overall_upper_wc_last
+
+# eastern and southern
+total_male_pop_es   <- sum(data_stan$pop[1, es_idx])
+total_female_pop_es <- sum(data_stan$pop[2, es_idx])
+total_pop_es <- total_male_pop_es + total_female_pop_es
+
+overall_prop_es_last <- (df_sextrend_es$male_med[130] * total_male_pop_es +
+                           df_sextrend_es$female_med[130] * total_female_pop_es) / total_pop_es
+
+overall_lower_es_last <- (df_sextrend_es$male_lci[130] * total_male_pop_es +
+                            df_sextrend_es$female_lci[130] * total_female_pop_es) / total_pop_es
+
+overall_upper_es_last <- (df_sextrend_es$male_uci[130] * total_male_pop_es +
+                            df_sextrend_es$female_uci[130] * total_female_pop_es) / total_pop_es
+
+# Print the results:
+overall_prop_es_last
+overall_lower_es_last
+overall_upper_es_last
+
+#--- overall trend ggplot ---
+df_sextrend <- data.frame(
+  time = time,
+  male_med  = male_med_perc,
+  male_lci  = male_lci_perc,
+  male_uci  = male_uci_perc,
+  female_med = female_med_perc,
+  female_lci = female_lci_perc,
+  female_uci = female_uci_perc
+)
+
+sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
+  geom_ribbon(
+    aes(ymin = male_lci, ymax = male_uci),
+    fill = "lightblue", alpha = 0.3, show.legend = FALSE
+  ) +
+  geom_line(
+    aes(y = male_med, color = "Male"),
+    size = 1.1
+  ) +
+  geom_ribbon(
+    aes(ymin = female_lci, ymax = female_uci),
+    fill = "pink", alpha = 0.3, show.legend = FALSE
+  ) +
+  geom_line(
+    aes(y = female_med, color = "Female"),
+    size = 1.1
+  ) +
+  scale_color_manual(
+    name = "Sex",
+    values = c("Male" = "deepskyblue4", "Female" = "deeppink1")
+  ) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 10, by = 2)) +
+  labs(
+    x = "Year",
+    y = "Proportion having ever used HIVST (%)"
+  ) +
+  theme(
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background  = element_rect(fill = "white", color = NA),
+    panel.grid       = element_blank(),
+    axis.line.x      = element_line(color = "black"),
+    axis.line.y      = element_line(color = "black"),
+    plot.margin      = margin(t = 1, r = 1, b = 3, l = 1, unit = "cm"),
+    plot.title       = element_text(hjust = 0.5, vjust = -12, size = 14),
+    legend.position  = "none"
+  ) + 
+  coord_cartesian(clip = "off") +
+  ggtitle("Overall")
+
+sex_trend_plot
+
+# --putting all plots together by region---
+combined_plot_region <- (sex_trend_plot_es + sex_trend_plot_wc) / sex_trend_plot +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag.position = c(0.5, 1))  # positions tags at the top center
+
+combined_plot_region <- combined_plot_region +
+  plot_layout(guides = "collect", heights = c(1, 0.8)) &  # adjust heights to reduce gap between rows
+  theme(legend.position = "bottom")
+
+combined_plot_region
+
+
+# Arrange all three plots in a single row
+combined_plot_region <- sex_trend_plot_es + 
+  sex_trend_plot_wc + 
+  sex_trend_plot +
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag.position = c(0.5, 1))  # positions tags at the top center
+
+combined_plot_region <- combined_plot_region +
+  plot_layout(guides = "collect", ncol = 3) &  # specify 3 columns for a single row
+  theme(legend.position = "bottom")
+
+combined_plot_region
+
+# ------gg plot object for 4 panel figure (original with overall trend and 3 parameters)--------
 df_sextrend <- data.frame(
   time = time,
   male_med  = male_med_perc,
@@ -1283,8 +1995,8 @@ sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
   ) + 
   coord_cartesian(clip = "off") +
 theme(
-  legend.position       = c(1, 0.5),   
-  legend.justification  = c(1, 0.5),   
+  legend.position       = c(1, 0),   
+  legend.justification  = c(1, 0),   
   plot.margin           = margin(t = 1, r = 1, b = 3, l = 1, unit = "cm")
 )
 
