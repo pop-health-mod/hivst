@@ -581,6 +581,8 @@ expose_stan_functions(stanc(model_code = hivst_mod))
 hivst_stan <- stan_model(model_code = hivst_mod)
 
 # survey and program data list 
+# single survey country, nrow=1 as only 1 year's survey data
+
 cnt_data <- list(
   kenya = list(
 yr_svy = c(2012.5, 2018.5, 2022.5),
@@ -741,9 +743,442 @@ sierraleone = list(
   ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
   hts_dat = c(2678, 1173, 50340),
   se_hts = c(2678, 1173, 50340) * 0.1
-)
+),
 
-# single survey country, nrow=1
+zambia = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy_f = matrix(
+    c(1845, 1419, 1394, -999), # 2018
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(47, 51, 36, -999), # 2018
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1555, 1531, 1820, -999), # 2018 
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(38,52,63, -999), # 2018
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(315348, 781175, 639225, 23750, 33153, 95559),
+  se_hts = c(315348, 781175, 639225, 23750, 33153, 95559) * 0.1
+),
+mali = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy_f = matrix(
+    c(2046, 1434, 1526, -999), # 2018
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(17, 15, 20, -999), # 2018
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1361, 1189, 943, -999), # 2018 
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(2,4,4, -999), # 2018
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(7763, 169962, 11375, 235729),
+  se_hts = c(7763, 169962, 11375, 235729) * 0.1
+),
+uganda = list(
+  yr_svy =  2016.5,
+  ind_svy = (2016.5 - start) / dt,
+  den_svy_f = matrix(
+    c(6404, 2748, 3072, -999), # 2016
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(223, 205, 97, -999), # 2016
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1639, 1009, 1094, -999), # 2016 
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(58, 95, 59, -999), # 2016
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(42570, 306421, 750698, 681602),
+  se_hts = c(42570, 306421, 750698, 681602) * 0.1
+),
+lesotho  = list(
+  yr_svy =  c(2020.5, 2023.5),
+  ind_svy = (c(2020.5, 2023.5) - start) / dt,
+  den_svy_f = matrix(
+    c(2024, 1786, 2170, 1824, # 2020
+      1498, 889, 1464, -999), # 2023
+    nrow = 2, byrow = TRUE),
+  num_svy_f = matrix(
+    c(226, 224, 134, 34, # 2020
+     852, 538, 482, -999), # 2023
+    nrow = 2, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1449, 1254, 1643, 1014, # 2020
+      388, 478, 490, ,-999), # 2023
+    nrow = 2, byrow = TRUE),
+  num_svy_m = matrix(
+    c(146, 182, 126, 24, # 2020
+      132, 241, 145, -999), # 2023
+    nrow = 2, byrow = TRUE),
+  yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(58917, 42650, 164236, 281277, 301762, 262915),
+  se_hts = c(58917, 42650, 164236, 281277, 301762, 262915) * 0.1
+),
+mozambique = list(
+  yr_svy =  2021.5,
+  ind_svy = (2021.5 - start) / dt,
+  den_svy_f = matrix(
+    c(2372, 1943, 2263, 1156 ), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(227, 259, 215, 43), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1828, 1294, 1709, 899),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(110, 149, 170, 843), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(67883, 203966, 683345),
+  se_hts = c(67883, 203966, 683345) * 0.1
+),
+
+rwanda = list(
+  yr_svy =  2019.5,
+  ind_svy = (2019.5 - start) / dt,
+  den_svy_f = matrix(
+    c(4995, 3401, 4987, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(57, 70, 43, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1809, 1046, 1173, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(14, 39, 17, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = 2023 + 0.5,
+  ind_hts = (2023 - start + 0.5) / dt,
+  hts_dat = 62683,
+  se_hts = 62683 * 0.1
+),
+burkinafaso = list(
+  yr_svy =  2021.5,
+  ind_svy = (2021.5 - start) / dt,
+  den_svy_f = matrix(
+    c(3870, 5248, 3926, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(7, 17, 10, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(2336, 1026, 1451, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(4, 9, 9, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2022, 2023) + 0.5,
+  ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(968, 3367),
+  se_hts = c(968, 3367) * 0.1
+),
+burundi = list(
+  yr_svy =  2016.5,
+  ind_svy = (2016.5 - start) / dt,
+  den_svy_f = matrix(
+    c(3182, 4642, 1929, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(7, 16, 3, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(2756, 1372, 2230, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(5, 10, 10, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = 2023 + 0.5,
+  ind_hts = (2023 - start + 0.5) / dt,
+  hts_dat = 78013,
+  se_hts = 78013 * 0.1
+),
+cameroon = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy_f = matrix(
+    c(3721, 2750, 2138, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(48, 88, 50, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1381, 1151, 1008, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(27, 44, 52, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2021, 2022) + 0.5,
+  ind_hts = (c(2021,2022) - start + 0.5) / dt,
+  hts_dat = c(15000, 33073),
+  se_hts = c(15000,33073) * 0.1
+),
+cotedivoire = list(
+  yr_svy =  2021.5,
+  ind_svy = (2021.5 - start) / dt,
+  den_svy_f = matrix(
+    c(3313, 2067, 1231, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(17, 31, 16, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(872, 815, 853, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(5, 12, 16, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(1159, 111184, 117556, 41774, 60154),
+  se_hts = c(1159, 111184, 117556, 41774, 60154) * 0.1
+),
+guinea = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy_f = matrix(
+    c(2279, 1720, 2194, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(14, 20, 15, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1006, 904, 959, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(3, 6, 5, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2019, 2022) + 0.5,
+  ind_hts = (c(2019, 2022) - start + 0.5) / dt,
+  hts_dat = c(12, 152),
+  se_hts = c(12, 152) * 0.1
+),
+liberia = list(
+  yr_svy =  2019.5,
+  ind_svy = (2019.5 - start) / dt,
+  den_svy_f = matrix(
+    c(2313, 829, 1095, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(18, 18, 19, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(952, 444, 849, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(5, 9, 10, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = 2023 + 0.5,
+  ind_hts = (2023 - start + 0.5) / dt,
+  hts_dat = 12129,
+  se_hts = 12129 * 0.1
+),
+senegal = list(
+  yr_svy =  2017.5,
+  ind_svy = (2017.5 - start) / dt,
+  den_svy_f = matrix(
+    c(4458, 3271, 5904, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(4, 10, 10, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(3384, 655, 3226, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(1, 1, 2, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(7307, 18860, 5505, 4056, 11932),
+  se_hts = c(7307, 18860, 5505, 4056, 11932) * 0.1
+),
+southafrica = list(
+  yr_svy =  2016.5,
+  ind_svy = (2016.5 - start) / dt,
+  den_svy_f = matrix(
+    c(1734, 1637, 1470, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(39, 62, 42, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(264, 526, 469, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(6, 17, 17, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2018, 2019, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2019, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(1200000, 794034, 913418, 212000),
+  se_hts = c(1200000, 794034, 913418, 212000) * 0.1
+),
+tanzania = list(
+  yr_svy =  2022.5,
+  ind_svy = (2022.5 - start) / dt,
+  den_svy_f = matrix(
+    c(2937, 2173, 2523, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(68, 103, 71, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1439, 916, 1096, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(28, 61, 66, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(25810, 14940, 19000, 38717, 809603, 1447029),
+  se_hts = c(25810, 14940, 19000, 38717, 809603, 1447029) * 0.1
+),
+
+namibia = list(
+  yr_svy =  2017.5,
+  ind_svy = (2017.5 - start) / dt,
+  den_svy_f = matrix(
+    c(1851, 2159, 2696, 650), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(66, 105, 70, 6), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(1050, 1342, 1782, 398),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(15, 59, 50, 4), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(3910, 40075, 47258, 130000, 27974),
+  se_hts = c(3910, 40075, 47258, 130000, 27974) * 0.1
+),
+
+botswana = list(
+  yr_svy =  2021.5,
+  ind_svy = (2021.5 - start) / dt,
+  den_svy_f = matrix(
+    c( -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c( -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c( -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c( -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
+  ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(7000, 3848, 8403, 16405),
+  se_hts = c(7000, 3848, 8403, 16405) * 0.1
+),
+
+guineabissau = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy_f = matrix(
+    c(2347, 1097, 1339, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(38, 44, 28, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(279, 233, 210, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(7, 11, 11, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = 2020 + 0.5,
+  ind_hts = (2020 - start + 0.5) / dt,
+  hts_dat = 37500,
+  se_hts = 37500 * 0.1
+),
+
+drc = list(
+  yr_svy =  2018.5,
+  ind_svy = (2018.5 - start) / dt,
+  den_svy_f = matrix(
+    c(1733, 1626, 1404, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(22, 37, 24, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(244, 419, 259, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(5, 16, 11, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2018, 2020, 2021) + 0.5,
+  ind_hts = (c(2018, 2020, 2021) - start + 0.5) / dt,
+  hts_dat = c(500, 7158, 7480),
+  se_hts = c(500, 7158, 7480) * 0.1
+),
+eswatini = list(
+  yr_svy = c(2021.5, 2022.5),
+  ind_svy = (c(2021.5, 2022.5) - start) / dt,
+  den_svy_f = matrix(
+    c(642, 484, 479, -999, # 2021
+       1552, 1348, 1612, 1076), # 2022 phia
+    nrow = 2, byrow = TRUE),
+  num_svy_f = matrix(
+    c(194, 178, 101, -999, #2021
+      470, 360, 213, 54), # 2022 pia
+    nrow = 2, byrow = TRUE),
+  den_svy_m = matrix(
+    c(601, 377, 349, -999, # 2021 MICS
+       1425, 924, 1110, 587),  # 2022 PHIA
+    nrow = 2, byrow = TRUE),
+  num_svy_m = matrix(
+    c(118, 122, 85, -999, # 2021
+       271, 283, 177, 22), # 2022 phia
+    nrow = 2, byrow = TRUE),
+  yr_hts = c(2018, 2019, 2020, 2021, 2022) + 0.5,
+  ind_hts = (c(2018, 2019, 2020, 2021, 2022) - start + 0.5) / dt,
+  hts_dat = c(33159, 32531, 191990, 78570, 111912),
+  se_hts = c(33159, 32531, 191990, 78570, 111912) * 0.1
+),
+
+benin = list(
+  yr_svy =  2017.5,
+  ind_svy = (2017.5 - start) / dt,
+  den_svy_f = matrix(
+    c(4180, 5512, 3754, -999), 
+    nrow = 1, byrow = TRUE),
+  num_svy_f = matrix(
+    c(20, 34, 20, -999), 
+    nrow = 1, byrow = TRUE),
+  den_svy_m = matrix(
+    c(3054, 1961, 1868, -999),  
+    nrow = 1, byrow = TRUE),
+  num_svy_m = matrix(
+    c(3, 17, 15, -999), 
+    nrow = 1, byrow = TRUE),
+  yr_hts = c(2022, 2023) + 0.5,
+  ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+  hts_dat = c(5173, 8149),
+  se_hts = c(5173, 8149) * 0.1
+)
 )
 
 # adding svy_dat,lci,uci after list as the operations cant be performed inside list
@@ -1150,6 +1585,10 @@ phi_forest <- ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
 phi_forest
+
+
+
+#---plot code for survey and program fit--------
 
 
 
