@@ -16,8 +16,14 @@ data(mxM1)
 data(mxF1)  
 
 #---pop at the beginning of the year (as wpp reports mid year pop)----
-countries <- c("Kenya", "Ghana", "Malawi","Madagascar", "Zimbabwe", 
-               "Sierra Leone")
+countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", 
+  "Sierra Leone", "Zambia", "Mali", "Uganda",
+  "Lesotho", "Mozambique", "Rwanda",
+  "Burkina Faso", "Burundi", "Cameroon", "Cote d'Ivoire",
+  "Guinea", "Liberia", "Senegal", "South Africa", 
+  "United Republic of Tanzania", "Namibia", "Botswana", 
+  "Guinea-Bissau", "Democratic Republic of the Congo", "Eswatini", "Benin")
+
 age_grp <- list("15-24" = 16:25, "25-34" = 26:35, "35-49" = 36:50, "50+"   = 51:101)
 # matrix with 4 age groups rows for each country, c1=Male, c2=Female
 pop_agegrp_fn <- function(country, popM, popF, age_groups) {
@@ -1308,8 +1314,8 @@ init_function <- function() {
     phi_raw = rnorm(data_stan$n_cnt, 0, 0.2)
   )
 }
-fit <- sampling(hivst_stan, data = data_stan, iter = 1500, chains = 4, init = init_function,
-                warmup = 500, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 2000, chains = 4, init = init_function,
+                warmup = 1000, thin = 1, control = list(adapt_delta = 0.9))
 
 #summary(fit)
 
