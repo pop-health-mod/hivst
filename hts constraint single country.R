@@ -2,7 +2,7 @@
 # testing different constraints on hts
 # first trying it on single country, later we'll do it on multi-country
 
-# constraint 1: penalize excessively large predictions in missing years
+# constraint: penalize excessively large predictions in missing years
 
 rm(list = ls())
 gc()
@@ -490,6 +490,19 @@ yr_hts <- c( 2018,   2019,   2020,    2021,   2022,  2023) + 0.5
 hts_dat <- c(197200, 400000, 595953, 630000, 342610, 617317)
 se_hts <- hts_dat * 0.1
 
+# missing indices for missing years of program data
+all_indices <- 1:niter
+obs_indices <- ind_hts
+miss_indices <- setdiff(all_indices, obs_indices)
+
+# For each "year" from 2011 to 2023, use year + 0.5
+mid_years <- seq(2011.5, 2023.5, by = 1)
+mid_indices <- sapply(mid_years, function(y) which.min(abs(time - y)))
+
+obs_indices <- ind_hts   # these are the time steps that have observed data
+miss_indices <- setdiff(mid_indices, obs_indices)
+
+
 
 # data for fitting and running 
 data_stan <- list(n_yr = n_yr,
@@ -516,7 +529,10 @@ data_stan <- list(n_yr = n_yr,
                   mort_m = mort_mat_m,
                   mort_f = mort_mat_f,
                   # aging
-                  alpha = alpha
+                  alpha = alpha,
+                  # for constraint
+                  n_miss      = length(miss_indices),
+                  miss_indices = miss_indices
 )
 rstan_options(auto_write = TRUE)
 
@@ -831,10 +847,9 @@ yr_hts <- c(2022,  2023) + 0.5
 ind_hts <- (c(2022, 2023) - start + 0.5) / dt
 hts_dat <- c(2500, 2500)
 se_hts <- c(2500, 2500) * 0.1
-# missing indices for missing years of program data
-all_indices <- 1:niter
-obs_indices <- ind_hts
-miss_indices <- setdiff(all_indices, obs_indices)
+
+miss_indices <- c(1,11,21,31,41,51,61,71,81,91,101,111,121)
+length(miss_indices)
 
 # data for fitting and running
 data_stan <- list(n_yr = n_yr,
