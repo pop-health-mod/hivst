@@ -1314,8 +1314,8 @@ init_function <- function() {
     phi_raw = rnorm(data_stan$n_cnt, 0, 0.2)
   )
 }
-fit <- sampling(hivst_stan, data = data_stan, iter = 2000, chains = 4, init = init_function,
-                warmup = 1000, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 4000, chains = 4, init = init_function,
+                warmup = 2000, thin = 1, control = list(adapt_delta = 0.9))
 
 #summary(fit)
 
