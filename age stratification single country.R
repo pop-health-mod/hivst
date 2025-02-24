@@ -59,7 +59,7 @@ for (i in 2:length(beta_ind)) {
 
 yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
 
-
+# risk to rate conversion
 #-- open pop, age stratified model ----
 # entry rate is applied to 15-24 year old group only instead of entry to total pop, but the denominator is all age groups' sum
 
@@ -115,6 +115,7 @@ calc_mort_agegrp <- function(year_int, wpp_popM, mx_male, age_grp) {
   })
   return(out_vec)
 }
+
 
 mort_mat_m <- t(sapply(seq(start, end), function(current_yr) 
   calc_mort_agegrp(current_yr, wpp_m, mx_male_kenya, age_grp_m)))
@@ -616,7 +617,7 @@ points(hts_dat ~ I(yr_hts + 0.5), pch = 16, col = "goldenrod3", cex = 1.25)
 mtext("Kenya", outer = TRUE, side = 3, line = 1, cex = 1.5)
 
 
-# AISHI. We have the most disaggregated plot here. But it would be good to have
+# We have the most disaggregated plot here. But it would be good to have
 # the one by sex again (so take the age-disaggregated results and add them up).
 
 # plot for overall sex again with age aggregated
