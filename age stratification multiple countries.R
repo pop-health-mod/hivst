@@ -1789,7 +1789,7 @@ female_lci <- apply(female_prp, 2, quantile, 0.025)
 female_med <- apply(female_prp, 2, quantile, 0.5)
 female_uci <- apply(female_prp, 2, quantile, 0.975)
 
-# plotting
+# plotting trend by sex
 dev.off()
 df_sextrend <- data.frame(
   time       = time,
@@ -1826,4 +1826,149 @@ sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
   ggtitle("Trends in HIVST uptake by sex in Africa")
 
 sex_trend_plot
+
+
+#------------- overall trend by age groups ------------------
+ext_fit_m <- rstan::extract(fit, pars = "svy_prd_m")$svy_prd_m
+ext_fit_f <- rstan::extract(fit, pars = "svy_prd_f")$svy_prd_f
+
+n_draws <- dim(ext_fit_m)[1]
+n_cnt   <- dim(ext_fit_m)[2]
+niter   <- dim(ext_fit_m)[3]
+n_age   <- dim(ext_fit_m)[4]
+
+pop_mat_m <- matrix(NA, nrow = n_cnt, ncol = n_age)  # male pop
+pop_mat_f <- matrix(NA, nrow = n_cnt, ncol = n_age)  # female pop
+for (c in seq_len(n_cnt)) {
+  row_start <- (c - 1)*4 + 1
+  row_end   <- row_start + 3
+  # male population in column 1
+  pop_mat_m[c, ] <- data_stan$pop[row_start:row_end, 1]
+  # female population in column 2
+  pop_mat_f[c, ] <- data_stan$pop[row_start:row_end, 2]
+}
+
+#  array to store sex-aggregated proportions by age group
+# prp_age[i, t, a] = proportion who have used HIVST in age group a, time t, draw i, aggregated over all countries & sexes
+prp_age <- array(NA, dim = c(n_draws, niter, n_age))
+for (i in seq_len(n_draws)) {
+  for (t in seq_len(niter)) {
+    for (a in seq_len(n_age)) {
+      sum_counts <- 0
+      for (c in seq_len(n_cnt)) {
+        # male
+        sum_counts <- sum_counts + ext_fit_m[i, c, t, a] * pop_mat_m[c, a]
+        # female
+        sum_counts <- sum_counts + ext_fit_f[i, c, t, a] * pop_mat_f[c, a]
+      }
+      total_pop_age <- sum(pop_mat_m[, a]) + sum(pop_mat_f[, a])
+      
+      prp_age[i, t, a] <- sum_counts / total_pop_age
+    }
+  }
+}
+prp_age_median <- apply(prp_age, c(2, 3), median)   
+prp_age_lci    <- apply(prp_age, c(2, 3), quantile, 0.025)
+prp_age_uci    <- apply(prp_age, c(2, 3), quantile, 0.975)
+
+
+# plotting trend by age group
+age_labels <- c("15-24 years", "25-34 years", "35-49 years", "50+ years")
+df_age <- data.frame()
+for (a in seq_len(n_age)) {
+  df_a <- data.frame(
+    time   = time,
+    median = prp_age_median[, a] * 100,  
+    lci    = prp_age_lci[, a]    * 100,
+    uci    = prp_age_uci[, a]    * 100,
+    age_grp = age_labels[a]  
+  )
+  
+  df_age <- rbind(df_age, df_a)
+}
+
+p_age <- ggplot(df_age, aes(x = time)) +
+  geom_ribbon(aes(ymin = lci, ymax = uci, fill = age_grp),
+              alpha = 0.2, color = NA) +
+  geom_line(aes(y = median, color = age_grp),
+            size = 1.1) +
+  scale_color_manual(
+    values = c("15-24 years" = "#326df9", 
+               "25-34 years" = "#a3d47e", 
+               "35-49 years" = "#ff7476", 
+               "50+ years"   = "#f9b332")
+  ) +
+  scale_fill_manual(
+    values = c("15-24 years" = "#326df9",
+               "25-34 years" = "#a3d47e", 
+               "35-49 years" = "#ff7476", 
+               "50+ years"   = "#f9b332")
+  )+
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 20, by = 2)) + 
+  labs(
+    x = "Year",
+    y = "Proportion of people who have ever used HIVST (%)",
+    color = "Age Group",
+    fill  = "Age Group"
+  ) +
+  theme_classic(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    plot.title      = element_text(hjust = 0.5)
+  ) +
+  ggtitle("Trends in HIVST uptake by age group in Afria")
+p_age
+
+
+#-----overall trend by region------
+#------overall trend---------
+
+prp_total <- matrix(NA, nrow = n_draws, ncol = niter)
+total_pop <- sum(pop_mat_m) + sum(pop_mat_f)
+
+for (i in seq_len(n_draws)) {
+  for (t in seq_len(niter)) {
+    sum_counts <- 0
+    for (c in seq_len(n_cnt)) {
+      for (a in seq_len(n_age)) {
+        sum_counts <- sum_counts +
+          ext_fit_m[i, c, t, a] * pop_mat_m[c, a] +
+          ext_fit_f[i, c, t, a] * pop_mat_f[c, a]
+      }
+    }
+    prp_total[i, t] <- sum_counts / total_pop
+  }
+}
+
+prp_total_median <- apply(prp_total, 2, median)
+prp_total_lci    <- apply(prp_total, 2, quantile, 0.025)
+prp_total_uci    <- apply(prp_total, 2, quantile, 0.975)
+
+
+df_total <- data.frame(
+  time   = time,
+  median = prp_total_median * 100,
+  lci    = prp_total_lci    * 100,
+  uci    = prp_total_uci    * 100
+)
+
+p_total <- ggplot(df_total, aes(x = time)) +
+  geom_ribbon(aes(ymin = lci, ymax = uci), 
+              fill = "dodgerblue", alpha = 0.2) +
+  geom_line(aes(y = median), color = "dodgerblue", size = 1.2) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  labs(
+    x = "Year",
+    y = "Proportion of people who have ever used HIVST (%)"
+  ) +
+  theme_classic(base_size = 14) +
+  ggtitle("Trends in HIVST Uptake in Africa (overall)")
+
+p_total
+
+
+
+
 
