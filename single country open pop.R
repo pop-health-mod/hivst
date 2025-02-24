@@ -35,6 +35,7 @@ niter <- (end - start) / dt
 n_yr <- end - start
 
 # Entry rate for male (current year's 15y pop / total pop aged 15–100)
+
 entry_rates_m <- numeric(end - start + 1)
 for (t in start:end) {
   if (t == 2024) {
