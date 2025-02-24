@@ -2,7 +2,7 @@
 rm(list = ls())
 gc()
 
-setwd("D:/Downloads/MSc Thesis/hiv-selftesting/1. thesis rawdata/KAIS raw data")
+setwd("D:/Downloads/MSc Thesis/1. thesis rawdata/KAIS raw data")
 
 library(haven)
 library(dplyr)
@@ -78,17 +78,16 @@ kais <- kais %>%
 kais <- kais %>%
   mutate(agegrp = case_when(
     age >= 15 & age <= 19 ~ 1,
-    age >= 20 & age <= 24 ~ 2,
-    age >= 25 & age <= 29 ~ 3,
-    age >= 30 & age <= 34 ~ 4,
-    age >= 35 & age <= 39 ~ 5,
-    age >= 40 & age <= 44 ~ 6,
-    age >= 45 & age <= 49 ~ 7,
-    age >= 50 & age <= 54 ~ 8,
-    age >= 55 & age <= 59 ~ 9,
-    age >= 60 & age <= 64 ~ 10,
-    age >= 65           ~ 11,  # For all ages 65 and above
-    is.na(age)          ~ NA_real_  # missing values
+    age >= 20 & age <= 24 ~ 1,
+    age >= 25 & age <= 29 ~ 2,
+    age >= 30 & age <= 34 ~ 2,
+    age >= 35 & age <= 39 ~ 3,
+    age >= 40 & age <= 44 ~ 3,
+    age >= 45 & age <= 49 ~ 3,
+    age >= 50 & age <= 54 ~ 4,
+    age >= 55 & age <= 59 ~ 4,
+    age >= 60 & age <= 64 ~ 4,
+    age >= 65           ~ 4,  # For all ages 65 and above
   ))
 
 # Move the agegrp column to the right of the age column
@@ -153,8 +152,8 @@ kais$hiv_status <- kais$hiv_status %>%
 kais <- kais %>% mutate(hivst_use = case_when(
    hivst_use == 1 ~ 1,         # Keep '1' unchanged
    hivst_use == 2 ~ 0,         # Recode '2' as '0'
-    hivst_use == 9 ~ NA_real_,  # Recode '9' as NA
-    #is.na(hivst_use) ~ 0          # Recode all NAs as 0 (not used in KAIS)
+    hivst_use == 9 ~ 0, # Recode '9' as NA
+    is.na(hivst_use) ~ 0          # Recode all NAs as 0 (not used in KAIS)
   )) 
 
 # Manually label the ever_tested variable
@@ -216,6 +215,116 @@ kais <- kais %>%
 #Create separate dataframes for male and female for KAIS
 kais_f <- kais %>% filter(sex == 0)  # Female
 kais_m <- kais %>% filter(sex == 1)  # Male
+
+
+# Assign descriptive labels to age groups in kais_f
+kais_f <- kais_f %>%
+  mutate(
+    agegroup_new = case_when(
+      agegrp == 1 ~ "Group 1 (Age 15-24)",
+      agegrp == 2 ~ "Group 2 (Age 25-34)",
+      agegrp == 3 ~ "Group 3 (Age 35-49)",
+      agegrp == 4 ~ "Group 4 (Age 50+)",
+      TRUE ~ NA_character_  # Handle unexpected values
+    )
+  )
+
+# Verify the new agegroup_new variable
+table(kais_f$agegroup_new, useNA = "ifany")
+
+kais_design_f <- svydesign(
+  ids = ~psu,
+  strata = ~strata,
+  weights = ~ind_wt,
+  data = kais_f,
+  nest = TRUE
+)
+
+ken_prop_age_f <- svyby(
+  ~I(hivst_use == 1),
+  ~agegroup_new,
+  design = kais_design_f,
+  FUN = svyciprop,
+  method = "logit",
+  vartype = "se",
+  level = 0.95
+)
+
+# Rename the resulting columns for clarity
+ken_prop_age_f <- ken_prop_age_f %>%
+  rename(
+    prop = `I(hivst_use == 1)`,
+    se_prop = `se.as.numeric(I(hivst_use == 1))`
+  )
+
+# Calculate denominator (deno) and numerator (num)
+ken_prop_age_f <- ken_prop_age_f %>%
+  mutate(
+    deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+    num = prop * deno                          # Calculate numerator
+  )
+
+ken_prop_age_f_selected <- ken_prop_age_f %>%
+  select(agegroup_new, deno, num)
+
+print(ken_prop_age_f_selected)
+
+
+
+# male
+kais_m <- kais_m %>%
+  mutate(
+    agegroup_new = case_when(
+      agegrp == 1 ~ "Group 1 (Age 15-24)",
+      agegrp == 2 ~ "Group 2 (Age 25-34)",
+      agegrp == 3 ~ "Group 3 (Age 35-49)",
+      agegrp == 4 ~ "Group 4 (Age 50+)",
+      TRUE ~ NA_character_  # Handle unexpected values
+    )
+  )
+
+
+kais_design_m <- svydesign(
+  ids = ~psu,
+  strata = ~strata,
+  weights = ~ind_wt,
+  data = kais_m,
+  nest = TRUE
+)
+
+ken_prop_age_m <- svyby(
+  ~I(hivst_use == 1),
+  ~agegroup_new,
+  design = kais_design_m,
+  FUN = svyciprop,
+  method = "logit",
+  vartype = "se",
+  level = 0.95
+)
+
+ken_prop_age_m <- ken_prop_age_m %>%
+  rename(
+    prop = `I(hivst_use == 1)`,
+    se_prop = `se.as.numeric(I(hivst_use == 1))`
+  )
+
+ken_prop_age_m <- ken_prop_age_m %>%
+  mutate(
+    deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+    num = prop * deno                          # Calculate numerator
+  )
+
+ken_prop_age_m_selected <- ken_prop_age_m %>%
+  select(agegroup_new, deno, num)
+
+print(ken_prop_age_m_selected)
+
+
+
+
+
+
+
 
 # Saving the kais dataframe
 #saveRDS(kais, file = "kais_dataframe.rds")

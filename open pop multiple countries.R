@@ -1392,6 +1392,7 @@ library(rnaturalearthdata)
 
 # ---- region wise plot-----
 country_to_region <- c(
+  "Burundi"                       = "Eastern", 
   "Kenya"                         = "Eastern", 
   "Madagascar"                    = "Eastern", 
   "Malawi"                        = "Eastern", 
@@ -1400,10 +1401,6 @@ country_to_region <- c(
   "United Republic of Tanzania"   = "Eastern",  
   "Uganda"                        = "Eastern", 
   "Zambia"                        = "Eastern", 
-  "Zimbabwe"                      = "Eastern", 
-  
-  "Burundi"                       = "Central", 
-  "Cameroon"                      = "Central", 
   "Democratic Republic of the Congo" = "Central",
 
   "Botswana"                      = "Southern", 
@@ -1411,9 +1408,11 @@ country_to_region <- c(
   "Lesotho"                       = "Southern", 
   "Namibia"                       = "Southern", 
   "South Africa"                  = "Southern", 
+  "Zimbabwe"                      = "Southern", 
   
   "Benin"                         = "Western", 
   "Burkina Faso"                  = "Western", 
+  "Cameroon"                      = "Western", 
   "Cote d'Ivoire"                 = "Western", 
   "Ghana"                         = "Western", 
   "Guinea"                        = "Western", 

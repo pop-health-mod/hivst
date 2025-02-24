@@ -13,7 +13,7 @@ library(survey)
 library(sjlabelled)
 
 
-setwd("D:/Downloads/MSc Thesis/hiv-selftesting/1. thesis rawdata/PHIA raw data")
+setwd("D:/Downloads/MSc Thesis/1. thesis rawdata/PHIA raw data")
 
 #-----Namibia 2017-----
 
@@ -269,6 +269,41 @@ namphia2017 <- namphia2017 %>%
     )
   )
 
+#======== age grp wise den and num ============
+namphia2017f <- namphia2017 %>% filter(sex == 0)  # Female
+namphia2017m <- namphia2017 %>% filter(sex == 1)  # Male
+# Recode the existing agegrp into new age groups for namphia2017f
+namphia2017f <- namphia2017f %>%
+  mutate(
+    agegroup_new = case_when(
+      agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+      agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+      agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+      agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+    )
+  )
+# crosstab
+nam_f <- table(namphia2017f$agegroup_new, namphia2017f$hivst_use)
+scaled_nam_f <- nam_f * 0.8
+
+
+# Recode the existing agegrp into new age groups for lsophia2020f
+namphia2017m <- namphia2017m %>%
+  mutate(
+    agegroup_new = case_when(
+      agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+      agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+      agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+      agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+    )
+  )
+
+# crosstab 
+nam_m<- table(namphia2017m$agegroup_new, namphia2017m$hivst_use)
+scaled_nam_m <- nam_m * 0.8
+
+
+
 #--------Kenya 2018-----------
 
 kenphia2018_adult_ind <- read_dta("Kenya 2018 PHIA/kenphia2018adultind.dta")
@@ -451,9 +486,9 @@ kenphia2018 <- kenphia2018 %>%
     hivst_use = case_when(
       hivst_use == 1 ~ 1,           # Yes
       hivst_use == 2 ~ 0,           # No
-      hivst_use == -8 ~ 88,         # Don't Know
-      hivst_use == -9 ~ 98,         # Refused
-      TRUE ~ NA_integer_            # Missing or any other values to NA
+      hivst_use == -8 ~ 0,         # Don't Know
+      hivst_use == -9 ~ 0,         # Refused
+      TRUE ~ 0           # Missing or any other values to 0
     )
   )
 
@@ -505,6 +540,116 @@ kenphia2018 <- kenphia2018 %>%
       TRUE ~ NA_real_                             # For all others, set as missing (NA)
     )
   )
+
+
+#======== age grp wise den and num ============
+
+kenphia2018f <- kenphia2018 %>% filter(sex == 0)  # Female
+kenphia2018m <- kenphia2018 %>% filter(sex == 1)  # Male
+
+# Recode the existing agegrp into new age groups for kenphia2018f
+kenphia2018f <- kenphia2018f %>%
+  mutate(
+    agegroup_new = case_when(
+      agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+      agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+      agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+      agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+    )
+  )
+
+# Remove observations with zero weights
+kenphia2018f_clean <- kenphia2018f %>%
+  filter(ind_wt > 0)
+
+# Define the survey design without zero weights
+kenphia_design_f_clean <- svydesign(
+  ids = ~psu,
+  strata = ~strata,
+  weights = ~ind_wt,
+  data = kenphia2018f_clean,
+  nest = TRUE
+)
+
+# Calculate the mean (proportion) and standard error by age group using svymean
+ken_prop_age_f_2018_mean <- svyby(
+  ~hivst_use,
+  ~agegroup_new,
+  design = kenphia_design_f_clean,
+  FUN = svymean,
+  vartype = "se",
+  level = 0.95
+)
+
+# Rename columns for clarity
+ken_prop_age_f_2018_mean <- ken_prop_age_f_2018_mean %>%
+  rename(
+    prop = hivst_use,
+    se_prop = se
+  )
+
+# Calculate deno and num
+ken_prop_age_f_2018_mean <- ken_prop_age_f_2018_mean %>%
+  mutate(
+    deno = (prop * (1 - prop)) / (se_prop^2),
+    num = prop * deno
+  )
+
+ken_prop_age_f_2018_mean_selected <- ken_prop_age_f_2018_mean %>%
+  select(agegroup_new, deno, num)
+
+
+# male
+
+# Recode the existing agegrp into new age groups for kenphia2018,
+kenphia2018m <- kenphia2018m %>%
+  mutate(
+    agegroup_new = case_when(
+      agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+      agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+      agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+      agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+    )
+  )
+
+# Remove observations with zero weights
+kenphia2018m_clean <- kenphia2018m %>%
+  filter(ind_wt > 0)
+
+kenphia_design_m_clean <- svydesign(
+  ids = ~psu,
+  strata = ~strata,
+  weights = ~ind_wt,
+  data = kenphia2018m_clean,
+  nest = TRUE
+)
+
+# Calculate the mean (proportion) and standard error by age group using svymean
+ken_prop_age_m_2018_mean <- svyby(
+  ~hivst_use,
+  ~agegroup_new,
+  design = kenphia_design_m_clean,
+  FUN = svymean,
+  vartype = "se",
+  level = 0.95
+)
+
+# Rename columns for clarity
+ken_prop_age_m_2018_mean <- ken_prop_age_m_2018_mean %>%
+  rename(
+    prop = hivst_use,
+    se_prop = se
+  )
+
+# Calculate deno and num
+ken_prop_age_m_2018_mean <- ken_prop_age_m_2018_mean %>%
+  mutate(
+    deno = (prop * (1 - prop)) / (se_prop^2),
+    num = prop * deno
+  )
+
+ken_prop_age_m_2018_mean_selected <- ken_prop_age_m_2018_mean %>%
+  select(agegroup_new, deno, num)
 
 
 # Define survey design with the cleaned data
@@ -744,6 +889,164 @@ lsophia2020 <- lsophia2020 %>%
       TRUE ~ NA_real_                             # For all others, set as missing (NA)
     )
   )
+
+#----agegrp den and num------
+lsophia2020f <- lsophia2020 %>% filter(sex == 0)  # Female
+lsophia2020m <- lsophia2020 %>% filter(sex == 1)  # Male
+
+
+# Recode the existing agegrp into new age groups for lsophia2020f
+lsophia2020f <- lsophia2020f %>%
+  mutate(
+     agegroup_new = case_when(
+       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+     )
+   )
+#
+lso_f<- table(lsophia2020f$agegroup_new, lsophia2020f$hivst_use)
+scaled_lso_f <- lso_f * 0.8
+
+
+# Recode the existing agegrp into new age groups for lsophia2020f
+lsophia2020m <- lsophia2020m %>%
+  mutate(
+    agegroup_new = case_when(
+      agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+      agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+      agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+      agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+    )
+  )
+#
+lso_m<- table(lsophia2020m$agegroup_new, lsophia2020m$hivst_use)
+scaled_lso_m <- lso_m * 0.8
+
+
+# # Recode the existing agegrp into new age groups for zwephia2020f
+# zwephia2020m <- zwephia2020m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+#
+# zwe_m<- table(zwephia2020m$agegroup_new, zwephia2020m$hivst_use)
+# scaled_zwe_m <- zwe_m * 0.8
+
+
+# # Recode the existing agegrp into new age groups for lsophia2020f
+# lsophia2020f <- lsophia2020f %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# # Remove observations with zero weights
+# lsophia2020f_clean <- lsophia2020f %>%
+#   filter(ind_wt > 0)
+# 
+# # Define the survey design without zero weights
+# lsophia_design_f_clean <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = lsophia2020f_clean,
+#   nest = TRUE
+# )
+# 
+# # Calculate the mean (proportion) and standard error by age group using svymean
+# lso_prop_age_f_2020_mean <- svyby(
+#   ~hivst_use,
+#   ~agegroup_new,
+#   design = lsophia_design_f_clean,
+#   FUN = svymean,
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename columns for clarity
+# lso_prop_age_f_2020_mean <- lso_prop_age_f_2020_mean %>%
+#   rename(
+#     prop = hivst_use,
+#     se_prop = se
+#   )
+# 
+# # Calculate deno and num
+# lso_prop_age_f_2020_mean <- lso_prop_age_f_2020_mean %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),
+#     num = prop * deno
+#   )
+# 
+# lso_prop_age_f_2020_mean_selected <- lso_prop_age_f_2020_mean %>%
+#   select(agegroup_new, deno, num)
+# 
+# 
+# # male
+# 
+# # Recode the existing agegrp into new age groups for lsophia2020,
+# lsophia2020m <- lsophia2020m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# # Remove observations with zero weights
+# lsophia2020m_clean <- lsophia2020m %>%
+#   filter(ind_wt > 0)
+# 
+# lsophia_design_m_clean <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = lsophia2020m_clean,
+#   nest = TRUE
+# )
+# 
+# # Calculate the mean (proportion) and standard error by age group using svymean
+# lso_prop_age_m_2020_mean <- svyby(
+#   ~hivst_use,
+#   ~agegroup_new,
+#   design = lsophia_design_m_clean,
+#   FUN = svymean,
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename columns for clarity
+# lso_prop_age_m_2020_mean <- lso_prop_age_m_2020_mean %>%
+#   rename(
+#     prop = hivst_use,
+#     se_prop = se
+#   )
+# 
+# # Calculate deno and num
+# lso_prop_age_m_2020_mean <- lso_prop_age_m_2020_mean %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),
+#     num = prop * deno
+#   )
+# 
+# lso_prop_age_m_2020_mean_selected <- lso_prop_age_m_2020_mean %>%
+#   select(agegroup_new, deno, num)
+
+
+
+
            
 #----------Zimbabwe 2020-----------
 
@@ -948,6 +1251,40 @@ zwephia2020 <- zwephia2020 %>%
     )
   )
 
+
+# age grp wise den and num
+
+zwephia2020f <- zwephia2020 %>% filter(sex == 0)  # Female
+zwephia2020m <- zwephia2020 %>% filter(sex == 1)  # Male
+
+# # Recode the existing agegrp into new age groups for zwephia2020f
+# zwephia2020f <- zwephia2020f %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# zwe_f<- table(zwephia2020f$agegroup_new, zwephia2020f$hivst_use)
+# scaled_zwe_f <- zwe_f * 0.8
+
+
+# # Recode the existing agegrp into new age groups for zwephia2020f
+# zwephia2020m <- zwephia2020m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# zwe_m<- table(zwephia2020m$agegroup_new, zwephia2020m$hivst_use)
+# scaled_zwe_m <- zwe_m * 0.8
 
 
 #----------Malawi 2020-------------
@@ -1167,6 +1504,118 @@ mwiphia2020 <- mwiphia2020 %>%
   )
 
 
+
+# #-- age grp wise den and num -----
+# 
+# mwiphia2020f <- mwiphia2020 %>% filter(sex == 0)  # Female
+# mwiphia2020m <- mwiphia2020 %>% filter(sex == 1)  # Male
+# 
+# # Recode the existing agegrp into new age groups for kenphia2018f
+# mwiphia2020f <- mwiphia2020f %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# # Remove observations with zero weights
+# mwiphia2020f_clean <- mwiphia2020f %>%
+#   filter(ind_wt > 0)
+# 
+# # Define the survey design without zero weights
+# mwiphia_design_f_clean <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = mwiphia2020f_clean,
+#   nest = TRUE
+# )
+# 
+# # Calculate the mean (proportion) and standard error by age group using svymean
+# mwi_prop_age_f_2020_mean <- svyby(
+#   ~hivst_use,
+#   ~agegroup_new,
+#   design = mwiphia_design_f_clean,
+#   FUN = svymean,
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename columns for clarity
+# mwi_prop_age_f_2020_mean <- mwi_prop_age_f_2020_mean %>%
+#   rename(
+#     prop = hivst_use,
+#     se_prop = se
+#   )
+# 
+# # Calculate deno and num
+# mwi_prop_age_f_2020_mean <- mwi_prop_age_f_2020_mean %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),
+#     num = prop * deno
+#   )
+# 
+# mwi_prop_age_f_2020_mean <- mwi_prop_age_f_2020_mean %>%
+#   select(agegroup_new, deno, num)
+# 
+# 
+# # male
+# 
+# # Recode the existing agegrp into new age groups for mwiphia2020,
+# mwiphia2020m <- mwiphia2020m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# # Remove observations with zero weights
+# mwiphia2020m_clean <- mwiphia2020m %>%
+#   filter(ind_wt > 0)
+# 
+# mwiphia_design_m_clean <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = mwiphia2020m_clean,
+#   nest = TRUE
+# )
+# 
+# # Calculate the mean (proportion) and standard error by age group using svymean
+# mwi_prop_age_m_2020_mean <- svyby(
+#   ~hivst_use,
+#   ~agegroup_new,
+#   design = mwiphia_design_m_clean,
+#   FUN = svymean,
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename columns for clarity
+# mwi_prop_age_m_2020_mean <- mwi_prop_age_m_2020_mean %>%
+#   rename(
+#     prop = hivst_use,
+#     se_prop = se
+#   )
+# 
+# # Calculate deno and num
+# mwi_prop_age_m_2020_mean <- mwi_prop_age_m_2020_mean %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),
+#     num = prop * deno
+#   )
+# 
+# mwi_prop_age_m_2020_mean_selected <- mwi_prop_age_m_2020_mean %>%
+#   select(agegroup_new, deno, num)
+# 
+# 
+
 #----------Mozambique 2021------------
 
 insida2021_adult_ind <- read_dta("Mozambique 2021 PHIA/insida2021adultind.dta")
@@ -1369,6 +1818,41 @@ mozphia2021 <- mozphia2021 %>%
       TRUE ~ NA_real_                             # For all others, set as missing (NA)
     )
   )
+
+#======== age grp wise den and num ============
+# mozphia2021f <- mozphia2021 %>% filter(sex == 0)  # Female
+# mozphia2021m <- mozphia2021 %>% filter(sex == 1)  # Male
+# # Recode the existing agegrp into new age groups for namphia2017f
+# mozphia2021f <- mozphia2021f %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# # crosstab
+# moz_f <- table(mozphia2021f$agegroup_new, mozphia2021f$hivst_use)
+# scaled_moz_f <- moz_f * 0.8
+# 
+# 
+# # Recode the existing agegrp into new age groups for lsophia2020f
+# mozphia2021m <- mozphia2021m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# # crosstab 
+# moz_m<- table(mozphia2021m$agegroup_new, mozphia2021m$hivst_use)
+# scaled_moz_m <- moz_m * 0.8
+# 
+
 
 #-------------Eswatini 2021-----------
 
@@ -1586,6 +2070,41 @@ swzphia2021 <- swzphia2021 %>%
     )
   )
 
+
+#======== age grp wise den and num ============
+# swzphia2021f <- swzphia2021 %>% filter(sex == 0)  # Female
+# swzphia2021m <- swzphia2021 %>% filter(sex == 1)  # Male
+# # Recode the existing agegrp into new age groups for namphia2017f
+# swzphia2021f <- swzphia2021f %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# swz <- as.data.frame.matrix(table(swzphia2021f$agegroup_new, swzphia2021f$hivst_use))
+# swz$Total <- rowSums(swz)
+# swz[, sapply(swz, is.numeric)] <- swz[, sapply(swz, is.numeric)] * 0.8
+# 
+# # Recode the existing agegrp into new age groups for namphia2017f
+# swzphia2021m <- swzphia2021m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# 
+# swz_m <- as.data.frame.matrix(table(swzphia2021m$agegroup_new, swzphia2021m$hivst_use))
+# swz_m$Total <- rowSums(swz_m)
+# swz_m[, sapply(swz_m, is.numeric)] <- swz_m[, sapply(swz_m, is.numeric)] * 0.8
+# 
 
 # Combine all
 list_phia <- list(namphia2017, kenphia2018, lsophia2020, 

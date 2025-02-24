@@ -73,7 +73,7 @@ save(dhs_combined, mics_combined, phia_combined, bais, kais,
 
 # Load data into a temporary environment
 temp_env <- new.env()
-load("D:/Downloads/MSc Thesis/hiv-selftesting/combine all/New_Cleaned_Pooled_Surveys.RData", envir = temp_env)
+load("D:\\Downloads\\MSc Thesis\\hivst\\combine all\\New_Cleaned_Pooled_Surveys.RData", envir = temp_env)
 pooled_surveys <- temp_env$pooled_surveys
 pooled_surveys$hivst_use <- ifelse(pooled_surveys$hivst_use %in% c(0, 1), 
                                    pooled_surveys$hivst_use, NA)
@@ -177,7 +177,7 @@ df1 <- data.frame(agegrp = levels(as.factor(pooled_surveys$agegrp)),
 df <- rbind(df0, df1)
 df
 
-prd ~ age, data = subset(df, sex == 0),
+#prd ~ age, data = subset(df, sex == 0)
 #Error: unexpected ',' in "prd ~ age,"
 sort(as.numeric(df$agegrp))
 (as.numeric(df$agegrp))
@@ -189,7 +189,9 @@ df[order(as.numeric(df$agegrp)), ]
 
 df <- df[order(as.numeric(df$agegrp)), ]
 plot(prd ~ I(as.numeric(agegrp)), data = subset(df, sex == 0), type = "l", col = "pink4")
+
 #Error in (function (formula, data = NULL, subset = NULL, na.action = na.fail,  :  variable lengths differ (found for 'I(as.numeric(agegrp))')
+
 df0 <- data.frame(agegrp = levels(as.factor(pooled_surveys$agegrp)), 
                                         +                 sex = 0, survey_id = "ZWE2020PHIA", psu = 1)
 df1 <- data.frame(agegrp = levels(as.factor(pooled_surveys$agegrp)), 

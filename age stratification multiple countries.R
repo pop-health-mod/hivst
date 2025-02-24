@@ -1968,6 +1968,38 @@ p_total <- ggplot(df_total, aes(x = time)) +
 
 p_total
 
+# ---- SSA region classification from GBD 2015-----
+country_to_region <- c(
+  "Burundi"                       = "Eastern", 
+  "Kenya"                         = "Eastern", 
+  "Madagascar"                    = "Eastern", 
+  "Malawi"                        = "Eastern", 
+  "Mozambique"                    = "Eastern", 
+  "Rwanda"                        = "Eastern", 
+  "United Republic of Tanzania"   = "Eastern",  
+  "Uganda"                        = "Eastern", 
+  "Zambia"                        = "Eastern", 
+  "Democratic Republic of the Congo" = "Central",
+  
+  "Botswana"                      = "Southern", 
+  "Eswatini"                      = "Southern", 
+  "Lesotho"                       = "Southern", 
+  "Namibia"                       = "Southern", 
+  "South Africa"                  = "Southern", 
+  "Zimbabwe"                      = "Southern", 
+  
+  "Benin"                         = "Western", 
+  "Burkina Faso"                  = "Western", 
+  "Cameroon"                      = "Western", 
+  "Cote d'Ivoire"                 = "Western", 
+  "Ghana"                         = "Western", 
+  "Guinea"                        = "Western", 
+  "Guinea-Bissau"                 = "Western", 
+  "Liberia"                       = "Western", 
+  "Mali"                          = "Western", 
+  "Senegal"                       = "Western", 
+  "Sierra Leone"                  = "Western"
+)
 
 
 

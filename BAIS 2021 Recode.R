@@ -7,7 +7,7 @@ library(dplyr)
 library(lubridate)
 library(survey)
 
-setwd("D:/Downloads/MSc Thesis/hiv-selftesting/1. thesis rawdata/BAIS raw data")
+setwd("D:/Downloads/MSc Thesis/1. thesis rawdata/BAIS raw data")
 
 # adultind and adultbio need to be merged by hhid and personid (unique identifier)
 bais_adult_ind <- read_dta("baisv2021adultind.dta")
@@ -210,6 +210,42 @@ saveRDS(bais, file = "bais_dataframe.rds")
 #Create separate dataframes for male and female for BAIS
 bais_f <- bais %>% filter(sex == 0)  # Female
 bais_m <- bais %>% filter(sex == 1)  # Male
+
+#======== age grp wise den and num ============
+# 
+# bais_f <- bais_f %>%
+#     mutate(
+#    agegroup_new = case_when(
+#    agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#    agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#     agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#    agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#        )
+#      )
+# 
+# bais_f_tab <- as.data.frame.matrix(table(bais_f$agegroup_new, bais_f$hivst_use))
+# bais_f_tab$Total <- rowSums(bais_f_tab)
+# bais_f_tab[, sapply(bais_f_tab, is.numeric)] <- bais_f_tab[, sapply(bais_f_tab, is.numeric)] * 0.8
+#  
+# 
+# 
+# bais_m <- bais_m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7, 8) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(9, 10, 11) ~ "Group 4 (Age 50+)",
+#     )
+#   )
+# 
+# bais_m_tab <- as.data.frame.matrix(table(bais_m$agegroup_new, bais_m$hivst_use))
+# bais_m_tab$Total <- rowSums(bais_m_tab)
+# bais_m_tab[, sapply(bais_m_tab, is.numeric)] <- bais_m_tab[, sapply(bais_m_tab, is.numeric)] * 0.8
+
+
+
+
 
 
 # unweighted prop vs weighted prop (for checking)
