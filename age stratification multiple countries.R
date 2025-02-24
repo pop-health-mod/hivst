@@ -1594,7 +1594,132 @@ phi_forest
 
 
 
-#---plot code for survey and program fit--------
+#--- function code to check for survey and program fit--------
+#  no separate sex dimension in svy_prd_m because it is only for males
+# svy_prd_m [country=1(kenya), 2(ghana).., niter=130, agegrp=1:4]
+
+# men results
+svy_m_full <- rstan::summary(fit, "svy_prd_m", probs=c(0.025, 0.5, 0.975))$summary
+svy_m_full <- as.data.frame(svy_m_full)
+svy_m_full$param <- rownames(svy_m_full)
+
+# splitting by countries
+n_cnt <- length(countries)
+svy_m_list <- vector("list", n_cnt)
+for (c in seq_len(n_cnt)) {
+  ix_c <- grepl(paste0("\\[", c, ","), svy_m_full$param)   # only country c
+  tmp_c <- svy_m_full[ix_c, ]
+  
+  #  within that subset, separating each age group
+  ages <- vector("list", 4)
+  for (a in 1:4) {
+    ix_a <- grepl(paste0(",", a, "\\]$"), tmp_c$param)
+    ages[[a]] <- tmp_c[ix_a, ]
+  }
+  svy_m_list[[c]] <- ages
+}
+
+# plotting for each country
+par(mfrow = c(n_cnt, 1))
+for (c in seq_len(n_cnt)) {
+  plot(NA, xlim=range(time), ylim=c(0, 0.2), 
+       main=paste("Men -", countries[c]),
+       xlab="Year", ylab="Ever used HIVST")
+  
+  for (a in 1:4) {
+    df_age <- svy_m_list[[c]][[a]] 
+    lines(df_age$`50%` ~ time, col=a, lwd=2)
+    polygon(
+      x = c(time, rev(time)),
+      y = c(df_age$`2.5%`, rev(df_age$`97.5%`)),
+      col=adjustcolor(a, alpha.f=0.3), border=NA
+    )
+    obs <- cnt_data[[c]]$svy_dat_m[, a]   
+    lci <- cnt_data[[c]]$lci_svy_m[, a]
+    uci <- cnt_data[[c]]$uci_svy_m[, a]
+    t_obs <- cnt_data[[c]]$yr_svy  # 2012.5, 2018.5 ...
+    points(obs ~ t_obs, pch=16, col=a)
+    segments(t_obs, lci, t_obs, uci, col=a)
+  }
+  legend("topleft", legend=c("15-24","25-34","35-49","50+"),
+         col=1:4, lwd=2, bty="n")
+}
+
+# women results
+svy_f_full <- rstan::summary(fit, "svy_prd_f", probs=c(0.025, 0.5, 0.975))$summary
+svy_f_full <- as.data.frame(svy_f_full)
+svy_f_full$param <- rownames(svy_f_full)
+
+svy_f_list <- vector("list", n_cnt)
+for (c in seq_len(n_cnt)) {
+  ix_c <- grepl(paste0("\\[", c, ","), svy_f_full$param)
+  tmp_c <- svy_f_full[ix_c, ]
+  
+  ages <- vector("list", 4)
+  for (a in 1:4) {
+    ix_a <- grepl(paste0(",", a, "\\]$"), tmp_c$param)
+    ages[[a]] <- tmp_c[ix_a, ]
+  }
+  svy_f_list[[c]] <- ages
+}
+
+# plotting each country
+par(mfrow = c(n_cnt, 1))
+for (c in seq_len(n_cnt)) {
+  plot(NA, xlim=range(time), ylim=c(0, 0.2), 
+       main=paste("Women -", countries[c]),
+       xlab="Year", ylab="Ever used HIVST")
+  
+  for (a in 1:4) {
+    df_age <- svy_f_list[[c]][[a]] 
+    lines(df_age$`50%` ~ time, col=a, lwd=2)
+    polygon(
+      x = c(time, rev(time)),
+      y = c(df_age$`2.5%`, rev(df_age$`97.5%`)),
+      col=adjustcolor(a, alpha.f=0.3), border=NA
+    )
+    #  female survey data
+    obs <- cnt_data[[c]]$svy_dat_f[, a]
+    lci <- cnt_data[[c]]$lci_svy_f[, a]
+    uci <- cnt_data[[c]]$uci_svy_f[, a]
+    t_obs <- cnt_data[[c]]$yr_svy
+    
+    points(obs ~ t_obs, pch=16, col=a)
+    segments(t_obs, lci, t_obs, uci, col=a)
+  }
+  legend("topleft", legend=c("15-24","25-34","35-49","50+"),
+         col=1:4, lwd=2, bty="n")
+}
+
+# hts results
+hts_full <- as.data.frame(rstan::summary(fit, "hivst_prd")$summary)
+hts_full$param <- rownames(hts_full)
+
+hts_list <- vector("list", n_cnt)
+for (c in seq_len(n_cnt)) {
+  ix_c <- grepl(paste0("\\[", c, ","), hts_full$param)
+  hts_list[[c]] <- hts_full[ix_c, ]
+}
+
+# each hts_list[[c]] is the time series (rows) for country c
+par(mfrow = c(n_cnt,1))
+for (c in seq_len(n_cnt)) {
+  df_c <- hts_list[[c]]
+  
+  plot(time, df_c$`50%`, type="l", col="blue", lwd=2,
+       main=paste("HTS -", countries[c]),
+       xlab="Year", ylab="Number of HIVST kits")
+  polygon(x=c(time, rev(time)),
+          y=c(df_c$`2.5%`, rev(df_c$`97.5%`)),
+          col=adjustcolor("blue", alpha.f=0.3),
+          border=NA)
+  
+  # overlaying observed program data
+  t_obs <- cnt_data[[c]]$yr_hts
+  obs_hts <- cnt_data[[c]]$hts_dat
+  points(obs_hts ~ t_obs, pch=16, col="red")
+}
+
 
 
 
