@@ -1722,4 +1722,108 @@ for (c in seq_len(n_cnt)) {
 
 
 
+#------------plotting trends by sex-------------------------
+#-----plot code--------
+# overall trend by sex (age aggregated)
+# svy_prd_m [country=1(kenya), 2(ghana).., niter=130, agegrp=1:4]
+ext_fit_m <- rstan::extract(fit, pars = "svy_prd_m")$svy_prd_m
+ext_fit_f <- rstan::extract(fit, pars = "svy_prd_f")$svy_prd_f
+
+dim(ext_fit_m) # draws, country, iterations (time), age groups
+n_draws <- dim(ext_fit_m)[1]
+n_cnt   <- dim(ext_fit_m)[2]
+niter   <- dim(ext_fit_m)[3]
+n_age   <- dim(ext_fit_m)[4]
+
+data_stan$pop #  4 rows per country (one per age group)
+# pop_mat_m[c, a] => population of males in country c, age group a
+# pop_mat_f[c, a] => population of females in country c, age group a
+
+pop_mat_m <- matrix(NA, nrow = n_cnt, ncol = 4)
+pop_mat_f <- matrix(NA, nrow = n_cnt, ncol = 4)
+for (c in seq_len(n_cnt)) {
+  row_start <- (c - 1)*4 + 1
+  row_end   <- row_start + 3
+  # male population in column 1 of data_stan$pop
+  pop_mat_m[c, ] <- data_stan$pop[row_start:row_end, 1]
+  # female population in column 2 of data_stan$pop
+  pop_mat_f[c, ] <- data_stan$pop[row_start:row_end, 2]
+}
+# total region‐level population (across all countries and all age groups)
+total_pop_male <- sum(pop_mat_m)
+total_pop_female <- sum(pop_mat_f)
+
+
+# getting overall proportion for trend stratified by sex
+male_prp <- matrix(NA, nrow = n_draws, ncol = niter)
+female_prp <- matrix(NA, nrow = n_draws, ncol = niter)
+for (i in seq_len(n_draws)) {
+  for (t in seq_len(niter)) {
+    # summing for men
+    sum_m <- 0
+    for (c in seq_len(n_cnt)) {
+      for (a in seq_len(n_age)) {
+        # ext_fit_m[i, c, t, a] = predicted proportion (0 to 1)
+        # multiplying proportion by population in that group
+        sum_m <- sum_m + ext_fit_m[i, c, t, a] * pop_mat_m[c, a]
+      }
+    }
+    male_prp[i, t] <- sum_m / total_pop_male
+    
+    # summing for women
+    sum_f <- 0
+    for (c in seq_len(n_cnt)) {
+      for (a in seq_len(n_age)) {
+        sum_f <- sum_f + ext_fit_f[i, c, t, a] * pop_mat_f[c, a]
+      }
+    }
+    female_prp[i, t] <- sum_f / total_pop_female
+  }
+}
+
+# median and 95% CrI
+male_lci <- apply(male_prp, 2, quantile, 0.025)
+male_med <- apply(male_prp, 2, quantile, 0.5)
+male_uci <- apply(male_prp, 2, quantile, 0.975)
+female_lci <- apply(female_prp, 2, quantile, 0.025)
+female_med <- apply(female_prp, 2, quantile, 0.5)
+female_uci <- apply(female_prp, 2, quantile, 0.975)
+
+# plotting
+dev.off()
+df_sextrend <- data.frame(
+  time       = time,
+  male_med   = male_med * 100,
+  male_lci   = male_lci * 100,
+  male_uci   = male_uci * 100,
+  female_med = female_med * 100,
+  female_lci = female_lci * 100,
+  female_uci = female_uci * 100
+)
+
+sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
+  geom_ribbon(aes(ymin = male_lci, ymax = male_uci),
+              fill = "lightblue", alpha = 0.3, show.legend = FALSE) +
+  geom_line(aes(y = male_med, color = "Male"), size = 1.1) +
+  geom_ribbon(aes(ymin = female_lci, ymax = female_uci),
+              fill = "pink", alpha = 0.3, show.legend = FALSE) +
+  geom_line(aes(y = female_med, color = "Female"), size = 1.1) +
+  scale_color_manual(
+    name = "Sex",
+    values = c("Male" = "deepskyblue4", "Female" = "deeppink1")
+  ) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 10, by = 1)) +
+  labs(
+    x = "Year",
+    y = "Proportion of people who have ever used HIVST (%)"
+  ) +
+  theme_classic(base_size = 14) +
+  theme(
+    legend.position = "bottom", 
+    plot.title      = element_text(hjust = 0.5)
+  ) +
+  ggtitle("Trends in HIVST uptake by sex in Africa")
+
+sex_trend_plot
 
