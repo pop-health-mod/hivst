@@ -1317,7 +1317,20 @@ init_function <- function() {
 fit <- sampling(hivst_stan, data = data_stan, iter = 4000, chains = 4, init = init_function,
                 warmup = 2000, thin = 1, control = list(adapt_delta = 0.9))
 
-#summary(fit)
+# saving the model results
+# fit
+saveRDS(fit, file = "D:/Downloads/MSc Thesis/hivst/Model results/hivst_stan_fit.rds")
+fit <- readRDS("D:/Downloads/MSc Thesis/hivst/Model results/hivst_stan_fit.rds")
+
+# compiled StanModel object 
+saveRDS(hivst_stan, file = "D:/Downloads/MSc Thesis/hivst/Model results/hivst_stan_model.rds")
+hivst_stan <- readRDS("D:/Downloads/MSc Thesis/hivst/Model results/hivst_stan_model.rds")
+
+# posterior summaries
+fit_summary <- summary(fit)
+saveRDS(fit_summary, file = "D:/Downloads/MSc Thesis/hivst/Model results/hivst_stan_summary.rds")
+fit_summary <- readRDS("D:/Downloads/MSc Thesis/hivst/Model results/hivst_stan_summary.rds")
+
 
 # traceplots
 traceplot(fit, pars = "sd_rw")
@@ -1967,6 +1980,7 @@ p_total <- ggplot(df_total, aes(x = time)) +
   ggtitle("Trends in HIVST Uptake in Africa (overall)")
 
 p_total
+
 
 # ---- SSA region classification from GBD 2015-----
 country_to_region <- c(
