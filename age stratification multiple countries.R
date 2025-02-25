@@ -1,4 +1,4 @@
-# fitting for more than 1 country, age stratification
+# fitting for all, sex and age stratification
 
 rm(list = ls())
 gc()
@@ -720,7 +720,7 @@ zimbabwe = list(
       39, 46, 47, -999, # 2019 
       112, 117, 122, 31), # 2020
     nrow = 3, byrow = TRUE),
-  yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
+  yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
   ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
   hts_dat = c(197408, 174566, 240434, 459517, 414499, 513090),
   se_hts = c(197408, 174566, 240434, 459517, 414499, 513090) * 0.1
@@ -750,7 +750,6 @@ sierraleone = list(
   hts_dat = c(2678, 1173, 50340),
   se_hts = c(2678, 1173, 50340) * 0.1
 ),
-
 zambia = list(
   yr_svy =  2018.5,
   ind_svy = (2018.5 - start) / dt,
@@ -764,7 +763,7 @@ zambia = list(
     c(1555, 1531, 1820, -999), # 2018 
     nrow = 1, byrow = TRUE),
   num_svy_m = matrix(
-    c(38,52,63, -999), # 2018
+    c(38, 52, 63, -999), # 2018
     nrow = 1, byrow = TRUE),
   yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
   ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
@@ -784,7 +783,7 @@ mali = list(
     c(1361, 1189, 943, -999), # 2018 
     nrow = 1, byrow = TRUE),
   num_svy_m = matrix(
-    c(2,4,4, -999), # 2018
+    c(2, 4, 4, -999), # 2018
     nrow = 1, byrow = TRUE),
   yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
   ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
@@ -839,7 +838,7 @@ mozambique = list(
   yr_svy =  2021.5,
   ind_svy = (2021.5 - start) / dt,
   den_svy_f = matrix(
-    c(2372, 1943, 2263, 1156 ), 
+    c(2372, 1943, 2263, 1156), 
     nrow = 1, byrow = TRUE),
   num_svy_f = matrix(
     c(227, 259, 215, 43), 
@@ -848,7 +847,7 @@ mozambique = list(
     c(1828, 1294, 1709, 899),  
     nrow = 1, byrow = TRUE),
   num_svy_m = matrix(
-    c(110, 149, 170, 843), 
+    c(110, 149, 170, 56), 
     nrow = 1, byrow = TRUE),
   yr_hts = c(2021, 2022, 2023) + 0.5,
   ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
@@ -1780,7 +1779,6 @@ for (c_idx in alphabetical_cnt) {
 }
 
 dev.off()
-
 
 
 #------------plotting trends by sex-------------------------
