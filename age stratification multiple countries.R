@@ -655,7 +655,7 @@ malawi = list(
   num_svy_f = matrix(
     c(50, 48, 39, -999, # 2015
       540, 412, 273, -999, # 2019
-       273, 193, 169, 24), # 2020
+      273, 193, 169, 24), # 2020
     nrow = 3, byrow = TRUE),
   den_svy_m = matrix(
     c(858, 1041, 1061, -999, # 2015 
@@ -1652,10 +1652,10 @@ par(
 )
 
 for (c_idx in alphabetical_cnt) {
-  plot(NA, xlim = range(time), ylim = c(0, 0.2),
+  plot(NA, xlim = range(time), ylim = c(0, 0.5),
        main = paste("Men -", countries[c_idx]),
        xlab = "Year", ylab = "Ever used HIVST")
-  
+  offsets <- c(-0.2, -0.1, 0.1, 0.2)
   for (a in 1:4) {
     df_age <- svy_m_list[[c_idx]][[a]] 
     lines(df_age$`50%` ~ time, col = a, lwd = 2)
@@ -1669,9 +1669,9 @@ for (c_idx in alphabetical_cnt) {
     lci <- cnt_data[[c_idx]]$lci_svy_m[, a]
     uci <- cnt_data[[c_idx]]$uci_svy_m[, a]
     t_obs <- cnt_data[[c_idx]]$yr_svy
-    
-    points(obs ~ t_obs, pch = 16, col = a)
-    segments(t_obs, lci, t_obs, uci, col = a)
+    x_dodge <- t_obs + offsets[a]
+    points(obs ~ x_dodge, pch = 16, col = a)
+    segments(x_dodge, lci, x_dodge, uci, col = a)
   }
   
   legend("topleft",
@@ -1709,35 +1709,40 @@ par(
   oma = c(0, 0, 0, 0) 
 )
 for (c_idx in alphabetical_cnt) {
-  plot(NA, xlim = range(time), ylim = c(0, 0.2),
+  plot(NA, xlim = range(time), ylim = c(0, 0.3),
        main = paste("Women -", countries[c_idx]),
        xlab = "Year", ylab = "Ever used HIVST")
+  
+  offsets <- c(-0.2, -0.1, 0.1, 0.2)
   
   for (a in 1:4) {
     df_age <- svy_f_list[[c_idx]][[a]]
     
-    lines(df_age$`50%` ~ time, col = a, lwd = 2)
+    lines(df_age$`50%` ~ time, col=a, lwd=2)
     polygon(
       x = c(time, rev(time)),
       y = c(df_age$`2.5%`, rev(df_age$`97.5%`)),
-      col = adjustcolor(a, alpha.f = 0.3),
-      border = NA
+      col = adjustcolor(a, alpha.f=0.3),
+      border=NA
     )
-        obs <- cnt_data[[c_idx]]$svy_dat_f[, a]
+    
+    obs <- cnt_data[[c_idx]]$svy_dat_f[, a]
     lci <- cnt_data[[c_idx]]$lci_svy_f[, a]
     uci <- cnt_data[[c_idx]]$uci_svy_f[, a]
     t_obs <- cnt_data[[c_idx]]$yr_svy
     
-    points(obs ~ t_obs, pch = 16, col = a)
-    segments(t_obs, lci, t_obs, uci, col = a)
+    x_dodge <- t_obs + offsets[a]
+    
+    points(obs ~ x_dodge, pch=16, col=a)
+    segments(x_dodge, lci, x_dodge, uci, col=a)
   }
   
-  legend("topleft",
-         legend = c("15-24", "25-34", "35-49", "50+"),
-         col = 1:4, lwd = 2, bty = "n")
+  legend("topleft", legend=c("15-24","25-34","35-49","50+"),
+         col=1:4, lwd=2, bty="n")
 }
 
 dev.off()
+
 
 
 # hts results
