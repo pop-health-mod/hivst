@@ -1611,6 +1611,16 @@ phi_forest
 #  no separate sex dimension in svy_prd_m because it is only for males
 # svy_prd_m [country=1(kenya), 2(ghana).., niter=130, agegrp=1:4]
 
+cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe", 
+                   "sierraleone", "zambia", "mali", "uganda",
+                   "lesotho", "mozambique", "rwanda",
+                   "burkinafaso", "burundi", "cameroon", "cotedivoire",
+                   "guinea", "liberia", "senegal", "southafrica","tanzania",
+                   "namibia", "botswana", "guineabissau","drc", "eswatini", "benin")
+
+alphabetical_cnt <- order(cnt_lowercase)
+
+
 # men results
 svy_m_full <- rstan::summary(fit, "svy_prd_m", probs=c(0.025, 0.5, 0.975))$summary
 svy_m_full <- as.data.frame(svy_m_full)
@@ -1633,30 +1643,44 @@ for (c in seq_len(n_cnt)) {
 }
 
 # plotting for each country
-par(mfrow = c(n_cnt, 1))
-for (c in seq_len(n_cnt)) {
-  plot(NA, xlim=range(time), ylim=c(0, 0.2), 
-       main=paste("Men -", countries[c]),
-       xlab="Year", ylab="Ever used HIVST")
+png("D:/Downloads/MSc Thesis/hivst/plots from final model/hivst_men_surveyfit.png",
+    width = 14, height = 28,
+    units = "in", res = 320)
+par(mfrow = c(7, 4))
+par(
+  mar = c(3, 4, 2, 1),  
+  oma = c(0, 0, 0, 0) 
+)
+
+for (c_idx in alphabetical_cnt) {
+  plot(NA, xlim = range(time), ylim = c(0, 0.2),
+       main = paste("Men -", countries[c_idx]),
+       xlab = "Year", ylab = "Ever used HIVST")
   
   for (a in 1:4) {
-    df_age <- svy_m_list[[c]][[a]] 
-    lines(df_age$`50%` ~ time, col=a, lwd=2)
+    df_age <- svy_m_list[[c_idx]][[a]] 
+    lines(df_age$`50%` ~ time, col = a, lwd = 2)
     polygon(
       x = c(time, rev(time)),
       y = c(df_age$`2.5%`, rev(df_age$`97.5%`)),
-      col=adjustcolor(a, alpha.f=0.3), border=NA
+      col = adjustcolor(a, alpha.f = 0.3), border = NA
     )
-    obs <- cnt_data[[c]]$svy_dat_m[, a]   
-    lci <- cnt_data[[c]]$lci_svy_m[, a]
-    uci <- cnt_data[[c]]$uci_svy_m[, a]
-    t_obs <- cnt_data[[c]]$yr_svy  # 2012.5, 2018.5 ...
-    points(obs ~ t_obs, pch=16, col=a)
-    segments(t_obs, lci, t_obs, uci, col=a)
+    
+    obs <- cnt_data[[c_idx]]$svy_dat_m[, a]   
+    lci <- cnt_data[[c_idx]]$lci_svy_m[, a]
+    uci <- cnt_data[[c_idx]]$uci_svy_m[, a]
+    t_obs <- cnt_data[[c_idx]]$yr_svy
+    
+    points(obs ~ t_obs, pch = 16, col = a)
+    segments(t_obs, lci, t_obs, uci, col = a)
   }
-  legend("topleft", legend=c("15-24","25-34","35-49","50+"),
-         col=1:4, lwd=2, bty="n")
+  
+  legend("topleft",
+         legend = c("15-24", "25-34", "35-49", "50+"),
+         col = 1:4, lwd = 2, bty = "n")
 }
+
+dev.off()
 
 # women results
 svy_f_full <- rstan::summary(fit, "svy_prd_f", probs=c(0.025, 0.5, 0.975))$summary
@@ -1676,62 +1700,86 @@ for (c in seq_len(n_cnt)) {
   svy_f_list[[c]] <- ages
 }
 
-# plotting each country
-par(mfrow = c(n_cnt, 1))
-for (c in seq_len(n_cnt)) {
-  plot(NA, xlim=range(time), ylim=c(0, 0.2), 
-       main=paste("Women -", countries[c]),
-       xlab="Year", ylab="Ever used HIVST")
+# plotting for each country
+png("D:/Downloads/MSc Thesis/hivst/plots from final model/hivst_women_surveyfit.png",
+    width = 14, height = 28,
+    units = "in", res = 320)
+par(mfrow = c(7, 4))
+par(
+  mar = c(3, 4, 2, 1),  
+  oma = c(0, 0, 0, 0) 
+)
+for (c_idx in alphabetical_cnt) {
+  plot(NA, xlim = range(time), ylim = c(0, 0.2),
+       main = paste("Women -", countries[c_idx]),
+       xlab = "Year", ylab = "Ever used HIVST")
   
   for (a in 1:4) {
-    df_age <- svy_f_list[[c]][[a]] 
-    lines(df_age$`50%` ~ time, col=a, lwd=2)
+    df_age <- svy_f_list[[c_idx]][[a]]
+    
+    lines(df_age$`50%` ~ time, col = a, lwd = 2)
     polygon(
       x = c(time, rev(time)),
       y = c(df_age$`2.5%`, rev(df_age$`97.5%`)),
-      col=adjustcolor(a, alpha.f=0.3), border=NA
+      col = adjustcolor(a, alpha.f = 0.3),
+      border = NA
     )
-    #  female survey data
-    obs <- cnt_data[[c]]$svy_dat_f[, a]
-    lci <- cnt_data[[c]]$lci_svy_f[, a]
-    uci <- cnt_data[[c]]$uci_svy_f[, a]
-    t_obs <- cnt_data[[c]]$yr_svy
+        obs <- cnt_data[[c_idx]]$svy_dat_f[, a]
+    lci <- cnt_data[[c_idx]]$lci_svy_f[, a]
+    uci <- cnt_data[[c_idx]]$uci_svy_f[, a]
+    t_obs <- cnt_data[[c_idx]]$yr_svy
     
-    points(obs ~ t_obs, pch=16, col=a)
-    segments(t_obs, lci, t_obs, uci, col=a)
+    points(obs ~ t_obs, pch = 16, col = a)
+    segments(t_obs, lci, t_obs, uci, col = a)
   }
-  legend("topleft", legend=c("15-24","25-34","35-49","50+"),
-         col=1:4, lwd=2, bty="n")
+  
+  legend("topleft",
+         legend = c("15-24", "25-34", "35-49", "50+"),
+         col = 1:4, lwd = 2, bty = "n")
 }
+
+dev.off()
+
 
 # hts results
 hts_full <- as.data.frame(rstan::summary(fit, "hivst_prd")$summary)
 hts_full$param <- rownames(hts_full)
 
+# Splitting by countries
+n_cnt <- length(countries)
 hts_list <- vector("list", n_cnt)
 for (c in seq_len(n_cnt)) {
   ix_c <- grepl(paste0("\\[", c, ","), hts_full$param)
   hts_list[[c]] <- hts_full[ix_c, ]
 }
 
-# each hts_list[[c]] is the time series (rows) for country c
-par(mfrow = c(n_cnt,1))
-for (c in seq_len(n_cnt)) {
-  df_c <- hts_list[[c]]
+png("D:/Downloads/MSc Thesis/hivst/plots from final model/program_data_fit.png",
+    width = 14, height = 28,
+    units = "in", res = 320)
+
+par(mfrow = c(7, 4))
+par(mar = c(3, 4, 2, 1),  
+    oma = c(0, 0, 0, 0))
+
+for (c_idx in alphabetical_cnt) {
+  df_c <- hts_list[[c_idx]]
   
-  plot(time, df_c$`50%`, type="l", col="blue", lwd=2,
-       main=paste("HTS -", countries[c]),
-       xlab="Year", ylab="Number of HIVST kits")
-  polygon(x=c(time, rev(time)),
-          y=c(df_c$`2.5%`, rev(df_c$`97.5%`)),
-          col=adjustcolor("blue", alpha.f=0.3),
-          border=NA)
+  plot(time, df_c$`50%`, type = "l", col = "blue", lwd = 2,
+       main = paste("HTS -", countries[c_idx]),
+       xlab = "Year", ylab = "Number of HIVST kits")
   
-  # overlaying observed program data
-  t_obs <- cnt_data[[c]]$yr_hts
-  obs_hts <- cnt_data[[c]]$hts_dat
-  points(obs_hts ~ t_obs, pch=16, col="red")
+  polygon(x = c(time, rev(time)),
+          y = c(df_c$`2.5%`, rev(df_c$`97.5%`)),
+          col = adjustcolor("blue", alpha.f = 0.3),
+          border = NA)
+  
+  # observed program data
+  t_obs   <- cnt_data[[c_idx]]$yr_hts
+  obs_hts <- cnt_data[[c_idx]]$hts_dat
+  points(obs_hts ~ t_obs, pch = 16, col = "red")
 }
+
+dev.off()
 
 
 
