@@ -270,7 +270,7 @@ functions {
   out[i,3,1,1] = rr_t[i] * rr_m * rr_a[1] * (out[i-1,1,1,1] + rr_r * out[i-1,2,1,1]);
   out[i,4,1,1] = out[i,2,1,1] / (out[i,1,1,1] + out[i,2,1,1]);
   
-  // Males, age group 2-3
+  // Males, age group 2
   out[i,1,1,2] = out[i-1,1,1,2] + dt * (+ alpha[1] * out[i-1,1,1,1] 
                                         - rr_t[i] * rr_m * rr_a[2] * out[i-1,1,1,2] 
                                         - (alpha[2] + mort_m_dt[i,2]) * out[i-1,1,1,2]);
@@ -466,7 +466,7 @@ model {
   sd_male ~ normal(0, 0.5) T[1e-6, 5];
   sd_age ~ normal(0, 0.5) T[1e-6, 5];
   // overall prior for retesting parameter
-  beta_retest_overall ~ normal(logit(1.2 - 0.5) / (2.5 - 0.5), 0.5); // 0.5 + (2.5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (2.5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.5)
+  beta_retest_overall ~ normal(logit((1.2 - 0.5) / (2.5 - 0.5)), 0.5); // 0.5 + (2.5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (2.5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.5)
   // overall prior for the proportion of tests distributed being used
   phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 1); // 0.5 + (1 - 0.5) * plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 1)
   // overall prior for male rate ratio
@@ -1316,7 +1316,7 @@ init_function <- function() {
 fit <- sampling(hivst_stan, data = data_stan, iter = 4000, chains = 4, init = init_function,
                 warmup = 2000, thin = 1, control = list(adapt_delta = 0.9))
 
-# saving the model results
+# saving the model results paste (sys_date())
 # fit
 saveRDS(fit, file = "D:/Downloads/MSc Thesis/hivst/Model results/hivst_stan_fit.rds")
 fit <- readRDS("D:/Downloads/MSc Thesis/hivst/Model results/hivst_stan_fit.rds")
@@ -1700,7 +1700,7 @@ for (c in seq_len(n_cnt)) {
 }
 
 # plotting for each country
-png("D:/Downloads/MSc Thesis/hivst/plots from final model/hivst_women_surveyfit.png",
+png("plots from final model/hivst_women_surveyfit.png",
     width = 14, height = 28,
     units = "in", res = 320)
 par(mfrow = c(7, 4))
@@ -1709,7 +1709,7 @@ par(
   oma = c(0, 0, 0, 0) 
 )
 for (c_idx in alphabetical_cnt) {
-  plot(NA, xlim = range(time), ylim = c(0, 0.3),
+  plot(NA, xlim = range(time), ylim = c(0, 0.5),
        main = paste("Women -", countries[c_idx]),
        xlab = "Year", ylab = "Ever used HIVST")
   
