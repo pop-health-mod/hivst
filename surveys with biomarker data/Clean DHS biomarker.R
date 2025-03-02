@@ -1919,20 +1919,6 @@ zafdhs2016m <- zafdhs2016m %>% mutate(last_hivtest = case_when(
 ))
 
 
-
-# agegrp conflicts in female and male dataset
-
-labelled::val_labels(zafdhs2016f$agegrp)
-labelled::val_labels(zafdhs2016m$agegrp)
-
-# Recode 50+ in the female dataset to match 50-54 in the male dataset
-zafdhs2016f <- zafdhs2016f %>%
-  mutate(agegrp = ifelse(agegrp == 8, 8, agegrp)) %>%
-  mutate(agegrp = haven::labelled(agegrp, labels = c(
-    "15-19" = 1, "20-24" = 2, "25-29" = 3, "30-34" = 4,
-    "35-39" = 5, "40-44" = 6, "45-49" = 7, "50-54" = 8)))
-
-
 # Combining male and female for South Africa
 combined_zafdhs <- bind_rows(zafdhs2016f, zafdhs2016m)
 
