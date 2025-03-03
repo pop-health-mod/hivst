@@ -2168,6 +2168,7 @@ zmbdhs2018m <- zmbdhs2018m %>%
     TRUE ~ hiv_status             # Keep other values the same
   ))
 
+# table(zmbdhs2018m$hiv_status, useNA = "ifany")
 # Recoding the last_hivtest
 zmbdhs2018m <- zmbdhs2018m %>% mutate(last_hivtest = case_when(
   last_hivtest %in% c(0:11) ~ 1,  # Tested <12 months ago
@@ -2450,7 +2451,8 @@ bio_list_dhs <- list(
   combined_zwedhs
 )
 
-saveRDS(bio_list_dhs, file = "cleaned biomarker surveys/bio_list_dhs.rds")
+
+saveRDS(bio_list_dhs, file = "D://Downloads//MSc Thesis//hivst//surveys with biomarker data//cleaned biomarker surveys//bio_list_dhs.rds")
 
 
 

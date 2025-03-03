@@ -1704,5 +1704,5 @@ swzphia2021 <- swzphia2021 %>%
 bio_list_phia <- list(namphia2017, kenphia2018, lsophia2020, 
                   zwephia2020, mwiphia2020, mozphia2021, swzphia2021)
 
-saveRDS(bio_list_phia, file = "cleaned biomarker surveys/bio_list_phia.rds")
+saveRDS(bio_list_phia, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_list_phia.rds")
 

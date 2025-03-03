@@ -204,6 +204,7 @@ bais <- bais %>%
     )
   )
 
+saveRDS(bais, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_bais.rds")
 
 
 #-----------proportion of hivst use by HIV status---------------

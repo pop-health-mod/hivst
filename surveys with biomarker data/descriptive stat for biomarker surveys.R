@@ -9,9 +9,14 @@ library(survey)
 library(stringr)
 library(survey)
 library(ggplot2)
+library(labelled)
+library(haven)
 
+
+setwd("D:\\Downloads\\MSc Thesis\\hivst\\surveys with biomarker data")
+
+#--------proportion of HIVST use by HIV status from the biomarker data------------
 #-----DHS----------
-setwd("D:/Downloads/MSc Thesis/1. thesis rawdata/DHS raw data")
 bio_list_dhs <- readRDS("cleaned biomarker surveys/bio_list_dhs.rds")
 
 # function for calculating hivst use by hiv status
@@ -250,5 +255,7 @@ overall_bio_hivstat %>%
     strip.background = element_rect(fill = "gray80", color = "black"),  # Shaded box for country names
     plot.background = element_rect(fill = "white", color = NA)           #  white plot background
   )
+
+
 
 
