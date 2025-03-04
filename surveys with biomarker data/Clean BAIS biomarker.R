@@ -47,8 +47,20 @@ bais <- merged_bais %>%
     ever_tested = hivtstever,
     last_hivtest_month = hivtestm,
     last_hivtest_year = hivtesty,
-    last_hivresult = hivtstrslt
-  ) 
+    last_hivresult = hivtstrslt,
+    curr_art = art
+  )
+
+# recode ART for analysis
+table(bais$curr_art, useNA = "ifany")
+bais <- bais %>%
+  mutate(curr_art = case_when(
+    curr_art == 1 ~ 1,   # on ART
+    curr_art == 0 ~ 0, 
+    curr_art == 2 ~ 0,   # not on ART
+    curr_art == 99 ~ 0  # not on ART
+  )
+  )
 
 # Adding columns for country and survey ID
 bais <- bais %>%
@@ -204,35 +216,48 @@ bais <- bais %>%
     )
   )
 
-saveRDS(bais, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_bais.rds")
+# filtering for not on art  and have info and hiv status and hivst use
+table(bais$hiv_status, useNA = "ifany")
+bais <- bais %>%
+  filter(hiv_status %in% c(0, 1),
+         hivst_use %in% c(0, 1))
+
+table(bais$curr_art, useNA = "ifany")
+bais <- bais %>%
+filter(is.na(curr_art) | curr_art %in% 0)
+
+
+saveRDS(bais, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_bais_art.rds")
+
+#saveRDS(bais, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_bais.rds")
 
 
 #-----------proportion of hivst use by HIV status---------------
 # survey unadjusted prop: hiv neg: 259/(259+11077)= 0.02284757, hiv pos: 24/(24+3400)=0.007009346
-table(bais$hivst_use, useNA = "ifany")
-table(bais$hiv_status, useNA = "ifany")
-bais <- bais %>%
-  filter(!is.na(hiv_status), !is.na(hivst_use))
-table(bais$hiv_status, bais$hivst_use, useNA = "ifany")
-
-# survey adjusted proportion: hiv neg: 0.02, hiv pos: 0.01
-bais_design <- svydesign(
-  ids = ~psu,
-  strata = ~strata,
-  weights = ~ind_wt,
-  data = bais,
-  nest = TRUE
-)
-
-bais_prop_hiv <- svyby(
-  ~I(hivst_use == 1),
-  ~hiv_status,
-  design = bais_design,
-  FUN = svyciprop,
-  method = "logit",
-  vartype = "ci",
-  level = 0.95
-)
+# table(bais$hivst_use, useNA = "ifany")
+# table(bais$hiv_status, useNA = "ifany")
+# bais <- bais %>%
+#   filter(!is.na(hiv_status), !is.na(hivst_use))
+# table(bais$hiv_status, bais$hivst_use, useNA = "ifany")
+# 
+# # survey adjusted proportion: hiv neg: 0.02, hiv pos: 0.01
+# bais_design <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = bais,
+#   nest = TRUE
+# )
+# 
+# bais_prop_hiv <- svyby(
+#   ~I(hivst_use == 1),
+#   ~hiv_status,
+#   design = bais_design,
+#   FUN = svyciprop,
+#   method = "logit",
+#   vartype = "ci",
+#   level = 0.95
+# )
 
 
 

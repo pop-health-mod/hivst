@@ -165,6 +165,7 @@ merged_burundi_male <- left_join(bdidhs_male_ind, bdidhs_male_bio,
                                         "mv002" = "hivnumb", 
                                         "mv003" = "hivline"))
 
+
 # Selecting and renaming variables
 bdidhs2016m <- merged_burundi_male %>%
   select(
@@ -678,6 +679,7 @@ merged_guinea_female <- left_join(gindhs_female_ind, gindhs_female_bio,
                                   by = c("v001" = "hivclust", 
                                          "v002" = "hivnumb", 
                                          "v003" = "hivline"))
+
 
 # Selecting and renaming variables
 gindhs2018f <- merged_guinea_female %>%
@@ -1432,7 +1434,6 @@ merged_sierraleone_female <- left_join(sledhs_female_ind, sledhs_female_bio,
                                        by = c("v001" = "hivclust", 
                                               "v002" = "hivnumb", 
                                               "v003" = "hivline"))
-
 # Selecting and renaming variables
 sledhs2019f <- merged_sierraleone_female %>%
   select(
@@ -2196,7 +2197,6 @@ merged_zimbabwe_female <- left_join(zwedhs_female_ind, zwedhs_female_bio,
                                     by = c("v001" = "hivclust", 
                                            "v002" = "hivnumb", 
                                            "v003" = "hivline"))
-
 # Selecting and renaming variables
 zwedhs2015f <- merged_zimbabwe_female %>%
   select(
@@ -2450,6 +2450,7 @@ bio_list_dhs <- list(
   combined_zmbdhs,
   combined_zwedhs
 )
+
 
 
 saveRDS(bio_list_dhs, file = "D://Downloads//MSc Thesis//hivst//surveys with biomarker data//cleaned biomarker surveys//bio_list_dhs.rds")

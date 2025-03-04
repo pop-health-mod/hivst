@@ -12,7 +12,6 @@ library(sjlabelled)
 setwd("D:/Downloads/MSc Thesis/1. thesis rawdata/PHIA raw data")
 
 #-----Namibia 2017-----
-
 namphia2017_adult_ind <- read_dta("Namibia 2017 PHIA/namphia2017adultind.dta")
 namphia2017_adult_bio <- read_dta("Namibia 2017 PHIA/namphia2017adultbio.dta")
 
@@ -76,8 +75,20 @@ namphia2017 <- merged_namibia %>%
     ever_tested = hivtstever,         # Ever tested for HIV
     last_hivresult = hivtstrslt,      # Result of the last HIV test
     last_hivtest_month = hivtestm,   # which month last tested for HIV 
-    last_hivtest_year = hivtesty    # which month last tested for HIV
+    last_hivtest_year = hivtesty,    # which month last tested for HIV
+    curr_art = art
   )
+
+
+
+# recode ART for analysis
+table(namphia2017$curr_art, useNA = "ifany")
+namphia2017 <- namphia2017 %>%
+  mutate(curr_art = case_when(
+    curr_art == 1 ~ 1,   # on ART
+    curr_art == 2 ~ 0,   # not on ART
+    curr_art == 99 ~ 0  # missing ART
+  ))
 
 # Calculating the median year of interview
 median(namphia2017$year, na.rm = TRUE) # median interview year 2017
@@ -264,6 +275,18 @@ namphia2017 <- namphia2017 %>%
     )
   )
 
+# filtering for not on art  and have info and hiv status and hivst use
+table(namphia2017$hiv_status, useNA = "ifany")
+namphia2017 <- namphia2017 %>%
+  filter(hiv_status %in% c(0, 1),
+         hivst_use %in% c(0, 1))
+
+table(namphia2017$curr_art, useNA = "ifany")
+namphia2017 <- namphia2017 %>%
+  filter(curr_art %in% 0)
+
+
+
 
 #---function for hiv status and hivst use proportion survey unadjusted and adjusted ---
 # table(namphia2017$hivst_use, useNA = "ifany") 
@@ -359,8 +382,10 @@ kenphia2018 <- merged_kenya %>%
     ever_tested = hivtstever,         # Ever tested for HIV
     last_hivresult = hivtstrslt,      # Result of the last HIV test
     last_hivtest_month = hivtestm,   # which month last tested for HIV 
-    last_hivtest_year = hivtesty    # which month last tested for HIV
-  ) 
+    last_hivtest_year = hivtesty,    # which month last tested for HIV
+    curr_art = art
+    ) 
+
 
 # Calculating the median year of interview
 median(kenphia2018$year, na.rm = TRUE) # median interview year 2018
@@ -405,6 +430,15 @@ kenphia2018 <- kenphia2018 %>%
 # Moving the agegrp column to the right of the age column
 kenphia2018 <- kenphia2018 %>%
   select(country:age, agegrp, everything())
+
+# recode ART for analysis
+table(kenphia2018$curr_art)
+kenphia2018 <- kenphia2018 %>%
+  mutate(curr_art = case_when(
+    curr_art == 1 ~ 1,   # on ART
+    curr_art == 2 ~ 0,   # not on ART
+    curr_art == 99 ~ 0 # missing ART
+  ))
 
 # Recoding sex
 kenphia2018 <- kenphia2018 %>%
@@ -536,6 +570,17 @@ kenphia2018 <- kenphia2018 %>%
   )
 
 
+# filtering for not on art  and have info and hiv status and hivst use
+table(kenphia2018$hiv_status, useNA = "ifany")
+kenphia2018 <- kenphia2018 %>%
+  filter(hiv_status %in% c(0, 1),
+         hivst_use %in% c(0, 1))
+
+table(kenphia2018$curr_art, useNA = "ifany")
+kenphia2018 <- kenphia2018 %>%
+  filter(curr_art %in% 0)
+
+
 #---function for hiv status and hivst use proportion survey unadjusted and adjusted ---
 # table(kenphia2018$hivst_use, useNA = "ifany") 
 # table(kenphia2018$hiv_status, useNA = "ifany")
@@ -608,8 +653,18 @@ lsophia2020 <- merged_lesotho %>%
     ever_tested = hivtstever,         # Ever tested for HIV
     last_hivresult = hivtstrslt,      # Result of the last HIV test
     last_hivtest_month = hivtestm,   # which month last tested for HIV 
-    last_hivtest_year = hivtesty    # which month last tested for HIV
-  )
+    last_hivtest_year = hivtesty,    # which month last tested for HIV
+    curr_art = art
+)
+
+# recode ART for analysis
+table(lsophia2020$curr_art)
+lsophia2020 <- lsophia2020 %>%
+  mutate(curr_art = case_when(
+    curr_art == 1 ~ 1,   # on ART
+    curr_art == 2 ~ 0,   # not on ART
+    curr_art == 99 ~ 0  # missing ART
+  ))
 
 # Calculating the median year of interview
 median(lsophia2020$year, na.rm = TRUE) # median interview year 2020
@@ -800,6 +855,17 @@ lsophia2020 <- lsophia2020 %>%
     )
   )
 
+# filtering for not on art  and have info and hiv status and hivst use
+table(lsophia2020$hiv_status, useNA = "ifany")
+lsophia2020 <- lsophia2020 %>%
+  filter(hiv_status %in% c(0, 1),
+         hivst_use %in% c(0, 1))
+
+table(lsophia2020$curr_art, useNA = "ifany")
+lsophia2020 <- lsophia2020 %>%
+  filter(curr_art %in% 0)
+
+
 # survey unadjusted prop 
 # hiv neg: 1135/(1135+10518)= 0.09739981
 # hiv pos: 117/(117+3572) = 0.03171591
@@ -875,8 +941,18 @@ zwephia2020 <- merged_zimbabwe %>%
     ever_tested = hivtstever,         # Ever tested for HIV
     last_hivresult = hivtstrslt,      # Result of the last HIV test
     last_hivtest_month = hivtestm,   # which month last tested for HIV 
-    last_hivtest_year = hivtesty    # which month last tested for HIV
+    last_hivtest_year = hivtesty,    # which month last tested for HIV
+    curr_art = art
   )
+
+# recode ART for analysis
+table(zwephia2020$curr_art)
+zwephia2020 <- zwephia2020 %>%
+  mutate(curr_art = case_when(
+    curr_art == 1 ~ 1,   # on ART
+    curr_art == 2 ~ 0,   # not on ART
+    curr_art == 99 ~ 0  # missing ART
+  ))
 
 # median year of interview
 median(zwephia2020$year, na.rm = TRUE) #2020
@@ -1042,11 +1118,16 @@ zwephia2020 <- zwephia2020 %>%
   )
 
 
+
+# filtering for not on art  and have info and hiv status and hivst use
+table(zwephia2020$hiv_status, useNA = "ifany")
 zwephia2020 <- zwephia2020 %>%
   filter(hiv_status %in% c(0, 1),
          hivst_use %in% c(0, 1))
 
-
+table(zwephia2020$curr_art, useNA = "ifany")
+zwephia2020 <- zwephia2020 %>%
+  filter(curr_art %in% 0)
 
 
 #----------Malawi 2020-------------
@@ -1087,7 +1168,18 @@ mwiphia2020 <- merged_malawi %>%
     ever_tested = hivtstever,         # Ever tested for HIV
     last_hivresult = hivtstrslt,      # Result of the last HIV test
     last_hivtest_month = hivtestm,   # which month last tested for HIV 
-    last_hivtest_year = hivtesty    # which month last tested for HIV
+    last_hivtest_year = hivtesty,    # which month last tested for HIV
+    curr_art = art
+  )
+
+# recode ART for analysis
+table(mwiphia2020$curr_art)
+mwiphia2020 <- mwiphia2020 %>%
+  mutate(curr_art = case_when(
+    curr_art == 1 ~ 1,   # on ART
+    curr_art == 2 ~ 0,   # not on ART
+    curr_art == 99 ~ 0 # missing ART
+  )
   )
 
 #median y of interview
@@ -1265,10 +1357,15 @@ mwiphia2020 <- mwiphia2020 %>%
     )
   )
 
+# filtering for not on art  and have info and hiv status and hivst use
+table(mwiphia2020$hiv_status, useNA = "ifany")
 mwiphia2020 <- mwiphia2020 %>%
   filter(hiv_status %in% c(0, 1),
          hivst_use %in% c(0, 1))
 
+table(mwiphia2020$curr_art, useNA = "ifany")
+mwiphia2020 <- mwiphia2020 %>%
+  filter(curr_art %in% 0)
 
 
 #----------Mozambique 2021------------
@@ -1308,7 +1405,18 @@ mozphia2021 <- merged_mozambique %>%
     ever_tested = hivtstever,         # Ever tested for HIV
     last_hivresult = hivtstrslt,      # Result of the last HIV test
     last_hivtest_month = hivtestm,   # which month last tested for HIV 
-    last_hivtest_year = hivtesty    # which month last tested for HIV
+    last_hivtest_year = hivtesty,    # which month last tested for HIV
+    curr_art = art
+  )
+
+# recode ART for analysis
+table(mozphia2021$curr_art)
+mozphia2021 <- mozphia2021 %>%
+  mutate(curr_art = case_when(
+    curr_art == 1 ~ 1,   # on ART
+    curr_art == 2 ~ 0,   # not on ART
+    curr_art == 99 ~ 0  # missing ART
+  )
   )
 
 # med y 
@@ -1474,9 +1582,15 @@ mozphia2021 <- mozphia2021 %>%
     )
   )
 
+# filtering hiv results 0and 1 and exclude art=1
+table(mozphia2021$hiv_status, useNA = "ifany")
 mozphia2021 <- mozphia2021 %>%
   filter(hiv_status %in% c(0, 1),
          hivst_use %in% c(0, 1))
+
+table(mozphia2021$curr_art, useNA = "ifany")
+mozphia2021 <- mozphia2021 %>%
+  filter(curr_art %in% 0)
 
 
 #-------------Eswatini 2021-----------
@@ -1517,8 +1631,19 @@ swzphia2021 <- merged_eswatini %>%
     ever_tested = hivtstever,         # Ever tested for HIV
     last_hivresult = hivtstrslt,      # Result of the last HIV test
     last_hivtest_month = hivtestm,   # which month last tested for HIV 
-    last_hivtest_year = hivtesty    # which month last tested for HIV
-  ) 
+    last_hivtest_year = hivtesty,    # which month last tested for HIV
+    curr_art = art
+  )
+
+# recode ART for analysis
+table(swzphia2021$curr_art)
+swzphia2021 <- swzphia2021 %>%
+  mutate(curr_art = case_when(
+    curr_art == 1 ~ 1,   # on ART
+    curr_art == 2 ~ 0,   # not on ART
+    curr_art == 99 ~ 0  # not on ART
+  )
+  )
 
 # med y
 median(swzphia2021$year, na.rm = TRUE) #2021
@@ -1695,14 +1820,23 @@ swzphia2021 <- swzphia2021 %>%
     )
   )
 
+
+# filtering for not on art  and have info and hiv status and hivst use
+table(swzphia2021$hiv_status, useNA = "ifany")
 swzphia2021 <- swzphia2021 %>%
   filter(hiv_status %in% c(0, 1),
          hivst_use %in% c(0, 1))
 
+table(swzphia2021$curr_art, useNA = "ifany")
+swzphia2021 <- swzphia2021 %>%
+  filter(curr_art %in% 0)
 
 # Combine all
 bio_list_phia <- list(namphia2017, kenphia2018, lsophia2020, 
                   zwephia2020, mwiphia2020, mozphia2021, swzphia2021)
 
-saveRDS(bio_list_phia, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_list_phia.rds")
+
+saveRDS(bio_list_phia, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_list_phia_art.rds")
+
+#saveRDS(bio_list_phia, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_list_phia.rds")
 
