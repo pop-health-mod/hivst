@@ -53,14 +53,9 @@ bais <- merged_bais %>%
 
 # recode ART for analysis
 table(bais$curr_art, useNA = "ifany")
-bais <- bais %>%
-  mutate(curr_art = case_when(
-    curr_art == 1 ~ 1,   # on ART
-    curr_art == 0 ~ 0, 
-    curr_art == 2 ~ 0,   # not on ART
-    curr_art == 99 ~ 0  # not on ART
-  )
-  )
+bais$curr_art <- as.numeric(bais$curr_art)
+bais$curr_art <- ifelse(bais$curr_art == 1, 1, 0)
+bais$curr_art[is.na(bais$curr_art)] <- 0
 
 # Adding columns for country and survey ID
 bais <- bais %>%
@@ -224,10 +219,91 @@ bais <- bais %>%
 
 table(bais$curr_art, useNA = "ifany")
 bais <- bais %>%
-filter(is.na(curr_art) | curr_art %in% 0)
+  filter(curr_art %in% 0)
 
 
-saveRDS(bais, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_bais_art.rds")
+#--converting into factor and doing regression----
+# hivst use
+str(bais$hivst_use)
+bais$hivst_use <- factor(bais$hivst_use, 
+                                levels = c(0, 1),
+                                labels = c("No", "Yes"))
+
+# hiv status
+str(bais$hiv_status)
+bais$hiv_status <- factor(bais$hiv_status,
+                                 levels = c(0, 1),
+                                 labels = c("Negative", "Positive"))
+
+# sex
+str(bais$sex)
+bais$sex <- factor(bais$sex, 
+                          levels = c(0, 1),
+                          labels = c("Female", "Male"))
+
+# age group
+str(bais$agegrp)
+table(bais$agegrp)
+age_levels <- c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
+age_labels <- c("15-19",  "20-24", "25-29", "30-34", "35-39", 
+                "40-44",  "45-49", "50-54", "55-59", "60-64", 
+                "65+")
+bais$agegrp <- factor(
+  bais$agegrp,
+  levels = age_levels,    
+  labels = age_labels     
+)
+
+# region
+table(bais$region)
+str(bais$region)
+bais$region <- factor(bais$region,
+                             levels = c("0", "1"),
+                             labels = c("Rural", "Urban"))
+
+
+# wealth index
+table(bais$wealth_index)
+str(bais$wealth_index)
+
+bais$wealth_index <- factor(
+  bais$wealth_index,
+  levels = c("1", "2", "3", "4", "5"),
+  labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")
+)
+
+
+# edu level
+str(bais$schl_years)
+table(bais$schl_years)
+bais$schl_years <- factor(bais$schl_years,
+                                 levels = c("1", "2", "3"),
+                                 labels = c("No edu/Primary", "Secondary/Higher Secondary", "Tertiary"))
+
+# survey id
+table(bais$survey_id)
+str(bais$survey_id)
+bais$survey_id <- factor(bais$survey_id)
+
+# logistic reg for meta analysis
+logistic8 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
+                 data = bais, family = "binomial")
+summary(logistic8)
+
+# extracting estimate & SE
+coef_hiv_status8 <- coef(logistic8)["hiv_statusPositive"]
+se_hiv_status8   <- sqrt(vcov(logistic8)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey8 <- data.frame(
+  survey  = "BWABAIS2021",
+  logOR   = coef_hiv_status8,
+  seLogOR = se_hiv_status8
+)
+
+
+
+
+#saveRDS(bais, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_bais_art.rds")
 
 #saveRDS(bais, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_bais.rds")
 

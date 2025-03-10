@@ -11,6 +11,7 @@ library(ggplot2)
 library(labelled)
 library(haven)
 library(lme4)
+library(metafor)
 
 setwd("D:\\Downloads\\MSc Thesis\\hivst\\surveys with biomarker data")
 
@@ -343,6 +344,54 @@ final_logistic2 <- glm(hivst_use ~ hiv_status + sex + region + agegrp + country,
                        data = bio_pooled_svy_art, family = "binomial")
 summary(final_logistic2)
 
+
+#----------------random effects meta-analysis-------------------------
+
+# did logistic regression on each survey and saving the estimates in a df
+# this RE meta analysis is on the datasets after excluding people on ART
+# 8 PHIAs and 1 BAIS
+
+
+df_meta <- rbind(df_survey1, df_survey2, df_survey3, df_survey4, df_survey5, df_survey6, df_survey7, df_survey8)
+saveRDS(df_meta, file="D:\\Downloads\\df_meta.rds")
+
+
+library(metafor)
+df_meta <- readRDS("D:\\Downloads\\df_meta.rds")
+
+# RE meta analysis
+res <- rma.uni(
+  yi    = df_meta$logOR,    # log-ORs
+  sei   = df_meta$seLogOR,  # standard errors
+  method = "REML"           
+)
+summary(res)
+
+forest(res)
+
+forest(
+  res,
+  slab    = df_meta$survey,
+  transf  = exp,  # exponentiate the estimates and CIs
+  refline = 1,    # no-effect line at OR=1
+  xlab    = "Odds Ratio (95% CI)"
+)
+
+
+
+forest(res,
+       slab    = df_meta$survey,
+       transf  = exp,
+       refline = 1,
+       xlab    = "Odds Ratio (95% CI)",
+       digits  = c(2, 2),
+       col     = "blue",             # overall color
+       col.square = "darkgreen",     # color for the squares
+       bg       = "lightgreen",      # background color inside the squares
+       border   = "darkgreen",       # border color around squares
+       col.diamond = "purple",       # fill color of the pooled-effect diamond
+       col.diamond.lines = "purple"  # outline color of the diamond
+)
 
 
 

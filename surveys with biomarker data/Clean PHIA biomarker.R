@@ -286,7 +286,83 @@ namphia2017 <- namphia2017 %>%
   filter(curr_art %in% 0)
 
 
+#--converting into factor and doing regression----
+# hivst use
+str(namphia2017$hivst_use)
+namphia2017$hivst_use <- factor(namphia2017$hivst_use, 
+                                       levels = c(0, 1),
+                                       labels = c("No", "Yes"))
 
+# hiv status
+str(namphia2017$hiv_status)
+namphia2017$hiv_status <- factor(namphia2017$hiv_status,
+                                        levels = c(0, 1),
+                                        labels = c("Negative", "Positive"))
+
+# sex
+str(namphia2017$sex)
+namphia2017$sex <- factor(namphia2017$sex, 
+                                 levels = c(0, 1),
+                                 labels = c("Female", "Male"))
+
+# age group
+str(namphia2017$agegrp)
+table(namphia2017$agegrp)
+age_levels <- c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
+age_labels <- c("15-19",  "20-24", "25-29", "30-34", "35-39", 
+                "40-44",  "45-49", "50-54", "55-59", "60-64", 
+                "65+")
+namphia2017$agegrp <- factor(
+  namphia2017$agegrp,
+  levels = age_levels,    
+  labels = age_labels     
+)
+
+# region
+table(namphia2017$region)
+str(namphia2017$region)
+namphia2017$region <- factor(namphia2017$region,
+                                    levels = c("0", "1"),
+                                    labels = c("Rural", "Urban"))
+
+
+# wealth index
+table(namphia2017$wealth_index)
+str(namphia2017$wealth_index)
+
+namphia2017$wealth_index <- factor(
+  namphia2017$wealth_index,
+  levels = c("1", "2", "3", "4", "5"),
+  labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")
+)
+
+
+# edu level
+str(namphia2017$schl_years)
+table(namphia2017$schl_years)
+namphia2017$schl_years <- factor(namphia2017$schl_years,
+                                        levels = c("1", "2", "3"),
+                                        labels = c("No edu/Primary", "Secondary/Higher Secondary", "Tertiary"))
+
+# survey id
+table(namphia2017$survey_id)
+str(namphia2017$survey_id)
+namphia2017$survey_id <- factor(namphia2017$survey_id)
+
+# logistic reg for meta analysis
+logistic1 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
+                      data = namphia2017, family = "binomial")
+summary(logistic1)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status1 <- coef(logistic1)["hiv_statusPositive"]
+se_hiv_status1  <- sqrt(vcov(logistic1)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey1 <- data.frame(
+  survey  = "NAMPHIA2017",
+  logOR   = coef_hiv_status1,
+  seLogOR = se_hiv_status1
+)
 
 #---function for hiv status and hivst use proportion survey unadjusted and adjusted ---
 # table(namphia2017$hivst_use, useNA = "ifany") 
@@ -580,6 +656,84 @@ table(kenphia2018$curr_art, useNA = "ifany")
 kenphia2018 <- kenphia2018 %>%
   filter(curr_art %in% 0)
 
+#--converting into factor and doing regression----
+# hivst use
+str(kenphia2018$hivst_use)
+kenphia2018$hivst_use <- factor(kenphia2018$hivst_use, 
+                                levels = c(0, 1),
+                                labels = c("No", "Yes"))
+
+# hiv status
+str(kenphia2018$hiv_status)
+kenphia2018$hiv_status <- factor(kenphia2018$hiv_status,
+                                 levels = c(0, 1),
+                                 labels = c("Negative", "Positive"))
+
+# sex
+str(kenphia2018$sex)
+kenphia2018$sex <- factor(kenphia2018$sex, 
+                          levels = c(0, 1),
+                          labels = c("Female", "Male"))
+
+# age group
+str(kenphia2018$agegrp)
+table(kenphia2018$agegrp)
+age_levels <- c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
+age_labels <- c("15-19",  "20-24", "25-29", "30-34", "35-39", 
+                "40-44",  "45-49", "50-54", "55-59", "60-64", 
+                "65+")
+kenphia2018$agegrp <- factor(
+  kenphia2018$agegrp,
+  levels = age_levels,    
+  labels = age_labels     
+)
+
+# region
+table(kenphia2018$region)
+str(kenphia2018$region)
+kenphia2018$region <- factor(kenphia2018$region,
+                             levels = c("0", "1"),
+                             labels = c("Rural", "Urban"))
+
+
+# wealth index
+table(kenphia2018$wealth_index)
+str(kenphia2018$wealth_index)
+
+kenphia2018$wealth_index <- factor(
+  kenphia2018$wealth_index,
+  levels = c("1", "2", "3", "4", "5"),
+  labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")
+)
+
+
+# edu level
+str(kenphia2018$schl_years)
+table(kenphia2018$schl_years)
+kenphia2018$schl_years <- factor(kenphia2018$schl_years,
+                                 levels = c("1", "2", "3"),
+                                 labels = c("No edu/Primary", "Secondary/Higher Secondary", "Tertiary"))
+
+# survey id
+table(kenphia2018$survey_id)
+str(kenphia2018$survey_id)
+kenphia2018$survey_id <- factor(kenphia2018$survey_id)
+
+# logistic reg for meta analysis
+logistic2 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index, 
+                 data = kenphia2018, family = "binomial")
+summary(logistic2)
+
+# extracting estimate & SE
+coef_hiv_status2 <- coef(logistic2)["hiv_statusPositive"]
+se_hiv_status2   <- sqrt(vcov(logistic2)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey2 <- data.frame(
+  survey  = "KENPHIA2018",
+  logOR   = coef_hiv_status2,
+  seLogOR = se_hiv_status2
+)
+
 
 #---function for hiv status and hivst use proportion survey unadjusted and adjusted ---
 # table(kenphia2018$hivst_use, useNA = "ifany") 
@@ -865,6 +1019,87 @@ table(lsophia2020$curr_art, useNA = "ifany")
 lsophia2020 <- lsophia2020 %>%
   filter(curr_art %in% 0)
 
+#--converting into factor and doing regression----
+# hivst use
+str(lsophia2020$hivst_use)
+lsophia2020$hivst_use <- factor(lsophia2020$hivst_use, 
+                                levels = c(0, 1),
+                                labels = c("No", "Yes"))
+
+# hiv status
+str(lsophia2020$hiv_status)
+lsophia2020$hiv_status <- factor(lsophia2020$hiv_status,
+                                 levels = c(0, 1),
+                                 labels = c("Negative", "Positive"))
+
+# sex
+str(lsophia2020$sex)
+lsophia2020$sex <- factor(lsophia2020$sex, 
+                          levels = c(0, 1),
+                          labels = c("Female", "Male"))
+
+# age group
+str(lsophia2020$agegrp)
+table(lsophia2020$agegrp)
+age_levels <- c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
+age_labels <- c("15-19",  "20-24", "25-29", "30-34", "35-39", 
+                "40-44",  "45-49", "50-54", "55-59", "60-64", 
+                "65+")
+lsophia2020$agegrp <- factor(
+  lsophia2020$agegrp,
+  levels = age_levels,    
+  labels = age_labels     
+)
+
+# region
+table(lsophia2020$region)
+str(lsophia2020$region)
+lsophia2020$region <- factor(lsophia2020$region,
+                             levels = c("0", "1"),
+                             labels = c("Rural", "Urban"))
+
+
+# wealth index
+table(lsophia2020$wealth_index)
+str(lsophia2020$wealth_index)
+
+lsophia2020$wealth_index <- factor(
+  lsophia2020$wealth_index,
+  levels = c("1", "2", "3", "4", "5"),
+  labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")
+)
+
+
+# edu level
+str(lsophia2020$schl_years)
+table(lsophia2020$schl_years)
+lsophia2020$schl_years <- factor(lsophia2020$schl_years,
+                                 levels = c("1", "2", "3"),
+                                 labels = c("No edu/Primary", "Secondary/Higher Secondary", "Tertiary"))
+
+# survey id
+table(lsophia2020$survey_id)
+str(lsophia2020$survey_id)
+lsophia2020$survey_id <- factor(lsophia2020$survey_id)
+
+# logistic reg for meta analysis
+logistic3 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
+                 data = lsophia2020, family = "binomial")
+summary(logistic3)
+
+# extracting estimate & SE
+coef_hiv_status3 <- coef(logistic3)["hiv_statusPositive"]
+se_hiv_status3   <- sqrt(vcov(logistic3)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey3 <- data.frame(
+  survey  = "LSOPHIA2020",
+  logOR   = coef_hiv_status3,
+  seLogOR = se_hiv_status3
+)
+
+
+
+
 
 # survey unadjusted prop 
 # hiv neg: 1135/(1135+10518)= 0.09739981
@@ -1129,6 +1364,86 @@ table(zwephia2020$curr_art, useNA = "ifany")
 zwephia2020 <- zwephia2020 %>%
   filter(curr_art %in% 0)
 
+#--converting into factor and doing regression----
+# hivst use
+str(zwephia2020$hivst_use)
+zwephia2020$hivst_use <- factor(zwephia2020$hivst_use, 
+                                levels = c(0, 1),
+                                labels = c("No", "Yes"))
+
+# hiv status
+str(zwephia2020$hiv_status)
+zwephia2020$hiv_status <- factor(zwephia2020$hiv_status,
+                                 levels = c(0, 1),
+                                 labels = c("Negative", "Positive"))
+
+# sex
+str(zwephia2020$sex)
+zwephia2020$sex <- factor(zwephia2020$sex, 
+                          levels = c(0, 1),
+                          labels = c("Female", "Male"))
+
+# age group
+str(zwephia2020$agegrp)
+table(zwephia2020$agegrp)
+age_levels <- c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
+age_labels <- c("15-19",  "20-24", "25-29", "30-34", "35-39", 
+                "40-44",  "45-49", "50-54", "55-59", "60-64", 
+                "65+")
+zwephia2020$agegrp <- factor(
+  zwephia2020$agegrp,
+  levels = age_levels,    
+  labels = age_labels     
+)
+
+# region
+table(zwephia2020$region)
+str(zwephia2020$region)
+zwephia2020$region <- factor(zwephia2020$region,
+                             levels = c("0", "1"),
+                             labels = c("Rural", "Urban"))
+
+
+# wealth index
+table(zwephia2020$wealth_index)
+str(zwephia2020$wealth_index)
+
+zwephia2020$wealth_index <- factor(
+  zwephia2020$wealth_index,
+  levels = c("1", "2", "3", "4", "5"),
+  labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")
+)
+
+
+# edu level
+str(zwephia2020$schl_years)
+table(zwephia2020$schl_years)
+zwephia2020$schl_years <- factor(zwephia2020$schl_years,
+                                 levels = c("1", "2", "3"),
+                                 labels = c("No edu/Primary", "Secondary/Higher Secondary", "Tertiary"))
+
+# survey id
+table(zwephia2020$survey_id)
+str(zwephia2020$survey_id)
+zwephia2020$survey_id <- factor(zwephia2020$survey_id)
+
+# logistic reg for meta analysis
+logistic4 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
+                 data = zwephia2020, family = "binomial")
+summary(logistic4)
+
+# extracting estimate & SE
+coef_hiv_status4 <- coef(logistic4)["hiv_statusPositive"]
+se_hiv_status4   <- sqrt(vcov(logistic4)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey4 <- data.frame(
+  survey  = "ZWEPHIA2020",
+  logOR   = coef_hiv_status4,
+  seLogOR = se_hiv_status4
+)
+
+
+
 
 #----------Malawi 2020-------------
 
@@ -1368,6 +1683,87 @@ mwiphia2020 <- mwiphia2020 %>%
   filter(curr_art %in% 0)
 
 
+#--converting into factor and doing regression----
+# hivst use
+str(mwiphia2020$hivst_use)
+mwiphia2020$hivst_use <- factor(mwiphia2020$hivst_use, 
+                                levels = c(0, 1),
+                                labels = c("No", "Yes"))
+
+# hiv status
+str(mwiphia2020$hiv_status)
+mwiphia2020$hiv_status <- factor(mwiphia2020$hiv_status,
+                                 levels = c(0, 1),
+                                 labels = c("Negative", "Positive"))
+
+# sex
+str(mwiphia2020$sex)
+mwiphia2020$sex <- factor(mwiphia2020$sex, 
+                          levels = c(0, 1),
+                          labels = c("Female", "Male"))
+
+# age group
+str(mwiphia2020$agegrp)
+table(mwiphia2020$agegrp)
+age_levels <- c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
+age_labels <- c("15-19",  "20-24", "25-29", "30-34", "35-39", 
+                "40-44",  "45-49", "50-54", "55-59", "60-64", 
+                "65+")
+mwiphia2020$agegrp <- factor(
+  mwiphia2020$agegrp,
+  levels = age_levels,    
+  labels = age_labels     
+)
+
+# region
+table(mwiphia2020$region)
+str(mwiphia2020$region)
+mwiphia2020$region <- factor(mwiphia2020$region,
+                             levels = c("0", "1"),
+                             labels = c("Rural", "Urban"))
+
+
+# wealth index
+table(mwiphia2020$wealth_index)
+str(mwiphia2020$wealth_index)
+
+mwiphia2020$wealth_index <- factor(
+  mwiphia2020$wealth_index,
+  levels = c("1", "2", "3", "4", "5"),
+  labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")
+)
+
+
+# edu level
+str(mwiphia2020$schl_years)
+table(mwiphia2020$schl_years)
+mwiphia2020$schl_years <- factor(mwiphia2020$schl_years,
+                                 levels = c("1", "2", "3"),
+                                 labels = c("No edu/Primary", "Secondary/Higher Secondary", "Tertiary"))
+
+# survey id
+table(mwiphia2020$survey_id)
+str(mwiphia2020$survey_id)
+mwiphia2020$survey_id <- factor(mwiphia2020$survey_id)
+
+# logistic reg for meta analysis
+logistic5 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
+                 data = mwiphia2020, family = "binomial")
+summary(logistic5)
+
+# extracting estimate & SE
+coef_hiv_status5 <- coef(logistic5)["hiv_statusPositive"]
+se_hiv_status5   <- sqrt(vcov(logistic5)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey5 <- data.frame(
+  survey  = "MWIPHIA2020",
+  logOR   = coef_hiv_status5,
+  seLogOR = se_hiv_status5
+)
+
+
+
+
 #----------Mozambique 2021------------
 
 insida2021_adult_ind <- read_dta("Mozambique 2021 PHIA/insida2021adultind.dta")
@@ -1591,6 +1987,86 @@ mozphia2021 <- mozphia2021 %>%
 table(mozphia2021$curr_art, useNA = "ifany")
 mozphia2021 <- mozphia2021 %>%
   filter(curr_art %in% 0)
+
+#--converting into factor and doing regression----
+# hivst use
+str(mozphia2021$hivst_use)
+mozphia2021$hivst_use <- factor(mozphia2021$hivst_use, 
+                                levels = c(0, 1),
+                                labels = c("No", "Yes"))
+
+# hiv status
+str(mozphia2021$hiv_status)
+mozphia2021$hiv_status <- factor(mozphia2021$hiv_status,
+                                 levels = c(0, 1),
+                                 labels = c("Negative", "Positive"))
+
+# sex
+str(mozphia2021$sex)
+mozphia2021$sex <- factor(mozphia2021$sex, 
+                          levels = c(0, 1),
+                          labels = c("Female", "Male"))
+
+# age group
+str(mozphia2021$agegrp)
+table(mozphia2021$agegrp)
+age_levels <- c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
+age_labels <- c("15-19",  "20-24", "25-29", "30-34", "35-39", 
+                "40-44",  "45-49", "50-54", "55-59", "60-64", 
+                "65+")
+mozphia2021$agegrp <- factor(
+  mozphia2021$agegrp,
+  levels = age_levels,    
+  labels = age_labels     
+)
+
+# region
+table(mozphia2021$region)
+str(mozphia2021$region)
+mozphia2021$region <- factor(mozphia2021$region,
+                             levels = c("0", "1"),
+                             labels = c("Rural", "Urban"))
+
+
+# wealth index
+table(mozphia2021$wealth_index)
+str(mozphia2021$wealth_index)
+
+mozphia2021$wealth_index <- factor(
+  mozphia2021$wealth_index,
+  levels = c("1", "2", "3", "4", "5"),
+  labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")
+)
+
+
+# edu level
+str(mozphia2021$schl_years)
+table(mozphia2021$schl_years)
+mozphia2021$schl_years <- factor(mozphia2021$schl_years,
+                                 levels = c("1", "2", "3"),
+                                 labels = c("No edu/Primary", "Secondary/Higher Secondary", "Tertiary"))
+
+# survey id
+table(mozphia2021$survey_id)
+str(mozphia2021$survey_id)
+mozphia2021$survey_id <- factor(mozphia2021$survey_id)
+
+# logistic reg for meta analysis
+logistic6 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
+                 data = mozphia2021, family = "binomial")
+summary(logistic6)
+
+# extracting estimate & SE
+coef_hiv_status6 <- coef(logistic6)["hiv_statusPositive"]
+se_hiv_status6   <- sqrt(vcov(logistic6)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey6 <- data.frame(
+  survey  = "MOZPHIA2021",
+  logOR   = coef_hiv_status6,
+  seLogOR = se_hiv_status6
+)
+
+
 
 
 #-------------Eswatini 2021-----------
@@ -1830,6 +2306,89 @@ swzphia2021 <- swzphia2021 %>%
 table(swzphia2021$curr_art, useNA = "ifany")
 swzphia2021 <- swzphia2021 %>%
   filter(curr_art %in% 0)
+
+#--converting into factor and doing regression----
+# hivst use
+str(swzphia2021$hivst_use)
+swzphia2021$hivst_use <- factor(swzphia2021$hivst_use, 
+                                levels = c(0, 1),
+                                labels = c("No", "Yes"))
+
+# hiv status
+str(swzphia2021$hiv_status)
+swzphia2021$hiv_status <- factor(swzphia2021$hiv_status,
+                                 levels = c(0, 1),
+                                 labels = c("Negative", "Positive"))
+
+# sex
+str(swzphia2021$sex)
+swzphia2021$sex <- factor(swzphia2021$sex, 
+                          levels = c(0, 1),
+                          labels = c("Female", "Male"))
+
+# age group
+str(swzphia2021$agegrp)
+table(swzphia2021$agegrp)
+age_levels <- c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11")
+age_labels <- c("15-19",  "20-24", "25-29", "30-34", "35-39", 
+                "40-44",  "45-49", "50-54", "55-59", "60-64", 
+                "65+")
+swzphia2021$agegrp <- factor(
+  swzphia2021$agegrp,
+  levels = age_levels,    
+  labels = age_labels     
+)
+
+# region
+table(swzphia2021$region)
+str(swzphia2021$region)
+swzphia2021$region <- factor(swzphia2021$region,
+                             levels = c("0", "1"),
+                             labels = c("Rural", "Urban"))
+
+
+# wealth index
+table(swzphia2021$wealth_index)
+str(swzphia2021$wealth_index)
+
+swzphia2021$wealth_index <- factor(
+  swzphia2021$wealth_index,
+  levels = c("1", "2", "3", "4", "5"),
+  labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")
+)
+
+
+# edu level
+str(swzphia2021$schl_years)
+table(swzphia2021$schl_years)
+swzphia2021$schl_years <- factor(swzphia2021$schl_years,
+                                 levels = c("1", "2", "3"),
+                                 labels = c("No edu/Primary", "Secondary/Higher Secondary", "Tertiary"))
+
+# survey id
+table(swzphia2021$survey_id)
+str(swzphia2021$survey_id)
+swzphia2021$survey_id <- factor(swzphia2021$survey_id)
+
+# logistic reg for meta analysis
+logistic7 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
+                 data = swzphia2021, family = "binomial")
+summary(logistic7)
+
+# extracting estimate & SE
+coef_hiv_status7 <- coef(logistic7)["hiv_statusPositive"]
+se_hiv_status7   <- sqrt(vcov(logistic7)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey7 <- data.frame(
+  survey  = "SWZPHIA2021",
+  logOR   = coef_hiv_status7,
+  seLogOR = se_hiv_status7
+)
+
+
+
+
+
 
 # Combine all
 bio_list_phia <- list(namphia2017, kenphia2018, lsophia2020, 
