@@ -3,8 +3,6 @@
 rm(list = ls())
 gc()
 
-
-
 library(wpp2024)
 library(rstan)
 library(ggplot2)
@@ -25,8 +23,6 @@ countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe",
                "Guinea", "Liberia", "Senegal", "South Africa", 
                "United Republic of Tanzania", "Namibia", "Botswana", 
                "Guinea-Bissau", "Democratic Republic of the Congo", "Eswatini", "Benin")
-
-
 
 age_grp <- list("15-24" = 16:25, "25-34" = 26:35, "35-49" = 36:50, "50+"   = 51:101)
 # matrix with 4 age groups rows for each country, c1=Male, c2=Female
@@ -223,22 +219,24 @@ functions {
     vector beta_t_dt,
     real beta_retest,
     real beta_male,
-    vector beta_age, // RR for 4 age groups
+    vector beta_age_male, 
+    vector beta_age_female,
     matrix pop, // matrix r age c sex
     real dt,
-    vector entry_m_dt, // vector as before
-    vector entry_f_dt, // vector as before
-    matrix mort_m_dt, // matrix, earlier it was vector
-    matrix mort_f_dt, // matrix, earlier it was vector
+    vector entry_m_dt, // vector 
+    vector entry_f_dt, // vector 
+    matrix mort_m_dt, // matrix
+    matrix mort_f_dt, // matrix
     vector alpha // aging rate for 4 age groups
   ) {
-  
+    
     // in the multi-country version, the inputs are already on their transformed scale.
     vector[niter] rr_t = beta_t_dt;
     real rr_r = beta_retest;
     real rr_m = beta_male;
-    vector[4] rr_a = beta_age; // RR for 4 age groups
-
+    vector[4] rr_a_m = beta_age_male; 
+    vector[4] rr_a_f = beta_age_female; 
+    
     real out[niter, 4, 2, 4]; // niter, model outputs, sex, 4 age groups
     out[, , 1, ] = rep_array(0.0, niter, 4, 4); // adding age grp dimension similarly
     out[, , 2, ] = rep_array(0.0, niter, 4, 4); // adding age grp dimension similarly
@@ -248,91 +246,91 @@ functions {
     out[1,1,1,2] = pop[2, 1]; // niter=1, never tested, men, age group 25-34
     out[1,1,1,3] = pop[3, 1]; // niter=1, never tested, men, age group 35-49
     out[1,1,1,4] = pop[4, 1]; // niter=1, never tested, men, age group 50+
-    out[1,1,2,1] = pop[1, 2]; // niter=1, never tested, women, age group 15-24
+      out[1,1,2,1] = pop[1, 2]; // niter=1, never tested, women, age group 15-24
     out[1,1,2,2] = pop[2, 2]; // niter=1, never tested, women, age group 25-34
     out[1,1,2,3] = pop[3, 2]; // niter=1, never tested, women, age group 35-49
     out[1,1,2,4] = pop[4, 2]; // niter=1, never tested, women, age group 50+
-    
-    for (i in 2:niter) {
-  // men, age group 1
-  out[i,1,1,1] = out[i-1,1,1,1] + dt * (+ entry_m_dt[i] * (sum(out[i-1,1,1, ]) + sum(out[i-1,2,1, ]))
-                                        - rr_t[i] * rr_m * rr_a[1] * out[i-1,1,1,1] 
-                                        - (alpha[1] + mort_m_dt[i,1]) * out[i-1,1,1,1]);
-  out[i,2,1,1] = out[i-1,2,1,1] + dt * (+ rr_t[i] * rr_m * rr_a[1] * out[i-1,1,1,1] 
-                                        - (alpha[1] + mort_m_dt[i,1]) *out[i-1,2,1,1]);
-  out[i,3,1,1] = rr_t[i] * rr_m * rr_a[1] * (out[i-1,1,1,1] + rr_r * out[i-1,2,1,1]);
-  out[i,4,1,1] = out[i,2,1,1] / (out[i,1,1,1] + out[i,2,1,1]);
-  
-  // Males, age group 2-3
-  out[i,1,1,2] = out[i-1,1,1,2] + dt * (+ alpha[1] * out[i-1,1,1,1] 
-                                        - rr_t[i] * rr_m * rr_a[2] * out[i-1,1,1,2] 
-                                        - (alpha[2] + mort_m_dt[i,2]) * out[i-1,1,1,2]);
-  out[i,2,1,2] = out[i-1,2,1,2] + dt * (+ alpha[1] * out[i-1,2,1,1]
-                                        + rr_t[i] * rr_m * rr_a[2] * out[i-1,1,1,2] 
-                                        - (alpha[2] + mort_m_dt[i,2]) * out[i-1,2,1,2]);
-  out[i,3,1,2] = rr_t[i] * rr_m * rr_a[2] * (out[i-1,1,1,2] + rr_r * out[i-1,2,1,2]);
-  out[i,4,1,2] = out[i,2,1,2] / (out[i,1,1,2] + out[i,2,1,2]);
-  
-  // Males, age group 3
-  out[i,1,1,3] = out[i-1,1,1,3] + dt * (+ alpha[2] * out[i-1,1,1,2] 
-                                        - rr_t[i] * rr_m * rr_a[3] * out[i-1,1,1,3] 
-                                        - (alpha[3] + mort_m_dt[i,3]) * out[i-1,1,1,3]);
-  out[i,2,1,3] = out[i-1,2,1,3] + dt * (+ alpha[2] * out[i-1,2,1,2] 
-                                        + rr_t[i] * rr_m * rr_a[3] * out[i-1,1,1,3] 
-                                        - (alpha[3] + mort_m_dt[i,3]) * out[i-1,2,1,3]);
-  out[i,3,1,3] = rr_t[i] * rr_m * rr_a[3] * (out[i-1,1,1,3] + rr_r * out[i-1,2,1,3]);
-  out[i,4,1,3] = out[i,2,1,3] / (out[i,1,1,3] + out[i,2,1,3]);
-
- // Males, age group 4
-  out[i,1,1,4] = out[i-1,1,1,4] + dt * (+ alpha[3] * out[i-1,1,1,3] 
-                                        - rr_t[i] * rr_m * rr_a[4] * out[i-1,1,1,4] 
-                                        - mort_m_dt[i,4] * out[i-1,1,1,4]);
-  out[i,2,1,4] = out[i-1,2,1,4] + dt * (+ alpha[3] * out[i-1,2,1,3] 
-                                        + rr_t[i] * rr_m * rr_a[4] * out[i-1,1,1,4] 
-                                        - mort_m_dt[i,4] * out[i-1,2,1,4]);
-  out[i,3,1,4] = rr_t[i] * rr_m * rr_a[4] * (out[i-1,1,1,4] + rr_r * out[i-1,2,1,4]);
-  out[i,4,1,4] = out[i,2,1,4] / (out[i,1,1,4] + out[i,2,1,4]);
-  
-  // Females, age group 1
-  out[i,1,2,1] = out[i-1,1,2,1] + dt * (+ entry_f_dt[i] * (sum(out[i-1,1,2, ]) + sum(out[i-1,2,2,])) 
-                                        - rr_t[i] * rr_a[1] * out[i-1,1,2,1] 
-                                        - (alpha[1] + mort_f_dt[i,1]) * out[i-1,1,2,1]);
-  out[i,2,2,1] = out[i-1,2,2,1] + dt * (+ rr_t[i] * rr_a[1] * out[i-1,1,2,1] 
-                                        - (alpha[1] + mort_f_dt[i,1]) * out[i-1,2,2,1]);
-  out[i,3,2,1] = rr_t[i] * rr_a[1] * (out[i-1,1,2,1] + rr_r * out[i-1,2,2,1]);
-  out[i,4,2,1] = out[i,2,2,1] / (out[i,1,2,1] + out[i,2,2,1]);
-  
-  // Females, age group 2
-  out[i,1,2,2] = out[i-1,1,2,2] + dt * (+ alpha[1] * out[i-1,1,2,1] 
-                                        - rr_t[i] * rr_a[2] * out[i-1,1,2,2] 
-                                        - (alpha[2] + mort_f_dt[i,2]) * out[i-1,1,2,2]);
-  out[i,2,2,2] = out[i-1,2,2,2] + dt * (+ alpha[1] * out[i-1,2,2,1] 
-                                        + rr_t[i] * rr_a[2] * out[i-1,1,2,2] 
-                                        - (alpha[2] + mort_f_dt[i,2]) * out[i-1,2,2,2]);
-  out[i,3,2,2] = rr_t[i] * rr_a[2] * (out[i-1,1,2,2] + rr_r * out[i-1,2,2,2]);
-  out[i,4,2,2] = out[i,2,2,2] / (out[i,1,2,2] + out[i,2,2,2]);
-  
-  // Females, age group 3
-  out[i,1,2,3] = out[i-1,1,2,3] + dt * (+ alpha[2] * out[i-1,1,2,2] 
-                                        - rr_t[i] * rr_a[3] * out[i-1,1,2,3] 
-                                        - (alpha[3] + mort_f_dt[i,3]) * out[i-1,1,2,3]);
-  out[i,2,2,3] = out[i-1,2,2,3] + dt * (+ alpha[2] * out[i-1,2,2,2] 
-                                        + rr_t[i] * rr_a[3] * out[i-1,1,2,3] 
-                                        - (alpha[3] + mort_f_dt[i,3]) * out[i-1,2,2,3]);
-  out[i,3,2,3] = rr_t[i] * rr_a[3] * (out[i-1,1,2,3] + rr_r * out[i-1,2,2,3]);
-  out[i,4,2,3] = out[i,2,2,3] / (out[i,1,2,3] + out[i,2,2,3]);
-  
-  // Females, age group 4
-  out[i,1,2,4] = out[i-1,1,2,4] + dt * (+ alpha[3] * out[i-1,1,2,3] 
-                                        - rr_t[i] * rr_a[4] * out[i-1,1,2,4] 
-                                        - mort_f_dt[i,4] * out[i-1,1,2,4]);
-  out[i,2,2,4] = out[i-1,2,2,4] + dt * (+ alpha[3] * out[i-1,2,2,3] 
-                                        + rr_t[i] * rr_a[4] * out[i-1,1,2,4] 
-                                        - mort_f_dt[i,4] * out[i-1,2,2,4]);
-  out[i,3,2,4] = rr_t[i] * rr_a[4] * (out[i-1,1,2,4] + rr_r * out[i-1,2,2,4]);
-  out[i,4,2,4] = out[i,2,2,4] / (out[i,1,2,4] + out[i,2,2,4]);
-    }
-return out;
+      
+      for (i in 2:niter) {
+        // men, age group 1
+        out[i,1,1,1] = out[i-1,1,1,1] + dt * (+ entry_m_dt[i] * (sum(out[i-1,1,1, ]) + sum(out[i-1,2,1, ]))
+                                              - rr_t[i] * rr_m * rr_a_m[1] * out[i-1,1,1,1] 
+                                              - (alpha[1] + mort_m_dt[i,1]) * out[i-1,1,1,1]);
+        out[i,2,1,1] = out[i-1,2,1,1] + dt * (+ rr_t[i] * rr_m * rr_a_m[1] * out[i-1,1,1,1] 
+                                              - (alpha[1] + mort_m_dt[i,1]) *out[i-1,2,1,1]);
+        out[i,3,1,1] = rr_t[i] * rr_m * rr_a_m[1] * (out[i-1,1,1,1] + rr_r * out[i-1,2,1,1]);
+        out[i,4,1,1] = out[i,2,1,1] / (out[i,1,1,1] + out[i,2,1,1]);
+        
+        // Males, age group 2-3
+        out[i,1,1,2] = out[i-1,1,1,2] + dt * (+ alpha[1] * out[i-1,1,1,1] 
+                                              - rr_t[i] * rr_m * rr_a_m[2] * out[i-1,1,1,2] 
+                                              - (alpha[2] + mort_m_dt[i,2]) * out[i-1,1,1,2]);
+        out[i,2,1,2] = out[i-1,2,1,2] + dt * (+ alpha[1] * out[i-1,2,1,1]
+                                              + rr_t[i] * rr_m * rr_a_m[2] * out[i-1,1,1,2] 
+                                              - (alpha[2] + mort_m_dt[i,2]) * out[i-1,2,1,2]);
+        out[i,3,1,2] = rr_t[i] * rr_m * rr_a_m[2] * (out[i-1,1,1,2] + rr_r * out[i-1,2,1,2]);
+        out[i,4,1,2] = out[i,2,1,2] / (out[i,1,1,2] + out[i,2,1,2]);
+        
+        // Males, age group 3
+        out[i,1,1,3] = out[i-1,1,1,3] + dt * (+ alpha[2] * out[i-1,1,1,2] 
+                                              - rr_t[i] * rr_m * rr_a_m[3] * out[i-1,1,1,3] 
+                                              - (alpha[3] + mort_m_dt[i,3]) * out[i-1,1,1,3]);
+        out[i,2,1,3] = out[i-1,2,1,3] + dt * (+ alpha[2] * out[i-1,2,1,2] 
+                                              + rr_t[i] * rr_m * rr_a_m[3] * out[i-1,1,1,3] 
+                                              - (alpha[3] + mort_m_dt[i,3]) * out[i-1,2,1,3]);
+        out[i,3,1,3] = rr_t[i] * rr_m * rr_a_m[3] * (out[i-1,1,1,3] + rr_r * out[i-1,2,1,3]);
+        out[i,4,1,3] = out[i,2,1,3] / (out[i,1,1,3] + out[i,2,1,3]);
+        
+        // Males, age group 4
+        out[i,1,1,4] = out[i-1,1,1,4] + dt * (+ alpha[3] * out[i-1,1,1,3] 
+                                              - rr_t[i] * rr_m * rr_a_m[4] * out[i-1,1,1,4] 
+                                              - mort_m_dt[i,4] * out[i-1,1,1,4]);
+        out[i,2,1,4] = out[i-1,2,1,4] + dt * (+ alpha[3] * out[i-1,2,1,3] 
+                                              + rr_t[i] * rr_m * rr_a_m[4] * out[i-1,1,1,4] 
+                                              - mort_m_dt[i,4] * out[i-1,2,1,4]);
+        out[i,3,1,4] = rr_t[i] * rr_m * rr_a_m[4] * (out[i-1,1,1,4] + rr_r * out[i-1,2,1,4]);
+        out[i,4,1,4] = out[i,2,1,4] / (out[i,1,1,4] + out[i,2,1,4]);
+        
+        // Females, age group 1
+        out[i,1,2,1] = out[i-1,1,2,1] + dt * (+ entry_f_dt[i] * (sum(out[i-1,1,2, ]) + sum(out[i-1,2,2,])) 
+                                              - rr_t[i] * rr_a_f[1] * out[i-1,1,2,1] 
+                                              - (alpha[1] + mort_f_dt[i,1]) * out[i-1,1,2,1]);
+        out[i,2,2,1] = out[i-1,2,2,1] + dt * (+ rr_t[i] * rr_a_f[1] * out[i-1,1,2,1] 
+                                              - (alpha[1] + mort_f_dt[i,1]) * out[i-1,2,2,1]);
+        out[i,3,2,1] = rr_t[i] * rr_a_f[1] * (out[i-1,1,2,1] + rr_r * out[i-1,2,2,1]);
+        out[i,4,2,1] = out[i,2,2,1] / (out[i,1,2,1] + out[i,2,2,1]);
+        
+        // Females, age group 2
+        out[i,1,2,2] = out[i-1,1,2,2] + dt * (+ alpha[1] * out[i-1,1,2,1] 
+                                              - rr_t[i] * rr_a_f[2] * out[i-1,1,2,2] 
+                                              - (alpha[2] + mort_f_dt[i,2]) * out[i-1,1,2,2]);
+        out[i,2,2,2] = out[i-1,2,2,2] + dt * (+ alpha[1] * out[i-1,2,2,1] 
+                                              + rr_t[i] * rr_a_f[2] * out[i-1,1,2,2] 
+                                              - (alpha[2] + mort_f_dt[i,2]) * out[i-1,2,2,2]);
+        out[i,3,2,2] = rr_t[i] * rr_a_f[2] * (out[i-1,1,2,2] + rr_r * out[i-1,2,2,2]);
+        out[i,4,2,2] = out[i,2,2,2] / (out[i,1,2,2] + out[i,2,2,2]);
+        
+        // Females, age group 3
+        out[i,1,2,3] = out[i-1,1,2,3] + dt * (+ alpha[2] * out[i-1,1,2,2] 
+                                              - rr_t[i] * rr_a_f[3] * out[i-1,1,2,3] 
+                                              - (alpha[3] + mort_f_dt[i,3]) * out[i-1,1,2,3]);
+        out[i,2,2,3] = out[i-1,2,2,3] + dt * (+ alpha[2] * out[i-1,2,2,2] 
+                                              + rr_t[i] * rr_a_f[3] * out[i-1,1,2,3] 
+                                              - (alpha[3] + mort_f_dt[i,3]) * out[i-1,2,2,3]);
+        out[i,3,2,3] = rr_t[i] * rr_a_f[3] * (out[i-1,1,2,3] + rr_r * out[i-1,2,2,3]);
+        out[i,4,2,3] = out[i,2,2,3] / (out[i,1,2,3] + out[i,2,2,3]);
+        
+        // Females, age group 4
+        out[i,1,2,4] = out[i-1,1,2,4] + dt * (+ alpha[3] * out[i-1,1,2,3] 
+                                              - rr_t[i] * rr_a_f[4] * out[i-1,1,2,4] 
+                                              - mort_f_dt[i,4] * out[i-1,1,2,4]);
+        out[i,2,2,4] = out[i-1,2,2,4] + dt * (+ alpha[3] * out[i-1,2,2,3] 
+                                              + rr_t[i] * rr_a_f[4] * out[i-1,1,2,4] 
+                                              - mort_f_dt[i,4] * out[i-1,2,2,4]);
+        out[i,3,2,4] = rr_t[i] * rr_a_f[4] * (out[i-1,1,2,4] + rr_r * out[i-1,2,2,4]);
+        out[i,4,2,4] = out[i,2,2,4] / (out[i,1,2,4] + out[i,2,2,4]);
+      }
+    return out;
   }
 }
 
@@ -391,7 +389,8 @@ parameters {
   real<lower = 1e-6, upper = 5> sd_phi;    // sd of the RE for phi
   real<lower = 1e-6, upper = 5> sd_rt;     // sd of the RE for the re-testing rate ratio
   real<lower = 1e-6, upper = 5> sd_male;   // sd of the RE of the male rate ratio
-  real<lower = 1e-6, upper = 5> sd_age;    // sd for RR age
+  real<lower=1e-6, upper=5> sd_age_male;   // sd for RR age male
+  real<lower=1e-6, upper=5> sd_age_female; // sd for RR age female
   
   // retesting parameters
   real beta_retest_overall;            // overall shared re-testing rate
@@ -405,11 +404,17 @@ parameters {
   real phi_overall;           // overall proportion of HIVST kits used
   vector[n_cnt] phi_raw;      // country-specific proportions of HIVST kits used
   
-  // age rate ratio parameters
-  vector[3] beta_age_overall;       // overall RR age
-  vector[n_cnt] beta_age_raw1;
-  vector[n_cnt] beta_age_raw2;
-  vector[n_cnt] beta_age_raw3;
+  // age rate ratio parameters males
+  vector[3]    beta_age_male_overall;    // overall RR age male
+  vector[n_cnt] beta_age_male_raw1;      
+  vector[n_cnt] beta_age_male_raw2;      
+  vector[n_cnt] beta_age_male_raw3;      
+  
+  // age rate ratio parameters females
+  vector[3]    beta_age_female_overall;  
+  vector[n_cnt] beta_age_female_raw1;
+  vector[n_cnt] beta_age_female_raw2;
+  vector[n_cnt] beta_age_female_raw3;
 }
 
 
@@ -418,16 +423,21 @@ transformed parameters {
   vector[n_cnt] beta_retest;
   vector[n_cnt] beta_male;
   vector[n_cnt] phi;
-  matrix[n_cnt, 4] beta_age;
+  matrix[n_cnt, 4] beta_age_male;
+  matrix[n_cnt, 4] beta_age_female;
   
   beta_retest = 0.5 + (2.5 - 0.5) * inv_logit(beta_retest_overall + sd_rt * beta_rt_raw);
   beta_male = exp(beta_male_overall + sd_male * beta_male_raw);
   phi = 0.5 + (1 - 0.5) * inv_logit(phi_overall + sd_phi * phi_raw);
-  beta_age[, 1] = rep_vector(1, n_cnt);  // fixed for age group 1
-  beta_age[, 2] = exp(beta_age_overall[1] + sd_age * beta_age_raw1);
-  beta_age[, 3] = exp(beta_age_overall[2] + sd_age * beta_age_raw2);
-  beta_age[, 4] = exp(beta_age_overall[3] + sd_age * beta_age_raw3);
-    
+  beta_age_male[, 1] = rep_vector(1, n_cnt);  // fixed for age group 1
+  beta_age_male[, 2] = exp(beta_age_male_overall[1] + sd_age_male * beta_age_male_raw1);
+  beta_age_male[, 3] = exp(beta_age_male_overall[2] + sd_age_male * beta_age_male_raw2);
+  beta_age_male[, 4] = exp(beta_age_male_overall[3] + sd_age_male * beta_age_male_raw3);
+  beta_age_female[, 1] = rep_vector(1, n_cnt);  // fixed for age group 1
+  beta_age_female[, 2] = exp(beta_age_female_overall[1] + sd_age_female * beta_age_female_raw1);
+  beta_age_female[, 3] = exp(beta_age_female_overall[2] + sd_age_female * beta_age_female_raw2);
+  beta_age_female[, 4] = exp(beta_age_female_overall[3] + sd_age_female * beta_age_female_raw3);  
+  
   // entry and death rates
   matrix[n_cnt, niter] beta_t_dt;
   matrix[n_cnt, niter] entry_m_dt;
@@ -456,24 +466,28 @@ model {
   sd_phi ~ normal(0, 0.5) T[1e-6, 5];
   sd_rt ~ normal(0, 0.5) T[1e-6, 5];
   sd_male ~ normal(0, 0.5) T[1e-6, 5];
-  sd_age ~ normal(0, 0.5) T[1e-6, 5];
+  sd_age_male ~ normal(0, 0.5) T[1e-6, 5];
+  sd_age_female ~ normal(0, 0.5) T[1e-6, 5];
   // overall prior for retesting parameter
   beta_retest_overall ~ normal(logit((1.2 - 0.5) / (2.5 - 0.5)), 0.5); // 0.5 + (2.5 - 0.5) * plogis(qlogis((1.2 - 0.5) / (2.5 - 0.5)) + c(-1, 1) * qnorm(0.975) * 0.5)
   // overall prior for the proportion of tests distributed being used
   phi_overall ~ normal(logit((0.85 - 0.5) / (1 - 0.5)), 1); // 0.5 + (1 - 0.5) * plogis(qlogis((0.85 - 0.5) / (1-0.5)) + c(-1, 1) * qnorm(0.975) * 1)
   // overall prior for male rate ratio
   beta_male_overall ~ normal(log(1), 0.5);
-  // overall prior for age rate ratio
-  beta_age_overall ~ normal(log(1), 0.5); // exp(log(1) + c(-1,1) * qnorm(0.975) * 0.5)
-  
+  // overall prior for age rate ratio male
+  beta_age_male_overall ~ normal(log(1), 0.5); // exp(log(1) + c(-1,1) * qnorm(0.975) * 0.5)
+// overall prior for age rate ratio female
+  beta_age_female_overall ~ normal(log(1), 0.5); // exp(log(1) + c(-1,1) * qnorm(0.975) * 0.5)  
   // for non-centered parameterization
   beta_rt_raw ~ std_normal();
   beta_male_raw ~ std_normal();
   phi_raw ~ std_normal();
-  beta_age_raw1 ~ std_normal();
-  beta_age_raw2 ~ std_normal();
-  beta_age_raw3 ~ std_normal();
-    
+  beta_age_male_raw1 ~ std_normal();
+  beta_age_male_raw2 ~ std_normal();
+  beta_age_male_raw3 ~ std_normal();
+  beta_age_female_raw1 ~ std_normal();
+  beta_age_female_raw2 ~ std_normal();
+  beta_age_female_raw3 ~ std_normal();    
   // country-specific priors
   for (c in 1:n_cnt) {
     beta_t[c, 1] ~ normal(-10, 1); // exp(-10 + c(-1, 1) * 1.96 * 1);
@@ -491,7 +505,7 @@ model {
   }
   // calling hivst_fun
   real model_pred[niter, 4, 2, 4] = hivst_fun(
-    niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], to_vector(beta_age[c, ]), pop_mat, 
+    niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], to_vector(beta_age_male[c, ]), to_vector(beta_age_female[c, ]), pop_mat, 
     dt, to_vector(entry_m_dt[c, ]), to_vector(entry_f_dt[c, ]), 
     mort_m_dt_mat, mort_f_dt_mat, alpha);
     
@@ -547,7 +561,7 @@ for (s in svy_idx_s[c]:svy_idx_e[c]) {
                               + to_vector(model_pred[, 3, 2, 4])) / phi[c];
     hivst[hts_idx_s[c]:hts_idx_e[c]] ~ normal(hts_mod[ind_hts[hts_idx_s[c]:hts_idx_e[c]], c], 
                                               se_hts[hts_idx_s[c]:hts_idx_e[c]]);
-}
+ }
 }
 
 generated quantities {
@@ -568,7 +582,7 @@ generated quantities {
       }
 
     real pred[niter, 4, 2, 4] = hivst_fun(
-      niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], to_vector(beta_age[c, ]), pop_mat, 
+      niter, to_vector(beta_t_dt[c, ]), beta_retest[c], beta_male[c], to_vector(beta_age_male[c, ]),  to_vector(beta_age_female[c, ]), pop_mat, 
       dt, to_vector(entry_m_dt[c, ]), to_vector(entry_f_dt[c, ]), 
       mort_m_dt_mat, mort_f_dt_mat, alpha);
 
@@ -585,6 +599,7 @@ generated quantities {
   }
 }
 '
+
 
 # we compile the model and expose the function to invoke it directly in R
 expose_stan_functions(stanc(model_code = hivst_mod))
@@ -836,20 +851,24 @@ cnt_data <- list(
     se_hts = c(58917, 42650, 164236, 281277, 301762, 262915) * 0.1
   ),
   mozambique = list(
-    yr_svy =  2021.5,
-    ind_svy = (2021.5 - start) / dt,
+    yr_svy =  c(2021.5, 2022.5),
+    ind_svy = (c(2021.5, 2022.5) - start) / dt,
     den_svy_f = matrix(
-      c(2372, 1943, 2263, 1156), 
-      nrow = 1, byrow = TRUE),
+      c(2372, 1943, 2263, 1156, # 2021
+        4269, 3126, 3071, -999), # 2022
+      nrow = 2, byrow = TRUE),
     num_svy_f = matrix(
-      c(227, 259, 215, 43), 
-      nrow = 1, byrow = TRUE),
+      c(227, 259, 215, 43, # 2021
+        69, 89, 66, -999), # 2022
+      nrow = 2, byrow = TRUE),
     den_svy_m = matrix(
-      c(1828, 1294, 1709, 899),  
-      nrow = 1, byrow = TRUE),
+      c(1828, 1294, 1709, 899, # 2021
+        1640, 1118, 1150, 146), # 2022 
+      nrow = 2, byrow = TRUE),
     num_svy_m = matrix(
-      c(110, 149, 170, 56), 
-      nrow = 1, byrow = TRUE),
+      c(110, 149, 170, 56, # 2021
+        34, 51, 51, 5), # 2022 dhs
+      nrow = 2, byrow = TRUE),
     yr_hts = c(2021, 2022, 2023) + 0.5,
     ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(67883, 203966, 683345),
@@ -996,20 +1015,24 @@ cnt_data <- list(
     se_hts = 12129 * 0.1
   ),
   senegal = list(
-    yr_svy =  2017.5,
-    ind_svy = (2017.5 - start) / dt,
+    yr_svy =  c(2017.5, 2023.5),
+    ind_svy = (c(2017.5, 2023.5) - start) / dt,
     den_svy_f = matrix(
-      c(4458, 3271, 5904, -999), 
-      nrow = 1, byrow = TRUE),
+      c(4458, 3271, 5904, -999, # 2017
+        2965, 4634, 2078, -999), # 2023
+      nrow = 2, byrow = TRUE),
     num_svy_f = matrix(
-      c(4, 10, 10, -999), 
-      nrow = 1, byrow = TRUE),
+      c(4, 10, 10, -999, # 2017
+        12, 31, 14, -999), # 2023
+      nrow = 2, byrow = TRUE),
     den_svy_m = matrix(
-      c(3384, 655, 3226, 330),  
-      nrow = 1, byrow = TRUE),
+      c(3384, 655, 3226, 330, # 2017
+        2170, 1087, 1289, 511), # 2023 
+      nrow = 2, byrow = TRUE),
     num_svy_m = matrix(
-      c(1, 1, 2, 3), 
-      nrow = 1, byrow = TRUE),
+      c(1, 1, 2, 3, # 2017
+        1, 3, 3, 2), # 2023 
+      nrow = 2, byrow = TRUE),
     yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
     ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(7307, 18860, 5505, 4056, 11932),
@@ -1293,6 +1316,7 @@ data_stan <- list(
 )
 rstan_options(auto_write = TRUE)
 
+
 # Fitting 
 options(mc.cores = parallel::detectCores())
 init_function <- function() {
@@ -1302,23 +1326,28 @@ init_function <- function() {
     sd_rw = runif(1, min = 0.1, max = 1),
     sd_phi = runif(1, min = 0.1, max = 1),
     sd_rt = runif(1, min = 0.1, max = 1),
-    sd_men = runif(1, min = 0.1, max = 1),
-    sd_age = runif(1, min = 0.1, max = 1),
+    sd_male = runif(1, min = 0.1, max = 1),
+    sd_age_male = runif(1, min = 0.1, max = 1),
+    sd_age_female = runif(1, min = 0.1, max = 1),
     beta_restest_overall = rnorm(1, qlogis((1.2 - 0.5) / (2.5 - 0.5)), 0.1),
     beta_rt_raw = rnorm(data_stan$n_cnt, 0, 0.5),
-    beta_men_overall = rnorm(1, log(1), 0.1),
-    beta_men_raw = rnorm(data_stan$n_cnt, 0, 0.1),
-    beta_age_overall = rnorm(3, log(1), 0.1),
-    beta_age_raw1 = rnorm(data_stan$n_cnt, 0, 0.1),  
-    beta_age_raw2 = rnorm(data_stan$n_cnt, 0, 0.1),  
-    beta_age_raw3 = rnorm(data_stan$n_cnt, 0, 0.1),  
+    beta_male_overall = rnorm(1, log(1), 0.1),
+    beta_male_raw = rnorm(data_stan$n_cnt, 0, 0.1),
+    beta_age_male_overall = rnorm(3, log(1), 0.1),
+    beta_age_male_raw1 = rnorm(data_stan$n_cnt, 0, 0.1),  
+    beta_age_male_raw2 = rnorm(data_stan$n_cnt, 0, 0.1),  
+    beta_age_male_raw3 = rnorm(data_stan$n_cnt, 0, 0.1),
+    beta_age_female_overall = rnorm(3, log(1), 0.1),
+    beta_age_female_raw1 = rnorm(data_stan$n_cnt, 0, 0.1),  
+    beta_age_female_raw2 = rnorm(data_stan$n_cnt, 0, 0.1),  
+    beta_age_female_raw3 = rnorm(data_stan$n_cnt, 0, 0.1),
     beta_phi_overall = rnorm(1, qlogis((0.8 - 0.5) / (1 - 0.5)), 0.1),
     phi_raw = rnorm(data_stan$n_cnt, 0, 0.2)
   )
 }
 
-fit <- sampling(hivst_stan, data = data_stan, iter = 1000, chains = 4, init = init_function,
-                warmup = 500, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 4000, chains = 4, init = init_function,
+                warmup = 2000, thin = 1, control = list(adapt_delta = 0.9))
 # traceplots
 traceplot(fit, pars = "sd_rw")
 traceplot(fit, pars = "sd_phi")
@@ -1338,18 +1367,18 @@ traceplot(fit, pars = "phi_raw")
 #------saving the model fit and posterior summaries------------
 
 # saving the fit object
-saveRDS(fit, file = "Model results/hivst_stan_fit_feb28.rds")
-fit <- readRDS("Model results/hivst_stan_fit_feb28.rds")
+saveRDS(fit, file = "Model results/hivst_stan_fit_mar28.rds")
+fit <- readRDS("Model results/hivst_stan_fit_mar28.rds")
 
 # saving the compiled StanModel object 
-saveRDS(hivst_stan, "Model results/hivst_stan_model_feb28.rds")
-hivst_stan <- readRDS("Model results/hivst_stan_model_feb28.rds")
+saveRDS(hivst_stan, "Model results/hivst_stan_model_mar28.rds")
+hivst_stan <- readRDS("Model results/hivst_stan_model_mar28.rds")
 
 # saving posterior summaries
 # rstan::summary(fit)
 fit_summary <- summary(fit)
-saveRDS(fit_summary, file = "Model results/hivst_stan_summary_feb28.rds")
-fit_summary <- readRDS("Model results/hivst_stan_summary_feb28.rds")
+saveRDS(fit_summary, file = "Model results/hivst_stan_summary_mar28.rds")
+fit_summary <- readRDS("Model results/hivst_stan_summary_mar28.rds")
 #colnames(fit_summary$summary)
 #names(rstan::extract(fit))
 
