@@ -1,4 +1,4 @@
-
+#---April 15: adding separate age rate ratios for men and women----
 # ---testing code for the final age and sex stratified model to code plots----
 rm(list = ls())
 gc()
@@ -1367,18 +1367,18 @@ traceplot(fit, pars = "phi_raw")
 #------saving the model fit and posterior summaries------------
 
 # saving the fit object
-saveRDS(fit, file = "Model results/hivst_stan_fit_mar28.rds")
-fit <- readRDS("Model results/hivst_stan_fit_mar28.rds")
+saveRDS(fit, file = "Model results/hivst_stan_fit_apr15.rds")
+fit <- readRDS("Model results/hivst_stan_fit_apr15.rds")
 
 # saving the compiled StanModel object 
-saveRDS(hivst_stan, "Model results/hivst_stan_model_mar28.rds")
-hivst_stan <- readRDS("Model results/hivst_stan_model_mar28.rds")
+saveRDS(hivst_stan, "Model results/hivst_stan_model_apr15.rds")
+hivst_stan <- readRDS("Model results/hivst_stan_model_apr15.rds")
 
 # saving posterior summaries
 # rstan::summary(fit)
 fit_summary <- summary(fit)
-saveRDS(fit_summary, file = "Model results/hivst_stan_summary_mar28.rds")
-fit_summary <- readRDS("Model results/hivst_stan_summary_mar28.rds")
+saveRDS(fit_summary, file = "Model results/hivst_stan_summary_apr15.rds")
+fit_summary <- readRDS("Model results/hivst_stan_summary_apr15.rds")
 #colnames(fit_summary$summary)
 #names(rstan::extract(fit))
 

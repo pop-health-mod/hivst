@@ -1,10 +1,18 @@
 
+rm(list = ls())
+gc()
+
+library(ggplot2)
+library(ggsci)
+library(cowplot)
+
 
 # ------model fit--------
-fit <- readRDS("Model results/hivst_stan_fit_feb28.rds")
+setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
+fit <- readRDS("hivst_stan_fit_mar28.rds")
 
 
-#---pop at the beginning of the year (as wpp reports mid year pop)----
+#---pop at the beginning of the year (as WPP reports mid year pop)----
 countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", 
                "Sierra Leone", "Zambia", "Mali", "Uganda",
                "Lesotho", "Mozambique", "Rwanda",
@@ -704,7 +712,6 @@ idx_pop <- seq(from = 1, to = (n_cnt * 4), by = 4)
 
 #-----------------plots from fit--------------------
 
-
 # testing rate
 pars_beta_t <- matrix(paste0("beta_t[", rep(1:data_stan$n_cnt, each = data_stan$n_yr), ",", rep(1:data_stan$n_yr, data_stan$n_cnt), "]"), 
                       nrow = data_stan$n_cnt, ncol = data_stan$n_yr, byrow = TRUE)
@@ -773,6 +780,72 @@ rr_retesting_forest <- ggplot(df_rr_ov, aes(x = country, y = median, color = sty
   theme(legend.position = "right")
 rr_retesting_forest
 
+#ggsave("rr_retest_plot.png", plot = rr_retesting_forest, width = 8, height = 6, dpi = 300)
+
+# ------- phi -----------------
+phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+0.5 + (1 - 0.5) * plogis(phi_overall$`50%`)
+0.5 + (1 - 0.5) * plogis(phi_overall$`2.5%`)
+0.5 + (1 - 0.5) * plogis(phi_overall$`97.5%`)
+phi <- as.data.frame(rstan::summary(fit, pars = c("phi"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+phi$`50%`
+phi$`2.5%`
+phi$`97.5%`
+
+# df and forest plot for phi
+df_phi <- data.frame(country = names(cnt_data),
+                     median = phi$`50%`,
+                     lci = phi$`2.5%`,
+                     uci = phi$`97.5%`)
+df_phi_ov <- rbind(df_phi,
+                   data.frame( country = "overall",
+                               median = 0.5 + (1 - 0.5) * plogis(phi_overall$`50%`),
+                               lci = 0.5 + (1 - 0.5) * plogis(phi_overall$`2.5%`),
+                               uci = 0.5 + (1 - 0.5) * plogis(phi_overall$`97.5%`)))
+
+# Renaming selected countries
+df_phi_ov$country <- as.character(df_phi_ov$country)
+rename_map <- c(
+  "burkinafaso"  = "Burkina Faso",
+  "cotedivoire"  = "Côte d'Ivoire",
+  "sierraleone"  = "Sierra Leone",
+  "southafrica"  = "South Africa",
+  "guineabissau" = "Guinea-Bissau",
+  "drc"          = "DRC"
+)
+for (old_name in names(rename_map)) {
+  df_phi_ov$country[df_phi_ov$country == old_name] <- rename_map[[old_name]]
+}
+
+df_phi_ov$country <- sapply(df_phi_ov$country, cap_first_letter, USE.NAMES = FALSE)
+
+countries_no_overall <- setdiff(df_phi_ov$country, "Overall")
+countries_sorted     <- sort(countries_no_overall)    
+new_levels           <- c("Overall", rev(countries_sorted))
+
+df_phi_ov$country     <- factor(df_phi_ov$country, levels = new_levels)
+df_phi_ov$style <- ifelse(df_phi_ov$country == "Overall", "pooled", "individual")
+
+
+phi_forest <- ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
+  scale_color_manual(values = c("individual" = "violetred1", "pooled" = "violetred4")) +  # Colors
+  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "", x = "Country", y = "Proportion of distributed HIVST kits that are used", color = "Estimates (95% CrI)") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
+  theme(legend.position = "right") +
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
+phi_forest
+
+#ggsave("phi_plot.png", plot = phi_forest, width = 8, height = 6, dpi = 300)
+
+
+#---rr retest and phi side by side panel-----
+rrretest_phi <- plot_grid(rr_retesting_forest, phi_forest, ncol = 2)
+ggsave("rrretest_phi_plot.png", plot = rrretest_phi, width = 16, height = 6, dpi = 300)
+
 
 #-------- rate ratio male ---------------
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_male_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -833,37 +906,39 @@ rr_male_forest <- ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   theme(legend.position = "right")
 rr_male_forest
 
+#ggsave("rr_male_plot.png", plot = rr_male_forest, width = 8, height = 6, dpi = 300)
 
 #-------- rate ratio age ---------------
-rr_age_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_age_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-exp(rr_age_overall$`50%`)
-exp(rr_age_overall$`2.5%`)
-exp(rr_age_overall$`97.5%`)
+#---men----
+rr_age_overall_m <- as.data.frame(rstan::summary(fit, pars = c("beta_age_male_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+exp(rr_age_overall_m$`50%`)
+exp(rr_age_overall_m$`2.5%`)
+exp(rr_age_overall_m$`97.5%`)
 
-rr_age <- as.data.frame(rstan::summary(fit, pars = c("beta_age"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-rr_age$`50%`
-rr_age$`2.5%`
-rr_age$`97.5%`
+rr_age_m <- as.data.frame(rstan::summary(fit, pars = c("beta_age_male"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+rr_age_m$`50%`
+rr_age_m$`2.5%`
+rr_age_m$`97.5%`
 
 # data.frame and forest plot for RR male
-df_rr_a <- NULL
+df_rr_a_m <- NULL
 for (i in 1:n_cnt) {
-  df_rr_a_i <- data.frame(country = names(cnt_data)[i],
+  df_rr_a_m_i <- data.frame(country = names(cnt_data)[i],
                           age = c("25-34", "35-49", "50+"),
-                          median = rr_age$`50%`[grepl(paste(paste0("beta_age\\[", i, ",", 2:4, "\\]"), collapse = "|"), rownames(rr_age))],
-                          lci = rr_age$`2.5%`[grepl(paste(paste0("beta_age\\[", i, ",", 2:4, "\\]"), collapse = "|"), rownames(rr_age))],
-                          uci = rr_age$`97.5%`[grepl(paste(paste0("beta_age\\[", i, ",", 2:4, "\\]"), collapse = "|"), rownames(rr_age))])
-  df_rr_a <- rbind(df_rr_a, df_rr_a_i)
+                          median = rr_age_m$`50%`[grepl(paste(paste0("beta_age_male\\[", i, ",", 2:4, "\\]"), collapse = "|"), rownames(rr_age_m))],
+                          lci = rr_age_m$`2.5%`[grepl(paste(paste0("beta_age_male\\[", i, ",", 2:4, "\\]"), collapse = "|"), rownames(rr_age_m))],
+                          uci = rr_age_m$`97.5%`[grepl(paste(paste0("beta_age_male\\[", i, ",", 2:4, "\\]"), collapse = "|"), rownames(rr_age_m))])
+  df_rr_a_m <- rbind(df_rr_a_m, df_rr_a_m_i)
 }
-df_rr_age <- rbind(df_rr_a,
+df_rr_age_m <- rbind(df_rr_a_m,
                    data.frame( age = c("25-34", "35-49", "50+"),
                                country = "overall",
-                               median = exp(rr_age_overall$`50%`),
-                               lci = exp(rr_age_overall$`2.5%`),
-                               uci = exp(rr_age_overall$`97.5%`)))
+                               median = exp(rr_age_overall_m$`50%`),
+                               lci = exp(rr_age_overall_m$`2.5%`),
+                               uci = exp(rr_age_overall_m$`97.5%`)))
 
 # Renaming selected countries
-df_rr_age$country <- as.character(df_rr_age$country)
+df_rr_age_m$country <- as.character(df_rr_age_m$country)
 rename_map <- c(
   "burkinafaso"  = "Burkina Faso",
   "cotedivoire"  = "Côte d'Ivoire",
@@ -873,20 +948,20 @@ rename_map <- c(
   "drc"          = "DRC"
 )
 for (old_name in names(rename_map)) {
-  df_rr_age$country[df_rr_age$country == old_name] <- rename_map[[old_name]]
+  df_rr_age_m$country[df_rr_age_m$country == old_name] <- rename_map[[old_name]]
 }
 
-df_rr_age$country <- sapply(df_rr_age$country, cap_first_letter, USE.NAMES = FALSE)
+df_rr_age_m$country <- sapply(df_rr_age_m$country, cap_first_letter, USE.NAMES = FALSE)
 
-countries_no_overall <- setdiff(df_rr_age$country, "Overall")
+countries_no_overall <- setdiff(df_rr_age_m$country, "Overall")
 countries_sorted     <- sort(countries_no_overall)    
 new_levels           <- c("Overall", rev(countries_sorted))
 
-df_rr_age$country     <- factor(df_rr_age$country, levels = new_levels)
-df_rr_age$style <- ifelse(df_rr_age$country == "Overall", "pooled", "individual")
-df_rr_age$age <- factor(df_rr_age$age, levels = c("50+", "35-49", "25-34")) # to match with position.dodge()
+df_rr_age_m$country     <- factor(df_rr_age_m$country, levels = new_levels)
+df_rr_age_m$style <- ifelse(df_rr_age_m$country == "Overall", "Pooled", "Individual")
+df_rr_age_m$age <- factor(df_rr_age_m$age, levels = c("50+", "35-49", "25-34")) # to match with position.dodge()
 
-rr_age_forest <- ggplot(df_rr_age, aes(x = country, y = median, color = age, size = style)) +
+rr_age_forest_m <- ggplot(df_rr_age_m, aes(x = country, y = median, color = age, size = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci),
                   position = position_dodge(width = 0.2)) +
   scale_color_manual(values = c("25-34" = "#845699", 
@@ -895,38 +970,46 @@ rr_age_forest <- ggplot(df_rr_age, aes(x = country, y = median, color = age, siz
   scale_size_manual(values = c("individual" = 0.2, "pooled" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Rate ratio by age (ref: 15-24)", color = "Estimates (95% CrI)") +
+  labs(title = "", x = "Country", y = "Rate ratio by age for men (ref: 15-24)", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
   theme(legend.position = "right") +
   guides(color = guide_legend(reverse = TRUE), size = "none")
-rr_age_forest
+rr_age_forest_m
 
+#ggsave("rr_age_plot_men.png", plot = rr_age_forest_m, width = 8, height = 6, dpi = 300)
 
-# ------- phi -----------------
-phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-0.5 + (1 - 0.5) * plogis(phi_overall$`50%`)
-0.5 + (1 - 0.5) * plogis(phi_overall$`2.5%`)
-0.5 + (1 - 0.5) * plogis(phi_overall$`97.5%`)
-phi <- as.data.frame(rstan::summary(fit, pars = c("phi"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
-phi$`50%`
-phi$`2.5%`
-phi$`97.5%`
+#---women----
+rr_age_overall_f <- as.data.frame(rstan::summary(fit, pars = c("beta_age_female_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+exp(rr_age_overall_f$`50%`)
+exp(rr_age_overall_f$`2.5%`)
+exp(rr_age_overall_f$`97.5%`)
 
-# df and forest plot for phi
-df_phi <- data.frame(country = names(cnt_data),
-                     median = phi$`50%`,
-                     lci = phi$`2.5%`,
-                     uci = phi$`97.5%`)
-df_phi_ov <- rbind(df_phi,
-                   data.frame( country = "overall",
-                               median = 0.5 + (1 - 0.5) * plogis(phi_overall$`50%`),
-                               lci = 0.5 + (1 - 0.5) * plogis(phi_overall$`2.5%`),
-                               uci = 0.5 + (1 - 0.5) * plogis(phi_overall$`97.5%`)))
+rr_age_f <- as.data.frame(rstan::summary(fit, pars = c("beta_age_female"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
+rr_age_f$`50%`
+rr_age_f$`2.5%`
+rr_age_f$`97.5%`
+
+# data.frame and forest plot for RR male
+df_rr_a_f <- NULL
+for (i in 1:n_cnt) {
+  df_rr_a_f_i <- data.frame(country = names(cnt_data)[i],
+                            age = c("25-34", "35-49", "50+"),
+                            median = rr_age_f$`50%`[grepl(paste(paste0("beta_age_female\\[", i, ",", 2:4, "\\]"), collapse = "|"), rownames(rr_age_f))],
+                            lci = rr_age_f$`2.5%`[grepl(paste(paste0("beta_age_female\\[", i, ",", 2:4, "\\]"), collapse = "|"), rownames(rr_age_f))],
+                            uci = rr_age_f$`97.5%`[grepl(paste(paste0("beta_age_female\\[", i, ",", 2:4, "\\]"), collapse = "|"), rownames(rr_age_f))])
+  df_rr_a_f <- rbind(df_rr_a_f, df_rr_a_f_i)
+}
+df_rr_age_f <- rbind(df_rr_a_f,
+                     data.frame( age = c("25-34", "35-49", "50+"),
+                                 country = "overall",
+                                 median = exp(rr_age_overall_f$`50%`),
+                                 lci = exp(rr_age_overall_f$`2.5%`),
+                                 uci = exp(rr_age_overall_f$`97.5%`)))
 
 # Renaming selected countries
-df_phi_ov$country <- as.character(df_phi_ov$country)
+df_rr_age_f$country <- as.character(df_rr_age_f$country)
 rename_map <- c(
   "burkinafaso"  = "Burkina Faso",
   "cotedivoire"  = "Côte d'Ivoire",
@@ -936,32 +1019,41 @@ rename_map <- c(
   "drc"          = "DRC"
 )
 for (old_name in names(rename_map)) {
-  df_phi_ov$country[df_phi_ov$country == old_name] <- rename_map[[old_name]]
+  df_rr_age_f$country[df_rr_age_f$country == old_name] <- rename_map[[old_name]]
 }
 
-df_phi_ov$country <- sapply(df_phi_ov$country, cap_first_letter, USE.NAMES = FALSE)
+df_rr_age_f$country <- sapply(df_rr_age_f$country, cap_first_letter, USE.NAMES = FALSE)
 
-countries_no_overall <- setdiff(df_phi_ov$country, "Overall")
+countries_no_overall <- setdiff(df_rr_age_f$country, "Overall")
 countries_sorted     <- sort(countries_no_overall)    
 new_levels           <- c("Overall", rev(countries_sorted))
 
-df_phi_ov$country     <- factor(df_phi_ov$country, levels = new_levels)
-df_phi_ov$style <- ifelse(df_phi_ov$country == "Overall", "pooled", "individual")
+df_rr_age_f$country     <- factor(df_rr_age_f$country, levels = new_levels)
+df_rr_age_f$style <- ifelse(df_rr_age_f$country == "Overall", "Pooled", "Individual")
+df_rr_age_f$age <- factor(df_rr_age_f$age, levels = c("50+", "35-49", "25-34")) # to match with position.dodge()
 
-
-phi_forest <- ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
-  geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
-  scale_color_manual(values = c("individual" = "violetred1", "pooled" = "violetred4")) +  # Colors
-  scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
+rr_age_forest_f <- ggplot(df_rr_age_f, aes(x = country, y = median, color = age, size = style)) +
+  geom_pointrange(aes(ymin = lci, ymax = uci),
+                  position = position_dodge(width = 0.2)) +
+  scale_color_manual(values = c("25-34" = "palevioletred2", 
+                                "35-49" = "palegreen2",
+                                "50+" = "thistle3")) +  # Colors
+  scale_size_manual(values = c("individual" = 0.2, "pooled" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Proportion of distributed HIVST kits that are used", color = "Estimates (95% CrI)") +
+  labs(title = "", x = "Country", y = "Rate ratio by age for women (ref: 15-24)", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
-  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
-phi_forest
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
+  theme(legend.position = "right") +
+  guides(color = guide_legend(reverse = TRUE), size = "none")
+rr_age_forest_f
 
+#ggsave("rr_age_plot_women.png", plot = rr_age_forest_f, width = 8, height = 6, dpi = 300)
 
+#---rr male and rr age side by side panel-----
+rrmale_rrge <- plot_grid(rr_male_forest, rr_age_forest, ncol = 2)
+#ggsave("rrrmale_rrage.png", plot = rrmale_rrge, width = 16, height = 6, dpi = 300)
 
 
 
@@ -1068,11 +1160,12 @@ sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
     legend.position = "bottom", 
     plot.title      = element_text(hjust = 0.5)
   ) +
-  ggtitle("Trends in HIVST uptake by sex in Africa")
+  ggtitle("HIVST uptake by sex")
 
 sex_trend_plot
 
 
+#ggsave("trend_sex_plot.png", plot = sex_trend_plot, width = 8, height = 6, dpi = 300)
 
 #------------- overall trend by age groups ------------------
 ext_fit_m <- rstan::extract(fit, pars = "svy_prd_m")$svy_prd_m
@@ -1164,11 +1257,12 @@ p_age <- ggplot(df_age, aes(x = time)) +
     legend.position = "bottom",
     plot.title      = element_text(hjust = 0.5)
   ) +
-  ggtitle("Trends in HIVST uptake by age group in Africa")
+  ggtitle("HIVST uptake by age groups")
 
 p_age
 
 
+#ggsave("trend_age_plot.png", plot = p_age, width = 8, height = 6, dpi = 300)
 
 
 
@@ -1218,6 +1312,8 @@ p_total <- ggplot(df_total, aes(x = time)) +
 
 p_total
 
+#---region wise trend-----
+
 # ---- regional classification from GBD 2015-----
 country_to_region <- c(
   "Burundi"                       = "Eastern", 
@@ -1250,6 +1346,247 @@ country_to_region <- c(
   "Senegal"                       = "Western", 
   "Sierra Leone"                  = "Western"
 )
+
+
+is_ESA <- function(region) {
+  #  Eastern + Southern as "ESA"
+  region %in% c("Eastern", "Southern")
+}
+
+is_WCA <- function(region) {
+  # We'll treat Western + Central as "WCA"
+  region %in% c("Western", "Central")
+}
+
+# Now for each country in `countries`, find if it belongs to ESA or WCA:
+country_super_region <- sapply(countries, function(ctry) {
+  if (is_ESA(country_to_region[ctry])) {
+    return("ESA")
+  } else if (is_WCA(country_to_region[ctry])) {
+    return("WCA")
+  } else {
+    # If, for some reason, there's a mismatch or new region, handle it
+    return(NA_character_)
+  }
+})
+
+stopifnot(length(country_super_region) == n_cnt)
+
+# We'll create region-level population mats:
+pop_mat_m_ESA <- matrix(0, nrow = n_cnt, ncol = n_age)
+pop_mat_f_ESA <- matrix(0, nrow = n_cnt, ncol = n_age)
+pop_mat_m_WCA <- matrix(0, nrow = n_cnt, ncol = n_age)
+pop_mat_f_WCA <- matrix(0, nrow = n_cnt, ncol = n_age)
+
+for (c in seq_len(n_cnt)) {
+  if (country_super_region[c] == "ESA") {
+    pop_mat_m_ESA[c, ] <- pop_mat_m[c, ]
+    pop_mat_f_ESA[c, ] <- pop_mat_f[c, ]
+  } else if (country_super_region[c] == "WCA") {
+    pop_mat_m_WCA[c, ] <- pop_mat_m[c, ]
+    pop_mat_f_WCA[c, ] <- pop_mat_f[c, ]
+  }
+}
+
+# Region-level total population
+pop_total_ESA <- sum(pop_mat_m_ESA) + sum(pop_mat_f_ESA)
+pop_total_WCA <- sum(pop_mat_m_WCA) + sum(pop_mat_f_WCA)
+
+# We'll store draws in:
+esa_prp <- matrix(NA, nrow = n_draws, ncol = niter)
+wca_prp <- matrix(NA, nrow = n_draws, ncol = niter)
+
+for (i in seq_len(n_draws)) {
+  for (t in seq_len(niter)) {
+    # ESA
+    sum_esa <- 0
+    for (c in seq_len(n_cnt)) {
+      if (country_super_region[c] == "ESA") {
+        for (a in seq_len(n_age)) {
+          # sum men
+          sum_esa <- sum_esa + ext_fit_m[i, c, t, a] * pop_mat_m[c, a]
+          # sum women
+          sum_esa <- sum_esa + ext_fit_f[i, c, t, a] * pop_mat_f[c, a]
+        }
+      }
+    }
+    esa_prp[i, t] <- sum_esa / pop_total_ESA
+    
+    # WCA
+    sum_wca <- 0
+    for (c in seq_len(n_cnt)) {
+      if (country_super_region[c] == "WCA") {
+        for (a in seq_len(n_age)) {
+          sum_wca <- sum_wca + ext_fit_m[i, c, t, a] * pop_mat_m[c, a]
+          sum_wca <- sum_wca + ext_fit_f[i, c, t, a] * pop_mat_f[c, a]
+        }
+      }
+    }
+    wca_prp[i, t] <- sum_wca / pop_total_WCA
+  }
+}
+
+esa_lci <- apply(esa_prp, 2, quantile, 0.025)
+esa_med <- apply(esa_prp, 2, quantile, 0.5)
+esa_uci <- apply(esa_prp, 2, quantile, 0.975)
+
+wca_lci <- apply(wca_prp, 2, quantile, 0.025)
+wca_med <- apply(wca_prp, 2, quantile, 0.5)
+wca_uci <- apply(wca_prp, 2, quantile, 0.975)
+
+df_regions <- data.frame(
+  time = rep(time, times = 2),
+  region = rep(c("ESA", "WCA"), each = length(time)),
+  
+  # Put proportions in percent
+  median = c(esa_med, wca_med) * 100,
+  lci    = c(esa_lci,  wca_lci)  * 100,
+  uci    = c(esa_uci,  wca_uci)  * 100
+)
+
+
+p_regions <- ggplot(df_regions, aes(x = time, y = median, color = region, fill = region)) +
+  geom_ribbon(aes(ymin = lci, ymax = uci), alpha = 0.2, color = NA) +
+  geom_line(size = 1.2) +
+  scale_color_manual(
+    values = c("ESA" = "darkslateblue", "WCA" = "darkviolet"), 
+    labels = c("ESA" = "Eastern & Southern Africa", 
+               "WCA" = "Western & Central Africa")
+  ) +
+  scale_fill_manual(
+    values = c("ESA" = "darkslateblue", "WCA" = "darkviolet"),
+    labels = c("ESA" = "Eastern & Southern Africa", 
+               "WCA" = "Western & Central Africa")
+  ) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  labs(
+    x = "Year",
+    y = "Proportion of people who have ever used HIVST (%)",
+    color = "Region",
+    fill  = "Region"
+  ) +
+  theme_classic(base_size = 14) +
+  ggtitle("HIVST uptake by region") +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5)  # center the plot title
+  )
+
+p_regions
+
+#ggsave("trend_region_plot.png", plot = p_regions, width = 8, height = 6, dpi = 300)
+
+
+#---3 trend plots in panel-----------
+# removing legend titles for panel
+# region
+p_regions <- ggplot(df_regions, aes(x = time, y = median, color = region, fill = region)) +
+  geom_ribbon(aes(ymin = lci, ymax = uci), alpha = 0.2, color = NA) +
+  geom_line(size = 1.2) +
+  scale_color_manual(
+    values = c("ESA" = "darkslateblue", "WCA" = "darkviolet"),
+    labels = c("ESA" = "Eastern & Southern Africa",
+               "WCA" = "Western & Central Africa"),
+    name   = NULL            # <--- remove legend title
+  ) +
+  scale_fill_manual(
+    values = c("ESA" = "darkslateblue", "WCA" = "darkviolet"),
+    labels = c("ESA" = "Eastern & Southern Africa",
+               "WCA" = "Western & Central Africa"),
+    name   = NULL            # <--- remove legend title
+  ) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  labs(
+    x = "Year",
+    y = "Proportion of people who have ever used HIVST (%)"
+    # we omit color= or fill= to avoid legend titles here
+  ) +
+  theme_classic(base_size = 14) +
+  ggtitle("HIVST uptake by region") +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5)
+  )
+
+p_regions
+
+# sex
+sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
+  geom_ribbon(aes(ymin = male_lci, ymax = male_uci),
+              fill = "lightblue", alpha = 0.3, show.legend = FALSE) +
+  geom_line(aes(y = male_med, color = "Male"), size = 1.1) +
+  geom_ribbon(aes(ymin = female_lci, ymax = female_uci),
+              fill = "pink", alpha = 0.3, show.legend = FALSE) +
+  geom_line(aes(y = female_med, color = "Female"), size = 1.1) +
+  scale_color_manual(
+    name = NULL,
+    values = c("Male" = "deepskyblue4", "Female" = "deeppink1")
+  ) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 10, by = 1)) +
+  labs(
+    x = "Year",
+    y = "Proportion of people who have ever used HIVST (%)"
+  ) +
+  theme_classic(base_size = 14) +
+  theme(
+    legend.position = "bottom", 
+    plot.title      = element_text(hjust = 0.5)
+  ) +
+  ggtitle("HIVST uptake by sex")
+
+sex_trend_plot
+
+# age
+p_age <- ggplot(df_age, aes(x = time)) +
+  geom_ribbon(aes(ymin = lci, ymax = uci, fill = age_grp),
+              alpha = 0.2, color = NA) +
+  geom_line(aes(y = median, color = age_grp), size = 1.1) +
+  scale_color_manual(
+    values = c("15-24 years" = "#326df9", 
+               "25-34 years" = "#a3d47e", 
+               "35-49 years" = "#ff7476", 
+               "50+ years"   = "#f9b332"),
+    name   = NULL 
+  ) +
+  scale_fill_manual(
+    values = c("15-24 years" = "#326df9",
+               "25-34 years" = "#a3d47e", 
+               "35-49 years" = "#ff7476", 
+               "50+ years"   = "#f9b332"),
+    name   = NULL 
+  ) +
+  scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
+  scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  labs(
+    x = "Year",
+    y = "Proportion of people who have ever used HIVST (%)"
+  ) +
+  theme_classic(base_size = 14) +
+  theme(
+    legend.position = "bottom",
+    legend.title    = element_blank(),     # remove any remaining title
+    plot.title      = element_text(hjust = 0.5)
+  ) +
+  guides(
+    color = guide_legend(nrow = 2),
+    fill  = guide_legend(nrow = 2)
+  ) +
+  ggtitle("HIVST uptake by age groups")
+
+p_age
+
+# combined plot
+
+combined_trend <- p_regions + sex_trend_plot + p_age +
+  plot_layout(ncol = 3) +
+  plot_annotation(tag_levels = "A")  # automatically labels panels A, B, C
+
+combined_trend
+#ggsave("trend_all3_plot.png", plot = combined_trend, width = 12, height = 6, dpi = 300)
+
 
 
 #--- function code to check for survey and program fit--------
@@ -1287,7 +1624,7 @@ for (c in seq_len(n_cnt)) {
 }
 
 # plotting for each country
-png("plots from final model/survey_fit_men.png",
+png("survey_fit_men.png",
     width = 14, height = 28,
     units = "in", res = 320)
 par(mfrow = c(2, 2))
@@ -1345,7 +1682,7 @@ for (c in seq_len(n_cnt)) {
 }
 
 # plotting for each country
-png("plots from final model/survey_fit_women.png",
+png("survey_fit_women.png",
     width = 14, height = 28,
     units = "in", res = 320)
 par(mfrow = c(2, 2))
@@ -1401,7 +1738,7 @@ for (c in seq_len(n_cnt)) {
   hts_list[[c]] <- hts_full[ix_c, ]
 }
 
-png("plots from final model/program_data_fit.png",
+png("Model results/program_data_fit.png",
     width = 14, height = 28,
     units = "in", res = 320)
 
@@ -1480,24 +1817,104 @@ df_last_dt <- data.frame(
 )
 df_last_dt
 
-overall_country_estimates <- ggplot(df_last_dt, aes(x = Country, y = Median)) +
-  geom_col(fill = "#CC0066", color = "black") + 
-  geom_errorbar(aes(ymin = LCI, ymax = UCI), 
-                width = 0.2, color = "black", size = 0.7) +
+# overall_country_estimates <- ggplot(df_last_dt, aes(x = Country, y = Median)) +
+#   geom_col(fill = "#CC0066", color = "black") + 
+#   geom_errorbar(aes(ymin = LCI, ymax = UCI), 
+#                 width = 0.2, color = "black", size = 0.7) +
+#   scale_y_continuous(limits = c(0, 50), expand = c(0, 0)) +
+#   labs(
+#     x = NULL,
+#     y = "Proportion of people who have used HIVST (%)",
+#     ggtitle = "HIVST Use by Country"
+#   ) +
+#   theme_classic(base_size = 14)
+# 
+# overall_country_estimates
+
+
+
+# overall_country_estimates <- ggplot(df_last_dt, aes(x = reorder(Country, Median), y = Median)) +
+#   geom_col(fill = "#CC0066", color = "black") + 
+#   geom_errorbar(aes(ymin = LCI, ymax = UCI), width = 0.2, color = "black", size = 0.7) +
+#   coord_flip() +  # Flip the coordinates so that country names are on the y-axis
+#   scale_y_continuous(limits = c(0, 50), expand = c(0, 0)) +
+#   labs(
+#     x = NULL,
+#     y = "Proportion of people who have used HIVST (%)",
+#     title = "National estimates of HIVST uptake in 2024"
+#   ) +
+#   theme_classic(base_size = 14) +
+#   theme(
+#     axis.text = element_text(size = 12),
+#     axis.title = element_text(size = 14, face = "bold"),
+#     plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+#   )
+# 
+# overall_country_estimates
+
+
+# overall_country_estimates <- ggplot(df_last_dt, aes(x = reorder(Country, Median), y = Median, fill = Median)) +
+#   geom_col(color = "black") +
+#   geom_errorbar(aes(ymin = LCI, ymax = UCI), width = 0.2, color = "black", size = 0.7) +
+#   scale_fill_gradient(low = "#B3CDE3", high = "#011F4B") +
+#   coord_flip() +
+#   scale_y_continuous(limits = c(0, 50), expand = c(0, 0)) +
+#   labs(
+#     x = NULL,
+#     y = "Proportion of people who have used HIVST (%)",
+#     title = "HIVST Use by Country (2024)"
+#   ) +
+#   theme_classic(base_size = 14) +
+#   theme(
+#     axis.text = element_text(size = 12),
+#     axis.title = element_text(size = 14, face = "bold"),
+#     plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+#   )
+# 
+# overall_country_estimates
+
+
+# overall_country_estimates <- ggplot(df_last_dt, aes(x = reorder(Country, Median), y = Median, fill = Median)) +
+#   geom_col(color = "black") +
+#   geom_errorbar(aes(ymin = LCI, ymax = UCI), width = 0.2, color = "black", size = 0.7) +
+#   scale_fill_gradientn(colors = c("#B3CDE3", "#66B2FF", "#1E90FF", "#00509E")) +
+#   coord_flip() +
+#   scale_y_continuous(limits = c(0, 50), expand = c(0, 0)) +
+#   labs(
+#     x = NULL,
+#     y = "Proportion of people who have used HIVST (%)",
+#     title = "National estimates of HIVST uptake in 2024"
+#   ) +
+#   theme_classic(base_size = 14) +
+#   theme(
+#     axis.text = element_text(size = 12),
+#     axis.title = element_text(size = 14, face = "bold"),
+#     plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+#   )
+# 
+# overall_country_estimates
+
+
+overall_country_estimates <- ggplot(df_last_dt, aes(x = reorder(Country, Median), y = Median, fill = Median)) +
+  geom_col(color = NA) +  # Remove borders from the bars
+  geom_errorbar(aes(ymin = LCI, ymax = UCI), width = 0.2, color = "#8B0000", size = 0.7) +  # Deep red error bars
+  scale_fill_gradientn(colors = c("#FFF5E1", "#FFA500", "#FF4500", "#FF0000")) +
+  coord_flip() +
   scale_y_continuous(limits = c(0, 50), expand = c(0, 0)) +
   labs(
     x = NULL,
     y = "Proportion of people who have used HIVST (%)",
-    ggtitle = "HIVST Use by Country"
+    title = "National estimates of HIVST uptake in 2024"
   ) +
-  theme_classic(base_size = 14)
+  theme_classic(base_size = 14) +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 14, face = "bold"),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  )
 
 overall_country_estimates
-
-
-
-
-
+#ggsave("country-estimate_2024.png", plot = overall_country_estimates, width = 8, height = 6, dpi = 300)
 
 
 
