@@ -3,6 +3,8 @@
 rm(list = ls())
 gc()
 
+setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
+
 library(wpp2024)
 library(rstan)
 library(ggplot2)
@@ -1352,33 +1354,34 @@ fit <- sampling(hivst_stan, data = data_stan, iter = 4000, chains = 4, init = in
 traceplot(fit, pars = "sd_rw")
 traceplot(fit, pars = "sd_phi")
 traceplot(fit, pars = "sd_rt")
-traceplot(fit, pars = "sd_men")
+traceplot(fit, pars = "sd_male")
 traceplot(fit, pars = "beta_retest_overall")
 traceplot(fit, pars = "beta_rt_raw")
 traceplot(fit, pars = "beta_retest")
-traceplot(fit, pars = "beta_men_overall")
-traceplot(fit, pars = "beta_men_raw")
+traceplot(fit, pars = "beta_male_overall")
+traceplot(fit, pars = "beta_male_raw")
 traceplot(fit, pars = "beta_male")
 traceplot(fit, pars = "phi")
-traceplot(fit, pars = "beta_age")
+traceplot(fit, pars = "beta_age_male")
+traceplot(fit, pars = "beta_age_female")
 traceplot(fit, pars = "phi_overall")
 traceplot(fit, pars = "phi_raw")
 
 #------saving the model fit and posterior summaries------------
 
 # saving the fit object
-saveRDS(fit, file = "Model results/hivst_stan_fit_apr15.rds")
-fit <- readRDS("Model results/hivst_stan_fit_apr15.rds")
+saveRDS(fit, file = "hivst_stan_fit_apr17.rds")
+fit <- readRDS("hivst_stan_fit_apr17.rds")
 
 # saving the compiled StanModel object 
-saveRDS(hivst_stan, "Model results/hivst_stan_model_apr15.rds")
-hivst_stan <- readRDS("Model results/hivst_stan_model_apr15.rds")
+saveRDS(hivst_stan, "hivst_stan_model_apr17.rds")
+hivst_stan <- readRDS("hivst_stan_model_apr17.rds")
 
 # saving posterior summaries
 # rstan::summary(fit)
 fit_summary <- summary(fit)
-saveRDS(fit_summary, file = "Model results/hivst_stan_summary_apr15.rds")
-fit_summary <- readRDS("Model results/hivst_stan_summary_apr15.rds")
-#colnames(fit_summary$summary)
-#names(rstan::extract(fit))
+saveRDS(fit_summary, file = "hivst_stan_summary_apr17.rds")
+fit_summary <- readRDS("hivst_stan_summary_apr17.rds")
+# colnames(fit_summary$summary)
+# names(rstan::extract(fit))
 

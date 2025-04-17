@@ -9,7 +9,9 @@ library(cowplot)
 
 # ------model fit--------
 setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
-fit <- readRDS("hivst_stan_fit_mar28.rds")
+
+fit <- readRDS("hivst_stan_fit_apr17.rds")
+
 
 
 #---pop at the beginning of the year (as WPP reports mid year pop)----
@@ -706,10 +708,6 @@ for (c in 2:n_cnt) {
 idx_pop <- seq(from = 1, to = (n_cnt * 4), by = 4)
 
 
-
-
-
-
 #-----------------plots from fit--------------------
 
 # testing rate
@@ -844,7 +842,7 @@ phi_forest
 
 #---rr retest and phi side by side panel-----
 rrretest_phi <- plot_grid(rr_retesting_forest, phi_forest, ncol = 2)
-ggsave("rrretest_phi_plot.png", plot = rrretest_phi, width = 16, height = 6, dpi = 300)
+#ggsave("rrretest_phi_plot.png", plot = rrretest_phi, width = 16, height = 6, dpi = 300)
 
 
 #-------- rate ratio male ---------------
@@ -1052,10 +1050,8 @@ rr_age_forest_f
 #ggsave("rr_age_plot_women.png", plot = rr_age_forest_f, width = 8, height = 6, dpi = 300)
 
 #---rr male and rr age side by side panel-----
-rrmale_rrge <- plot_grid(rr_male_forest, rr_age_forest, ncol = 2)
-#ggsave("rrrmale_rrage.png", plot = rrmale_rrge, width = 16, height = 6, dpi = 300)
-
-
+rrage_malefemale <- plot_grid(rr_age_forest_m, rr_age_forest_f, ncol = 2)
+#ggsave("rrage_malefemale.png", plot = rrage_malefemale, width = 16, height = 6, dpi = 300)
 
 
 
@@ -1579,7 +1575,7 @@ p_age <- ggplot(df_age, aes(x = time)) +
 p_age
 
 # combined plot
-
+library(patchwork)
 combined_trend <- p_regions + sex_trend_plot + p_age +
   plot_layout(ncol = 3) +
   plot_annotation(tag_levels = "A")  # automatically labels panels A, B, C
@@ -1627,7 +1623,7 @@ for (c in seq_len(n_cnt)) {
 png("survey_fit_men.png",
     width = 14, height = 28,
     units = "in", res = 320)
-par(mfrow = c(2, 2))
+par(mfrow = c(7, 4))
 par(
   mar = c(3, 4, 2, 1),  
   oma = c(0, 0, 0, 0) 
@@ -1685,7 +1681,7 @@ for (c in seq_len(n_cnt)) {
 png("survey_fit_women.png",
     width = 14, height = 28,
     units = "in", res = 320)
-par(mfrow = c(2, 2))
+par(mfrow = c(7, 4))
 par(
   mar = c(3, 4, 2, 1),  
   oma = c(0, 0, 0, 0) 
@@ -1738,7 +1734,7 @@ for (c in seq_len(n_cnt)) {
   hts_list[[c]] <- hts_full[ix_c, ]
 }
 
-png("Model results/program_data_fit.png",
+png("program_data_fit.png",
     width = 14, height = 28,
     units = "in", res = 320)
 
