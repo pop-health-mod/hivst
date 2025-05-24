@@ -285,6 +285,48 @@ table(bais$survey_id)
 str(bais$survey_id)
 bais$survey_id <- factor(bais$survey_id)
 
+
+# logistic reg for meta analysis (male and female seperately)
+baisf <- bais %>% filter(sex == "Female")  # Female
+baism <- bais %>% filter(sex == "Male")  # Male
+
+# checking
+table(bais$sex)
+table(baisf$sex)
+table(baism$sex)
+
+# logistic reg for meta analysis (Female)
+logistic8f <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = baisf, family = "binomial")
+summary(logistic8f)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status8f <- coef(logistic8f)["hiv_statusPositive"]
+se_hiv_status8f  <- sqrt(vcov(logistic8f)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey8f <- data.frame(
+  survey  = "BWABAIS2021F",
+  logOR   = coef_hiv_status8f,
+  seLogOR = se_hiv_status8f
+)
+
+# logistic reg for meta analysis (male)
+logistic8m <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = baism, family = "binomial")
+summary(logistic8m)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status8m <- coef(logistic8m)["hiv_statusPositive"]
+se_hiv_status8m <- sqrt(vcov(logistic8m)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey8m <- data.frame(
+  survey  = "BWABAIS2021M",
+  logOR   = coef_hiv_status8m,
+  seLogOR = se_hiv_status8m
+)
+
+
+
 # logistic reg for meta analysis
 logistic8 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
                  data = bais, family = "binomial")
@@ -306,35 +348,5 @@ df_survey8 <- data.frame(
 #saveRDS(bais, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_bais_art.rds")
 
 #saveRDS(bais, file = "D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/cleaned biomarker surveys/bio_bais.rds")
-
-
-#-----------proportion of hivst use by HIV status---------------
-# survey unadjusted prop: hiv neg: 259/(259+11077)= 0.02284757, hiv pos: 24/(24+3400)=0.007009346
-# table(bais$hivst_use, useNA = "ifany")
-# table(bais$hiv_status, useNA = "ifany")
-# bais <- bais %>%
-#   filter(!is.na(hiv_status), !is.na(hivst_use))
-# table(bais$hiv_status, bais$hivst_use, useNA = "ifany")
-# 
-# # survey adjusted proportion: hiv neg: 0.02, hiv pos: 0.01
-# bais_design <- svydesign(
-#   ids = ~psu,
-#   strata = ~strata,
-#   weights = ~ind_wt,
-#   data = bais,
-#   nest = TRUE
-# )
-# 
-# bais_prop_hiv <- svyby(
-#   ~I(hivst_use == 1),
-#   ~hiv_status,
-#   design = bais_design,
-#   FUN = svyciprop,
-#   method = "logit",
-#   vartype = "ci",
-#   level = 0.95
-# )
-
-
 
 

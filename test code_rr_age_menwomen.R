@@ -16,8 +16,7 @@ data(mxM1)
 data(mxF1)  
 
 #---pop at the beginning of the year (as wpp reports mid year pop)----
-countries <- c("Kenya", "Ghana")
-
+countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", "Sierra Leone")
 
 age_grp <- list("15-24" = 16:25, "25-34" = 26:35, "35-49" = 36:50, "50+"   = 51:101)
 # matrix with 4 age groups rows for each country, c1=Male, c2=Female
@@ -629,7 +628,6 @@ cnt_data <- list(
     hts_dat = c(197200, 400000, 595953, 630000, 342610, 617317),
     se_hts = c(197200, 400000, 595953, 630000, 342610, 617317) * 0.1
   ),
-  
   ghana = list(
     yr_svy = c(2017.5, 2022.5),
     ind_svy = (c(2017.5, 2022.5) - start) / dt,
@@ -653,6 +651,110 @@ cnt_data <- list(
     ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(20000, 1323, 235000, 140500),
     se_hts = c(20000, 1323, 235000, 140500) * 0.1
+  ),
+  malawi = list(
+    yr_svy = c(2015.5, 2019.5, 2020.5),
+    ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+    den_svy_f = matrix(
+      c( 6698, 4260, 4117, -999, # 2015
+         8372, 5690, 5570, -999, # 2019
+         3544, 2504, 3145, 1530), # 2020
+      nrow = 3, byrow = TRUE),
+    num_svy_f = matrix(
+      c(50, 48, 39, -999, # 2015
+        540, 412, 273, -999, # 2019
+        273, 193, 169, 24), # 2020
+      nrow = 3, byrow = TRUE),
+    den_svy_m = matrix(
+      c(858, 1041, 1061, 148, # 2015 DHS
+        2546, 1368, 1519, -999,# 2019
+        2217, 2199, 2377, 1440), # 2020 
+      nrow = 3, byrow = TRUE),
+    num_svy_m = matrix(
+      c(6, 17, 12, 2, # 2015 DHS
+        230, 131, 109, -999, # 2019 
+        190, 219, 163, 49), # 2020
+      nrow = 3, byrow = TRUE),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(408900, 101256, 561282, 602657, 735385, 910088),
+    se_hts =  c(408900, 101256, 561282, 602657, 735385, 910088) * 0.1 
+  ),
+  madagascar = list(
+    yr_svy = c(2018.5, 2021.5),
+    ind_svy = (c(2018.5, 2021.5) - start) / dt,
+    den_svy_f = matrix(
+      c(3796, 1712, 2117, -999, # 2018
+        4793, 1859, 4414, -999), # 2021
+      nrow = 2, byrow = TRUE),
+    num_svy_f = matrix(
+      c( 41, 48, 30, -999, # 2018
+         10, 9, 10, -999), # 2021
+      nrow = 2, byrow = TRUE),
+    den_svy_m = matrix(
+      c(1188, 888, 1711, -999, # 2018 
+        2971, 2607, 1610, 749), # 2021 DHS
+      nrow = 2, byrow = TRUE),
+    num_svy_m = matrix(
+      c(9, 17, 18, -999, # 2018
+        13, 18, 17, 7), # 2021 DHS
+      nrow = 2, byrow = TRUE),
+    yr_hts = c(2022,  2023) + 0.5,
+    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(2500, 2500),
+    se_hts = c(2500, 2500) * 0.1
+  ),
+  zimbabwe = list(
+    yr_svy = c(2015.5, 2019.5, 2020.5),
+    ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+    den_svy_f = matrix(
+      c(4078, 2387, 1661, -999, # 2015
+        2332, 1954, 1978, -999, # 2019
+        2759, 2343, 3081, 1876), # 2020
+      nrow = 3, byrow = TRUE),
+    num_svy_f = matrix(
+      c(8, 11, 3, -999, # 2015
+        116, 137, 95, -999, # 2019
+        166, 213, 177, 42), # 2020
+      nrow = 3, byrow = TRUE),
+    den_svy_m = matrix(
+      c(2254, 1950, 1453, 333, # 2015 dhs
+        998, 611, 870, -999,# 2019
+        2124, 1340, 1960, 1137), # 2020 
+      nrow = 3, byrow = TRUE),
+    num_svy_m = matrix(
+      c(22, 34, 35, 6, # 2015 dhs
+        39, 46, 47, -999, # 2019 
+        112, 117, 122, 31), # 2020
+      nrow = 3, byrow = TRUE),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(197408, 174566, 240434, 459517, 414499, 513090),
+    se_hts = c(197408, 174566, 240434, 459517, 414499, 513090) * 0.1
+  ),
+  sierraleone = list(
+    yr_svy = c(2017.5, 2019.5),
+    ind_svy = (c(2017.5, 2019.5) - start) / dt,
+    den_svy_f = matrix(
+      c(5854, 4421, 4019, -999, # 2017
+        2203, 1346, 2236, -999), # 2019
+      nrow = 2, byrow = TRUE),
+    num_svy_f = matrix(
+      c(167, 170, 125, -999, # 2017
+        70, 68, 80, -999), # 2019
+      nrow = 2, byrow = TRUE),
+    den_svy_m = matrix(
+      c(5854, 4421, 4019, -999, # 2017 
+        1609, 541, 1157, 773), # 2019 DHS
+      nrow = 2, byrow = TRUE),
+    num_svy_m = matrix(
+      c(167, 170, 125, -999, # 2017
+        22, 17, 25, 15), # 2019 DHS
+      nrow = 2, byrow = TRUE),
+    yr_hts = c(2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(2678, 1173, 50340),
+    se_hts = c(2678, 1173, 50340) * 0.1
   )
 )
 
@@ -797,12 +899,12 @@ fit <- sampling(hivst_stan, data = data_stan, iter = 2000, chains = 4, init = in
 traceplot(fit, pars = "sd_rw")
 traceplot(fit, pars = "sd_phi")
 traceplot(fit, pars = "sd_rt")
-traceplot(fit, pars = "sd_men")
+traceplot(fit, pars = "sd_male")
 traceplot(fit, pars = "beta_retest_overall")
 traceplot(fit, pars = "beta_rt_raw")
 traceplot(fit, pars = "beta_retest")
-traceplot(fit, pars = "beta_men_overall")
-traceplot(fit, pars = "beta_men_raw")
+traceplot(fit, pars = "beta_male_overall")
+traceplot(fit, pars = "beta_male_raw")
 traceplot(fit, pars = "beta_male")
 traceplot(fit, pars = "phi")
 traceplot(fit, pars = "beta_age_male")
@@ -813,7 +915,7 @@ traceplot(fit, pars = "phi_raw")
 #------saving the model fit and posterior summaries------------
 
 # saving the fit object
-saveRDS(fit, file = "Model results/hivst_stan_fit_apr14.rds")
+saveRDS(fit, file = "D:/Downloads/hivst_stan_fit_apr14.rds")
 fit <- readRDS("Model results/hivst_stan_fit_apr14.rds")
 
 # saving the compiled StanModel object 
@@ -825,6 +927,6 @@ hivst_stan <- readRDS("Model results/hivst_stan_model_apr14.rds")
 fit_summary <- summary(fit)
 saveRDS(fit_summary, file = "Model results/hivst_stan_summary_apr14.rds")
 fit_summary <- readRDS("Model results/hivst_stan_summary_apr14.rds")
-#colnames(fit_summary$summary)
-#names(rstan::extract(fit))
+# colnames(fit_summary$summary)
+# names(rstan::extract(fit))
 

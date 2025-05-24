@@ -1559,6 +1559,7 @@ ghamics2017m <- ghamics2017m %>%
     TRUE ~ last_hivtest              # Keep all other values unchanged
   ))
 
+
 # Recode the existing agegrp into new age groups
 ghamics2017m <- ghamics2017m %>%
   mutate(
@@ -3401,6 +3402,7 @@ slemics2017m <- slemics2017m %>%
     last_hivtest == 9 ~ NA_real_,    # Recode '9' as NA
     TRUE ~ last_hivtest              # Keep all other values unchanged
   ))
+
 
 #removing NA in strata
 slemics2017m <- slemics2017m %>%

@@ -47,6 +47,8 @@ merged_namibia <- merged_namibia %>%
     )
   )
 
+
+
 # Check the distribution of exchange_sex
 table(merged_namibia$exchange_sex, useNA = "ifany")
 
@@ -79,6 +81,7 @@ namphia2017 <- merged_namibia %>%
     curr_art = art
   )
 
+table(namphia2017$hiv_status, useNA = "ifany")
 
 
 # recode ART for analysis
@@ -93,7 +96,6 @@ namphia2017 <- namphia2017 %>%
 # Calculating the median year of interview
 median(namphia2017$year, na.rm = TRUE) # median interview year 2017
 
-
 # Adding columns for country and survey ID
 namphia2017 <- namphia2017 %>%
   mutate(
@@ -105,7 +107,6 @@ namphia2017 <- namphia2017 %>%
 # Reordering columns to make country and survey_id the leftmost columns
 namphia2017 <- namphia2017 %>%
   select(country, survey_id, med_year, everything())
-
 
 # Recoding region
 namphia2017 <- namphia2017 %>%
@@ -325,7 +326,6 @@ namphia2017$region <- factor(namphia2017$region,
                                     levels = c("0", "1"),
                                     labels = c("Rural", "Urban"))
 
-
 # wealth index
 table(namphia2017$wealth_index)
 str(namphia2017$wealth_index)
@@ -349,7 +349,48 @@ table(namphia2017$survey_id)
 str(namphia2017$survey_id)
 namphia2017$survey_id <- factor(namphia2017$survey_id)
 
-# logistic reg for meta analysis
+
+# logistic reg for meta analysis (male and female seperately)
+namphia2017f <- namphia2017 %>% filter(sex == "Female")  # Female
+namphia2017m <- namphia2017 %>% filter(sex == "Male")  # Male
+
+# checking
+table(namphia2017$sex)
+table(namphia2017f$sex)
+table(namphia2017m$sex)
+
+
+# logistic reg for meta analysis (Female)
+logisticf <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                 data = namphia2017f, family = "binomial")
+summary(logisticf)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_statusf <- coef(logisticf)["hiv_statusPositive"]
+se_hiv_statusf  <- sqrt(vcov(logisticf)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey1f <- data.frame(
+  survey  = "NAMPHIA2017F",
+  logOR   = coef_hiv_statusf,
+  seLogOR = se_hiv_statusf
+)
+
+# logistic reg for meta analysis (male)
+logisticm <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                 data = namphia2017m, family = "binomial")
+summary(logisticm)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_statusm <- coef(logisticm)["hiv_statusPositive"]
+se_hiv_statusm  <- sqrt(vcov(logisticm)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey1m <- data.frame(
+  survey  = "NAMPHIA2017M",
+  logOR   = coef_hiv_statusm,
+  seLogOR = se_hiv_statusm
+)
+
+# logistic reg for meta analysis (overall)
 logistic1 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
                       data = namphia2017, family = "binomial")
 summary(logistic1)
@@ -363,38 +404,6 @@ df_survey1 <- data.frame(
   logOR   = coef_hiv_status1,
   seLogOR = se_hiv_status1
 )
-
-#---function for hiv status and hivst use proportion survey unadjusted and adjusted ---
-# table(namphia2017$hivst_use, useNA = "ifany") 
-# table(namphia2017$hiv_status, useNA = "ifany")
-# table(namphia2017$hiv_status, namphia2017$hivst_use, useNA = "ifany") # rows hiv status col hivst use
-# #among hiv neg, proportion 345/(345+10613)= 0.031
-# #among hiv pos, proportion 42/(42+2292)= 0.0179
-# 
-# # survey adjusted proportion of HIVST use by hiv blood test status
-# namphia2017 <- namphia2017 %>%
-#   filter(hiv_status %in% c(0, 1),
-#          hivst_use %in% c(0, 1))
-# 
-# namphia_design <- svydesign(
-#   ids = ~psu,
-#   strata = ~strata,
-#   weights = ~ind_wt,
-#   data = namphia2017,
-#   nest = TRUE
-# )
-# 
-# nam_prop_hiv <- svyby(
-#   ~I(hivst_use == 1),
-#   ~hiv_status,
-#   design = namphia_design,
-#   FUN = svyciprop,
-#   method = "logit",
-#   vartype = "ci",
-#   level = 0.95
-# )
-
-# matches closely with survey unadjusted (0.04 for hiv(-)ve, 0.017 for hiv(+)ve)
 
 
 
@@ -719,53 +728,46 @@ table(kenphia2018$survey_id)
 str(kenphia2018$survey_id)
 kenphia2018$survey_id <- factor(kenphia2018$survey_id)
 
-# logistic reg for meta analysis
-logistic2 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index, 
-                 data = kenphia2018, family = "binomial")
-summary(logistic2)
+# logistic reg for meta analysis (male and female seperately)
 
-# extracting estimate & SE
-coef_hiv_status2 <- coef(logistic2)["hiv_statusPositive"]
-se_hiv_status2   <- sqrt(vcov(logistic2)["hiv_statusPositive", "hiv_statusPositive"])
+kenphia2018f <- kenphia2018 %>% filter(sex == "Female")  # Female
+kenphia2018m <- kenphia2018 %>% filter(sex == "Male")  # Male
 
-df_survey2 <- data.frame(
-  survey  = "KENPHIA2018",
-  logOR   = coef_hiv_status2,
-  seLogOR = se_hiv_status2
+# checking
+table(kenphia2018$sex)
+table(kenphia2018f$sex)
+table(kenphia2018m$sex)
+
+
+# logistic reg for meta analysis (Female)
+logistic2f <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                 data = kenphia2018f, family = "binomial")
+summary(logistic2f)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status2f <- coef(logistic2f)["hiv_statusPositive"]
+se_hiv_status2f  <- sqrt(vcov(logistic2f)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey2f <- data.frame(
+  survey  = "KENPHIA2018F",
+  logOR   = coef_hiv_status2f,
+  seLogOR = se_hiv_status2f
 )
 
+# logistic reg for meta analysis (male)
+logistic2m <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = kenphia2018m, family = "binomial")
+summary(logistic2m)
 
-#---function for hiv status and hivst use proportion survey unadjusted and adjusted ---
-# table(kenphia2018$hivst_use, useNA = "ifany") 
-# table(kenphia2018$hiv_status, useNA = "ifany")
-# table(kenphia2018$hiv_status, kenphia2018$hivst_use, useNA = "ifany") # rows hiv status col hivst use
-# #among hiv neg, proportion 781/(781+26040)= 0.02911897
-# #among hiv pos, proportion 53/(53+1491)= 0.03432642
-# 
-# # survey adjusted proportion of HIVST use by hiv blood test status
-# kenphia2018 <- kenphia2018 %>%
-#   filter(hiv_status %in% c(0, 1),
-#          hivst_use %in% c(0, 1))
-# 
-# kenphia_design <- svydesign(
-#   ids = ~psu,
-#   strata = ~strata,
-#   weights = ~ind_wt,
-#   data = kenphia2018,
-#   nest = TRUE
-# )
-# 
-# ken_prop_hiv <- svyby(
-#   ~I(hivst_use == 1),
-#   ~hiv_status,
-#   design = kenphia_design,
-#   FUN = svyciprop,
-#   method = "logit",
-#   vartype = "ci",
-#   level = 0.95
-# )
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status2m <- coef(logistic2m)["hiv_statusPositive"]
+se_hiv_status2m  <- sqrt(vcov(logistic2m)["hiv_statusPositive", "hiv_statusPositive"])
 
-# survey adjusted (0.03 for hiv(-)ve, 0.03 for hiv(+)ve)
+df_survey2m <- data.frame(
+  survey  = "KENPHIA2018M",
+  logOR   = coef_hiv_status2m,
+  seLogOR = se_hiv_status2m
+)
 
 
 #----------Lesotho 2020------
@@ -1082,6 +1084,50 @@ table(lsophia2020$survey_id)
 str(lsophia2020$survey_id)
 lsophia2020$survey_id <- factor(lsophia2020$survey_id)
 
+
+# logistic reg for meta analysis (male and female seperately)
+
+lsophia2020f <- lsophia2020 %>% filter(sex == "Female")  # Female
+lsophia2020m <- lsophia2020 %>% filter(sex == "Male")  # Male
+
+# checking
+table(lsophia2020$sex)
+table(lsophia2020f$sex)
+table(lsophia2020m$sex)
+
+
+# logistic reg for meta analysis (Female)
+logistic3f <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = lsophia2020f, family = "binomial")
+summary(logistic3f)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status3f <- coef(logistic3f)["hiv_statusPositive"]
+se_hiv_status3f  <- sqrt(vcov(logistic3f)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey3f <- data.frame(
+  survey  = "LSOPHIA2020F",
+  logOR   = coef_hiv_status3f,
+  seLogOR = se_hiv_status3f
+)
+
+
+# logistic reg for meta analysis (male)
+logistic3m <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = lsophia2020m, family = "binomial")
+summary(logistic3m)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status3m <- coef(logistic3m)["hiv_statusPositive"]
+se_hiv_status3m  <- sqrt(vcov(logistic3m)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey3m <- data.frame(
+  survey  = "LSOPHIA2020M",
+  logOR   = coef_hiv_status3m,
+  seLogOR = se_hiv_status3m
+)
+
+
 # logistic reg for meta analysis
 logistic3 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
                  data = lsophia2020, family = "binomial")
@@ -1096,46 +1142,6 @@ df_survey3 <- data.frame(
   logOR   = coef_hiv_status3,
   seLogOR = se_hiv_status3
 )
-
-
-
-
-
-# survey unadjusted prop 
-# hiv neg: 1135/(1135+10518)= 0.09739981
-# hiv pos: 117/(117+3572) = 0.03171591
-# table(lsophia2020$hivst_use, useNA = "ifany") 
-# table(lsophia2020$hiv_status, useNA = "ifany")
-# table(lsophia2020$hiv_status, lsophia2020$hivst_use, useNA = "ifany") # rows hiv status col hivst use
-# 
-# lsophia2020 <- lsophia2020 %>%
-#   filter(hiv_status %in% c(0, 1),
-#          hivst_use %in% c(0, 1))
-# 
-# # survey adjusted proportion of HIVST use by hiv blood test status
-# lsophia2020 <- lsophia2020 %>%
-#   filter(hiv_status %in% c(0, 1),
-#          hivst_use %in% c(0, 1))
-# 
-# lsophia_design <- svydesign(
-#   ids = ~psu,
-#   strata = ~strata,
-#   weights = ~ind_wt,
-#   data = lsophia2020,
-#   nest = TRUE
-# )
-# 
-# lso_prop_hiv <- svyby(
-#   ~I(hivst_use == 1),
-#   ~hiv_status,
-#   design = lsophia_design,
-#   FUN = svyciprop,
-#   method = "logit",
-#   vartype = "ci",
-#   level = 0.95
-# )
-
-# survey adjusted (0.108 for hiv(-)ve, 0.035 for hiv(+)ve)
 
 
 
@@ -1427,6 +1433,47 @@ table(zwephia2020$survey_id)
 str(zwephia2020$survey_id)
 zwephia2020$survey_id <- factor(zwephia2020$survey_id)
 
+
+# logistic reg for meta analysis (male and female seperately)
+zwephia2020f <- zwephia2020 %>% filter(sex == "Female")  # Female
+zwephia2020m <- zwephia2020 %>% filter(sex == "Male")  # Male
+
+# checking
+table(zwephia2020$sex)
+table(zwephia2020f$sex)
+table(zwephia2020m$sex)
+
+# logistic reg for meta analysis (Female)
+logistic4f <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = zwephia2020f, family = "binomial")
+summary(logistic4f)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status4f <- coef(logistic4f)["hiv_statusPositive"]
+se_hiv_status4f  <- sqrt(vcov(logistic4f)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey4f <- data.frame(
+  survey  = "ZWEPHIA2020F",
+  logOR   = coef_hiv_status4f,
+  seLogOR = se_hiv_status4f
+)
+
+
+# logistic reg for meta analysis (male)
+logistic4m <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = zwephia2020m, family = "binomial")
+summary(logistic4m)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status4m <- coef(logistic4m)["hiv_statusPositive"]
+se_hiv_status4m  <- sqrt(vcov(logistic4m)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey4m <- data.frame(
+  survey  = "ZWEPHIA2020M",
+  logOR   = coef_hiv_status4m,
+  seLogOR = se_hiv_status4m
+)
+
 # logistic reg for meta analysis
 logistic4 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
                  data = zwephia2020, family = "binomial")
@@ -1441,7 +1488,6 @@ df_survey4 <- data.frame(
   logOR   = coef_hiv_status4,
   seLogOR = se_hiv_status4
 )
-
 
 
 
@@ -1746,6 +1792,47 @@ table(mwiphia2020$survey_id)
 str(mwiphia2020$survey_id)
 mwiphia2020$survey_id <- factor(mwiphia2020$survey_id)
 
+# logistic reg for meta analysis (male and female seperately)
+mwiphia2020f <- mwiphia2020 %>% filter(sex == "Female")  # Female
+mwiphia2020m <- mwiphia2020 %>% filter(sex == "Male")  # Male
+
+# checking
+table(mwiphia2020$sex)
+table(mwiphia2020f$sex)
+table(mwiphia2020m$sex)
+
+# logistic reg for meta analysis (Female)
+logistic5f <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = mwiphia2020f, family = "binomial")
+summary(logistic5f)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status5f <- coef(logistic5f)["hiv_statusPositive"]
+se_hiv_status5f  <- sqrt(vcov(logistic5f)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey5f <- data.frame(
+  survey  = "MWIPHIA2020F",
+  logOR   = coef_hiv_status5f,
+  seLogOR = se_hiv_status5f
+)
+
+
+# logistic reg for meta analysis (male)
+logistic5m <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = mwiphia2020m, family = "binomial")
+summary(logistic5m)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status5m <- coef(logistic5m)["hiv_statusPositive"]
+se_hiv_status5m  <- sqrt(vcov(logistic5m)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey5m <- data.frame(
+  survey  = "MWIPHIA2020M",
+  logOR   = coef_hiv_status5m,
+  seLogOR = se_hiv_status5m
+)
+
+
 # logistic reg for meta analysis
 logistic5 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
                  data = mwiphia2020, family = "binomial")
@@ -1765,7 +1852,6 @@ df_survey5 <- data.frame(
 
 
 #----------Mozambique 2021------------
-
 insida2021_adult_ind <- read_dta("Mozambique 2021 PHIA/insida2021adultind.dta")
 insida2021_adult_bio <- read_dta("Mozambique 2021 PHIA/insida2021adultbio.dta")
 
@@ -2051,6 +2137,46 @@ table(mozphia2021$survey_id)
 str(mozphia2021$survey_id)
 mozphia2021$survey_id <- factor(mozphia2021$survey_id)
 
+# logistic reg for meta analysis (male and female seperately)
+mozphia2021f <- mozphia2021 %>% filter(sex == "Female")  # Female
+mozphia2021m <- mozphia2021 %>% filter(sex == "Male")  # Male
+
+# checking
+table(mozphia2021$sex)
+table(mozphia2021f$sex)
+table(mozphia2021m$sex)
+
+# logistic reg for meta analysis (Female)
+logistic6f <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = mozphia2021f, family = "binomial")
+summary(logistic6f)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status6f <- coef(logistic6f)["hiv_statusPositive"]
+se_hiv_status6f  <- sqrt(vcov(logistic6f)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey6f <- data.frame(
+  survey  = "MOZPHIA2021F",
+  logOR   = coef_hiv_status6f,
+  seLogOR = se_hiv_status6f
+)
+
+# logistic reg for meta analysis (male)
+logistic6m <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = mozphia2021m, family = "binomial")
+summary(logistic6m)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status6m <- coef(logistic6m)["hiv_statusPositive"]
+se_hiv_status6m  <- sqrt(vcov(logistic6m)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey6m <- data.frame(
+  survey  = "MOZPHIA2021F",
+  logOR   = coef_hiv_status6m,
+  seLogOR = se_hiv_status6m
+)
+
+
 # logistic reg for meta analysis
 logistic6 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
                  data = mozphia2021, family = "binomial")
@@ -2070,7 +2196,6 @@ df_survey6 <- data.frame(
 
 
 #-------------Eswatini 2021-----------
-
 shims3_2021_adult_ind <- read_dta("Eswatini 2021 PHIA/shims32021adultind.dta")
 shims3_2021_adult_bio <- read_dta("Eswatini 2021 PHIA/shims32021adultbio.dta")
 
@@ -2370,6 +2495,48 @@ table(swzphia2021$survey_id)
 str(swzphia2021$survey_id)
 swzphia2021$survey_id <- factor(swzphia2021$survey_id)
 
+
+# logistic reg for meta analysis (male and female seperately)
+swzphia2021f <- swzphia2021 %>% filter(sex == "Female")  # Female
+swzphia2021m <- swzphia2021 %>% filter(sex == "Male")  # Male
+
+# checking
+table(swzphia2021$sex)
+table(swzphia2021f$sex)
+table(swzphia2021m$sex)
+
+# logistic reg for meta analysis (Female)
+logistic7f <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = swzphia2021f, family = "binomial")
+summary(logistic7f)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status7f <- coef(logistic7f)["hiv_statusPositive"]
+se_hiv_status7f  <- sqrt(vcov(logistic7f)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey7f <- data.frame(
+  survey  = "SWZPHIA2021F",
+  logOR   = coef_hiv_status7f,
+  seLogOR = se_hiv_status7f
+)
+
+
+# logistic reg for meta analysis (male)
+logistic7m <- glm(hivst_use ~ hiv_status + region + agegrp +  wealth_index + schl_years, 
+                  data = swzphia2021m, family = "binomial")
+summary(logistic7m)
+
+# extracting estimate & SE for RE meta analysis
+coef_hiv_status7m <- coef(logistic7m)["hiv_statusPositive"]
+se_hiv_status7m <- sqrt(vcov(logistic7m)["hiv_statusPositive", "hiv_statusPositive"])
+
+df_survey7m <- data.frame(
+  survey  = "SWZPHIA2021M",
+  logOR   = coef_hiv_status7m,
+  seLogOR = se_hiv_status7m
+)
+
+
 # logistic reg for meta analysis
 logistic7 <- glm(hivst_use ~ hiv_status + sex + region + agegrp +  wealth_index + schl_years, 
                  data = swzphia2021, family = "binomial")
@@ -2384,9 +2551,6 @@ df_survey7 <- data.frame(
   logOR   = coef_hiv_status7,
   seLogOR = se_hiv_status7
 )
-
-
-
 
 
 

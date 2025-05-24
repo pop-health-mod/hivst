@@ -341,6 +341,9 @@ expose_stan_functions(stanc(model_code = hivst_mod))
 hivst_stan <- stan_model(model_code = hivst_mod)
 
 #------ Survey & program data for multiple countries ------------
+# den and numerator format: (male of year 1, male of year 2), (female of year 1), (female of year 2)
+# if not multiple years: then den & num format: (male, female)
+
 cnt_data <- list(
   kenya = list(
     yr_svy = c(2012.5, 2018.5, 2022.5),
@@ -387,7 +390,7 @@ cnt_data <- list(
     ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
     den_svy = round(cbind(c(6717, 3343, 6576), c(7964, 8104, 10058))),
     num_svy = round(cbind(c(118, 171, 381), c(21, 447, 594))),
-    yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
     ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(197408, 174566, 240434, 459517, 414499, 513090),
     se_hts = c(197408, 174566, 240434, 459517, 414499, 513090) * 0.1
@@ -443,10 +446,10 @@ cnt_data <- list(
     se_hts = c(58917, 42650, 164236, 281277, 301762, 262915) * 0.1
   ),
   mozambique = list(
-    yr_svy =  2021.5,
-    ind_svy = (2021.5 - start) / dt,
-    den_svy = round(cbind(1483,1590)),
-    num_svy = round(cbind(128,174)),
+    yr_svy =  c(2021.5, 2022.5),
+    ind_svy = (c(2021.5, 2022.5) - start) / dt,
+    den_svy = round(cbind(c(1483, 3164), c(1590, 8289))),
+    num_svy = round(cbind(c(128, 107), c(174, 176))),
     yr_hts = c(2021, 2022, 2023) + 0.5,
     ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(67883, 203966, 683345),
@@ -523,10 +526,10 @@ liberia = list(
   se_hts = 12129 * 0.1
 ),
 senegal = list(
-  yr_svy =  2017.5,
-  ind_svy = (2017.5 - start) / dt,
-  den_svy = round(cbind(2080,12000)),
-  num_svy = round(cbind(3,21)),
+  yr_svy =  c(2017.5, 2023.5),
+  ind_svy = (c(2017.5, 2023.5) - start) / dt,
+  den_svy = round(cbind(c(2080,4982), c(12000, 6389))),
+  num_svy = round(cbind(c(3,5), c(21, 36))),
   yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
   ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
   hts_dat = c(7307, 18860, 5505, 4056, 11932),

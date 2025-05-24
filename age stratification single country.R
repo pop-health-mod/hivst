@@ -432,7 +432,7 @@ colnames(agegrp_num_f) <- c("2012", "2018", "2022")
 agegrp_deno_m <- matrix(
   c(253, 888, 611, 390,    # 2012 
     2245, 1187, 3448, 622,   # 2018 
-    2691, 1181, 2334, -999),      # 2022 
+    2691, 1181, 2334, 556),      # 2022 
   nrow = 4,                     #  age grp
   ncol = 3,                     # survey years
   byrow = FALSE                 
@@ -447,7 +447,7 @@ colnames(agegrp_deno_m) <- c("2012", "2018", "2022")
 agegrp_num_m <- matrix(
   c(10,31,18,7,    # 2012 
     54,54,106,14,   # 2018 
-    108,181,227, -999),      # 2022
+    108,181,227, 36),      # 2022
   nrow = 4,                     #  age grp
   ncol = 3,                     # survey years
   byrow = FALSE                 

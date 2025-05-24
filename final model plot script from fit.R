@@ -5,6 +5,8 @@ gc()
 library(ggplot2)
 library(ggsci)
 library(cowplot)
+library(clipr)
+
 
 
 # ------model fit--------
@@ -769,7 +771,7 @@ df_rr_ov$style <- ifelse(df_rr_ov$country == "Overall", "pooled", "individual")
 
 rr_retesting_forest <- ggplot(df_rr_ov, aes(x = country, y = median, color = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
-  scale_color_manual(values = c("individual" = "coral2", "pooled" = "coral4")) +
+  scale_color_manual(values = c("individual" = "green3", "pooled" = "midnightblue")) +
   scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +
   coord_flip() +
   theme_minimal() +
@@ -777,6 +779,9 @@ rr_retesting_forest <- ggplot(df_rr_ov, aes(x = country, y = median, color = sty
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +
   theme(legend.position = "right")
 rr_retesting_forest
+
+#write_clip(df_rr_ov, object_type = "table")
+
 
 #ggsave("rr_retest_plot.png", plot = rr_retesting_forest, width = 8, height = 6, dpi = 300)
 
@@ -827,15 +832,17 @@ df_phi_ov$style <- ifelse(df_phi_ov$country == "Overall", "pooled", "individual"
 
 phi_forest <- ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
-  scale_color_manual(values = c("individual" = "violetred1", "pooled" = "violetred4")) +  # Colors
+  scale_color_manual(values = c("individual" = "palevioletred2", "pooled" = "tomato4")) +  # Colors
   scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
   labs(title = "", x = "Country", y = "Proportion of distributed HIVST kits that are used", color = "Estimates (95% CrI)") +
-  geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
+  #geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
 phi_forest
+
+#write_clip(df_phi_ov, object_type = "table")
 
 #ggsave("phi_plot.png", plot = phi_forest, width = 8, height = 6, dpi = 300)
 
@@ -844,8 +851,18 @@ phi_forest
 rrretest_phi <- plot_grid(rr_retesting_forest, phi_forest, ncol = 2)
 #ggsave("rrretest_phi_plot.png", plot = rrretest_phi, width = 16, height = 6, dpi = 300)
 
+# library(patchwork)
+# 
+# rrretest_phi <- rr_retesting_forest +
+#   phi_forest +
+#   plot_annotation(tag_levels = "A")
+# 
+# ggsave("rrretest_phi_plot.png",
+#        plot   = rrretest_phi,
+#        width  = 13, height = 13, dpi = 600)
 
-#-------- rate ratio male ---------------
+
+#-------- rate ratio male 15-24 years ---------------
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_male_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(rr_m_overall$`50%`)
 exp(rr_m_overall$`2.5%`)
@@ -893,17 +910,18 @@ df_rr_m$style <- ifelse(df_rr_m$country == "Overall", "pooled", "individual")
 
 rr_male_forest <- ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci, size = style)) +
-  scale_color_manual(values = c("individual" = "steelblue4", "pooled" = "firebrick4")) +  # Colors
+  scale_color_manual(values = c("individual" = "darkorchid3", "pooled" = "mediumblue")) +  # Colors
   scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Rate ratio for men", color = "Estimates (95% CrI)") +
+  labs(title = "", x = "Country", y = "Rate ratio for 15-24 year old men (reference: 15-24 year old women) ", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
   theme(legend.position = "right")
 rr_male_forest
 
+#write_clip(df_rr_m, object_type = "table")
 #ggsave("rr_male_plot.png", plot = rr_male_forest, width = 8, height = 6, dpi = 300)
 
 #-------- rate ratio age ---------------
@@ -968,7 +986,7 @@ rr_age_forest_m <- ggplot(df_rr_age_m, aes(x = country, y = median, color = age,
   scale_size_manual(values = c("individual" = 0.2, "pooled" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Rate ratio by age for men (ref: 15-24)", color = "Estimates (95% CrI)") +
+  labs(title = "", x = "Country", y = "Rate ratio by age for men (reference: 15-24 year old men)", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
@@ -976,6 +994,7 @@ rr_age_forest_m <- ggplot(df_rr_age_m, aes(x = country, y = median, color = age,
   guides(color = guide_legend(reverse = TRUE), size = "none")
 rr_age_forest_m
 
+#write_clip(df_rr_age_m, object_type = "table")
 #ggsave("rr_age_plot_men.png", plot = rr_age_forest_m, width = 8, height = 6, dpi = 300)
 
 #---women----
@@ -1033,13 +1052,13 @@ df_rr_age_f$age <- factor(df_rr_age_f$age, levels = c("50+", "35-49", "25-34")) 
 rr_age_forest_f <- ggplot(df_rr_age_f, aes(x = country, y = median, color = age, size = style)) +
   geom_pointrange(aes(ymin = lci, ymax = uci),
                   position = position_dodge(width = 0.2)) +
-  scale_color_manual(values = c("25-34" = "palevioletred2", 
-                                "35-49" = "palegreen2",
-                                "50+" = "thistle3")) +  # Colors
+  scale_color_manual(values = c("25-34" = "#845699", 
+                                "35-49" = "#66BBBB",
+                                "50+" = "#D61717E6")) +  # Colors
   scale_size_manual(values = c("individual" = 0.2, "pooled" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Rate ratio by age for women (ref: 15-24)", color = "Estimates (95% CrI)") +
+  labs(title = "", x = "Country", y = "Rate ratio by age for women (reference: 15-24 year old women)", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
@@ -1047,12 +1066,79 @@ rr_age_forest_f <- ggplot(df_rr_age_f, aes(x = country, y = median, color = age,
   guides(color = guide_legend(reverse = TRUE), size = "none")
 rr_age_forest_f
 
+#write_clip(df_rr_age_f, object_type = "table")
 #ggsave("rr_age_plot_women.png", plot = rr_age_forest_f, width = 8, height = 6, dpi = 300)
 
-#---rr male and rr age side by side panel-----
-rrage_malefemale <- plot_grid(rr_age_forest_m, rr_age_forest_f, ncol = 2)
-#ggsave("rrage_malefemale.png", plot = rrage_malefemale, width = 16, height = 6, dpi = 300)
+#---rr ref, rr age men women side by side panel-----
+#rrage_malefemale <- plot_grid(rr_age_forest_m, rr_age_forest_f, ncol = 2)
+#ggsave("rrage_malefemale.png", plot = rrage_malefemale, width = 13, height = 6, dpi = 300)
 
+library(patchwork)
+
+# rrage_malefemale <- rr_male_forest + rr_age_forest_m +
+#   rr_age_forest_f +
+#   plot_annotation(tag_levels = "A")
+
+
+top_row <- rr_male_forest +
+  theme(
+    plot.margin = margin(t = 5, r = 150, b = 5, l = 150)
+  )
+
+# Wrap it so that layout doesn't propagate to others
+top_row_wrapped <- wrap_elements(top_row)
+
+# Bottom row as is
+bottom_row <- rr_age_forest_m + rr_age_forest_f
+
+# Combine
+rrage_malefemale <- 
+  top_row_wrapped /                   # top row isolated
+  bottom_row +                        # bottom row normal
+  plot_layout(ncol = 1, heights = c(1, 1.2)) +
+  plot_annotation(tag_levels = "A")
+rrage_malefemale
+
+
+
+ggsave("rrage_malefemale.png",
+       plot   = rrage_malefemale,
+       width  = 13, height = 13, dpi = 600)
+
+
+
+
+# all parameters side by side panel
+
+# library(patchwork)
+# 
+# 
+# top row: 3 plots
+top <- wrap_plots(
+  rr_male_forest,
+  rr_age_forest_m,
+  rr_age_forest_f,
+  ncol = 3
+)
+
+# bottom row: a blank cell + your two plots
+bottom <- wrap_plots(
+  plot_spacer(),       # empty left cell
+  rr_retesting_forest, # 4th plot
+  phi_forest,          # 5th plot
+  ncol = 3,
+  widths = c(0.2, 1, 1)
+)
+
+allpar <- top / bottom +
+  plot_annotation(tag_levels = "A") +
+  plot_layout(heights = c(1.2, 1))  # make top row taller if you like
+
+allpar
+
+ggsave("all_par.png",
+       plot   = allpar,
+       width  = 25, height = 15, dpi = 600)
 
 
 #-----plot code for trends--------
@@ -1123,7 +1209,7 @@ female_med <- apply(female_prp, 2, quantile, 0.5)
 female_uci <- apply(female_prp, 2, quantile, 0.975)
 
 # plotting
-dev.off()
+#dev.off()
 df_sextrend <- data.frame(
   time       = time,
   male_med   = male_med * 100,
@@ -1160,7 +1246,7 @@ sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
 
 sex_trend_plot
 
-
+# write.table(df_sextrend, "clipboard", sep = "\t", row.names = FALSE)
 #ggsave("trend_sex_plot.png", plot = sex_trend_plot, width = 8, height = 6, dpi = 300)
 
 #------------- overall trend by age groups ------------------
@@ -1257,6 +1343,9 @@ p_age <- ggplot(df_age, aes(x = time)) +
 
 p_age
 
+#write_clip(df_age, object_type = "table")
+
+
 
 #ggsave("trend_age_plot.png", plot = p_age, width = 8, height = 6, dpi = 300)
 
@@ -1295,8 +1384,8 @@ df_total <- data.frame(
 
 p_total <- ggplot(df_total, aes(x = time)) +
   geom_ribbon(aes(ymin = lci, ymax = uci), 
-              fill = "dodgerblue", alpha = 0.2) +
-  geom_line(aes(y = median), color = "dodgerblue", size = 1.2) +
+              fill = "palegreen2", alpha = 0.2) +
+  geom_line(aes(y = median), color = "palegreen2", size = 1.2) +
   scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
   scale_y_continuous(breaks = seq(0, 20, by = 2)) +
   labs(
@@ -1304,9 +1393,13 @@ p_total <- ggplot(df_total, aes(x = time)) +
     y = "Proportion of people who have ever used HIVST (%)"
   ) +
   theme_classic(base_size = 14) +
-  ggtitle("Overall HIVST Uptake in Africa (aggregated by age group and sex)")
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Overall HIVST uptake")
 
 p_total
+
+#write_clip(df_total, object_type = "table")
+
 
 #---region wise trend-----
 
@@ -1471,6 +1564,9 @@ p_regions <- ggplot(df_regions, aes(x = time, y = median, color = region, fill =
 
 p_regions
 
+#write_clip(df_regions, object_type = "table")
+
+
 #ggsave("trend_region_plot.png", plot = p_regions, width = 8, height = 6, dpi = 300)
 
 
@@ -1574,15 +1670,51 @@ p_age <- ggplot(df_age, aes(x = time)) +
 
 p_age
 
-# combined plot
+# combined plot (all 3)
 library(patchwork)
+
 combined_trend <- p_regions + sex_trend_plot + p_age +
   plot_layout(ncol = 3) +
-  plot_annotation(tag_levels = "A")  # automatically labels panels A, B, C
+  plot_annotation(
+    tag_levels = "A",              # gives A, B, C
+    theme = theme(
+      plot.tag.position = c(0.08, 0.92),   # x, y in npc units
+      plot.tag           = element_text(size = 16, face = "bold")
+    )
+  )
 
 combined_trend
-#ggsave("trend_all3_plot.png", plot = combined_trend, width = 12, height = 6, dpi = 300)
 
+combined_trend <- combined_trend &
+  theme(
+    plot.margin = margin(t = 5, r = 5, b = 5, l = 15)  # in pt by default
+  )
+
+ggsave("trend_all3_plot.png", plot = combined_trend, width = 13, height = 6, dpi = 300)
+
+
+# combined plot (all 4)
+
+library(patchwork)
+
+combined_trend2 <- p_total + p_regions + sex_trend_plot + p_age +
+  plot_layout(ncol = 2) +
+  plot_annotation(
+    tag_levels = "A",              # gives A, B, C
+    theme = theme(
+      plot.tag.position = c(0.08, 0.92),   # x, y in npc units
+      plot.tag           = element_text(size = 16, face = "bold")
+    )
+  )
+
+combined_trend2
+
+combined_trend2 <- combined_trend2 &
+  theme(
+    plot.margin = margin(t = 5, r = 5, b = 5, l = 15)  # in pt by default
+  )
+
+#ggsave("trend_all4_plot.png", plot = combined_trend2, width = 13, height = 13, dpi = 600)
 
 
 #--- function code to check for survey and program fit--------
@@ -1621,7 +1753,7 @@ for (c in seq_len(n_cnt)) {
 
 # plotting for each country
 png("survey_fit_men.png",
-    width = 14, height = 28,
+    width = 20, height = 28,
     units = "in", res = 320)
 par(mfrow = c(7, 4))
 par(
@@ -1679,7 +1811,7 @@ for (c in seq_len(n_cnt)) {
 
 # plotting for each country
 png("survey_fit_women.png",
-    width = 14, height = 28,
+    width = 20, height = 28,
     units = "in", res = 320)
 par(mfrow = c(7, 4))
 par(
@@ -1890,7 +2022,6 @@ df_last_dt
 # 
 # overall_country_estimates
 
-
 overall_country_estimates <- ggplot(df_last_dt, aes(x = reorder(Country, Median), y = Median, fill = Median)) +
   geom_col(color = NA) +  # Remove borders from the bars
   geom_errorbar(aes(ymin = LCI, ymax = UCI), width = 0.2, color = "#8B0000", size = 0.7) +  # Deep red error bars
@@ -1910,6 +2041,9 @@ overall_country_estimates <- ggplot(df_last_dt, aes(x = reorder(Country, Median)
   )
 
 overall_country_estimates
+
+#write_clip(df_last_dt, object_type = "table")
+
 #ggsave("country-estimate_2024.png", plot = overall_country_estimates, width = 8, height = 6, dpi = 300)
 
 

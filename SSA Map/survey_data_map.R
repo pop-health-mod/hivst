@@ -16,13 +16,13 @@ sub_saharan_africa_map <- world[world$region_un == "Africa" & !world$name %in% n
 
 # Adjust country names to match shapefile and highlight countries in Sub-Saharan Africa
 highlight_countries <- c("Benin", "Botswana", "Burkina Faso", "Burundi", "Cameroon", 
-                         "Central African Rep.", "Chad", "Comoros", "Côte d'Ivoire", 
-                         "Dem. Rep. Congo", "eSwatini", "Gabon", "Gambia", 
+                         "Côte d'Ivoire", 
+                         "Dem. Rep. Congo", "eSwatini", 
                          "Ghana", "Guinea", "Guinea-Bissau", "Kenya", 
                          "Lesotho", "Liberia", "Madagascar", "Malawi", 
-                         "Mali", "Mauritania", "Mozambique", "Namibia", 
-                         "Rwanda", "São Tomé and Principe", "Senegal", 
-                         "Sierra Leone", "South Africa", "Tanzania", "Togo", 
+                         "Mali", "Mozambique", "Namibia", 
+                         "Rwanda", "Senegal", 
+                         "Sierra Leone", "South Africa", "Tanzania", 
                          "Uganda", "Zambia", "Zimbabwe")
 
 # Filter highlighted countries from the Sub-Saharan Africa map

@@ -27,7 +27,6 @@ survey_ids_kais <- "KEN2012KAIS"
 survey_ids_bais <- "BWA2021BAIS"
 
 # Function to calculate proportions for hivst knowledge and hivst use
-
 calculate_proportions_knwldge <- function(data) {
   survey_designs <- svydesign( 
     ids = ~psu, strata = ~strata, weights = ~ind_wt, data = data, nest = TRUE)
@@ -1102,12 +1101,6 @@ final_df_allsurveys <- final_df_allsurveys %>%
 
 
 write.csv(final_df_allsurveys, "D:/Downloads/MSc Thesis/hiv-selftesting/final_hivstuse_byage&sex.csv", row.names = FALSE)
-
-
-
-
-
-
 
 
 

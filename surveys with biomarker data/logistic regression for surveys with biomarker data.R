@@ -356,42 +356,176 @@ df_meta <- rbind(df_survey1, df_survey2, df_survey3, df_survey4, df_survey5, df_
 saveRDS(df_meta, file="D:\\Downloads\\df_meta.rds")
 
 
+# saving male and female 
+df_metaf <- rbind(df_survey1f, df_survey2f, df_survey3f, df_survey4f, df_survey5f, df_survey6f, df_survey7f, df_survey8f)
+saveRDS(df_metaf, file="D:\\Downloads\\df_metaf.rds")
+
+df_metam <- rbind(df_survey1m, df_survey2m, df_survey3m, df_survey4m, df_survey5m, df_survey6m, df_survey7m, df_survey8m)
+saveRDS(df_metam, file="D:\\Downloads\\df_metam.rds")
+
+
+library(dplyr)
+library(stringr)
 library(metafor)
+library(forestplot)
+
+df_metaf <- readRDS("D:\\Downloads\\df_metaf.rds")
+df_metam <- readRDS("D:\\Downloads\\df_metam.rds")
+
+# male and female seperately
+
+# Random-effects meta-analysis
+res <- rma.uni(
+  yi    = df_metaf$logOR,   
+  sei   = df_metaf$seLogOR,
+  method = "REML"
+)
+summary(res)
+forest(res)
+
+# Exponentiate the estimates
+df_metaf <- df_metaf %>%
+  mutate(
+    or       = exp(logOR),
+    or_lower = exp(logOR - 1.96 * seLogOR),
+    or_upper = exp(logOR + 1.96 * seLogOR)
+  )
+
+
+# Random-effects meta-analysis
+resm <- rma.uni(
+  yi    = df_metam$logOR,   
+  sei   = df_metam$seLogOR,
+  method = "REML"
+)
+summary(resm)
+forest(resm)
+
+# Exponentiate the estimates
+df_metaf <- df_metaf %>%
+  mutate(
+    or       = exp(logOR),
+    or_lower = exp(logOR - 1.96 * seLogOR),
+    or_upper = exp(logOR + 1.96 * seLogOR)
+  )
+
+
+
+
+
+# overall
 df_meta <- readRDS("D:\\Downloads\\df_meta.rds")
 
-# RE meta analysis
+df_meta <- df_meta %>%
+  mutate(
+    year    = str_extract(survey, "\\d{4}$"),
+    country = survey %>%
+      str_remove("\\d{4}$") %>%
+      str_remove("(?i)PHIA") %>% 
+      str_remove("(?i)AIS")  %>%
+      str_trim()
+  )
+
+iso3_to_name <- c(
+  "NAM"  = "Namibia",
+  "KEN"  = "Kenya",
+  "LSO"  = "Lesotho",
+  "ZWE"  = "Zimbabwe",
+  "MWI"  = "Malawi",
+  "MOZ"  = "Mozambique",
+  "SWZ"  = "Eswatini",
+  "BWAB" = "Botswana"
+)
+
+df_meta$country <- iso3_to_name[df_meta$country]
+
+# Random-effects meta-analysis
 res <- rma.uni(
-  yi    = df_meta$logOR,    # log-ORs
-  sei   = df_meta$seLogOR,  # standard errors
-  method = "REML"           
+  yi    = df_meta$logOR,   
+  sei   = df_meta$seLogOR,
+  method = "REML"
 )
 summary(res)
 
-forest(res)
+# Exponentiate the estimates
+df_meta <- df_meta %>%
+  mutate(
+    or       = exp(logOR),
+    or_lower = exp(logOR - 1.96 * seLogOR),
+    or_upper = exp(logOR + 1.96 * seLogOR)
+  )
 
-forest(
-  res,
-  slab    = df_meta$survey,
-  transf  = exp,  # exponentiate the estimates and CIs
-  refline = 1,    # no-effect line at OR=1
-  xlab    = "Odds Ratio (95% CI)"
+# Overall estimate
+overall_mean  <- exp(res$b)
+overall_lower <- exp(res$b - 1.96 * res$se)
+overall_upper <- exp(res$b + 1.96 * res$se)
+
+n_studies <- nrow(df_meta)
+
+mean_values  <- c(df_meta$or,       overall_mean)
+lower_values <- c(df_meta$or_lower, overall_lower)
+upper_values <- c(df_meta$or_upper, overall_upper)
+
+
+labeltext <- cbind(
+  c(paste0(df_meta$country, " (", df_meta$year, ")"), "Overall"),
+  
+  c(rep("", n_studies), ""),
+  
+  c(sprintf("%.2f [%.2f, %.2f]", df_meta$or, df_meta$or_lower, df_meta$or_upper),
+    sprintf("%.2f [%.2f, %.2f]", overall_mean, overall_lower, overall_upper))
+)
+
+is_summary <- c(rep(FALSE, n_studies), TRUE)
+
+forestplot(
+  labeltext  = labeltext,
+  mean       = mean_values,
+  lower      = lower_values,
+  upper      = upper_values,
+  is.summary = is_summary,
+  
+  graph.pos  = 2,
+  
+  col        = fpColors(
+    box    = "orchid3",   # color of boxes
+    line   = "orchid3",   # color of CI lines
+    summary= "orchid4"    # color of summary diamond
+  ),
+  fn.ci_sum  = c(rep("fpDrawNormalCI", n_studies),
+                 "fpDrawSummaryCI"),
+  
+  zero       = 1,  # vertical reference line at OR=1
+  xlab       = "Odds Ratio (95% CI)",
+  boxsize    = 0.2
 )
 
 
 
-forest(res,
-       slab    = df_meta$survey,
-       transf  = exp,
-       refline = 1,
-       xlab    = "Odds Ratio (95% CI)",
-       digits  = c(2, 2),
-       col     = "blue",             # overall color
-       col.square = "darkgreen",     # color for the squares
-       bg       = "lightgreen",      # background color inside the squares
-       border   = "darkgreen",       # border color around squares
-       col.diamond = "purple",       # fill color of the pooled-effect diamond
-       col.diamond.lines = "purple"  # outline color of the diamond
+png("D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/RE_metanalysis_forestplot.png", width = 10, height = 8, units = "in", res = 300)  # Adjust size/res as needed
+forestplot(
+  labeltext  = labeltext,
+  mean       = mean_values,
+  lower      = lower_values,
+  upper      = upper_values,
+  is.summary = is_summary,
+  graph.pos  = 2,
+  col        = fpColors(
+    box    = "orchid3",
+    line   = "orchid3",
+    summary= "orchid4"
+  ),
+  fn.ci_sum  = c(rep("fpDrawNormalCI", n_studies),
+                 "fpDrawSummaryCI"),
+  zero       = 1,
+  xlab       = "Odds Ratio (95% CI)",
+  boxsize    = 0.2
 )
+dev.off()
+
+
+
+
 
 
 

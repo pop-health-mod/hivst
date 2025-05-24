@@ -247,7 +247,7 @@ bais_m <- bais %>% filter(sex == 1)  # Male
 
 
 
-
+#-----------------proportion of HIVST use------------------
 # unweighted prop vs weighted prop (for checking)
 #table(bais$hivst_use)
 #unweighted_prop_hivst_use <- 348 / 17205 # 0.02
@@ -268,6 +268,10 @@ bais_design <- svydesign(ids = ~psu, strata = ~strata, weights = ~ind_wt, data =
 # 1        0.01897265 0.01476169 0.02435514
 
 
+#-----------proportion of hivst use by HIV status---------------
+table(bais$hivst_use)
+table(bais$hiv_status, useNA = "ifany")
 
+table(bais$hiv_status, bais$hivst_use)
 
 

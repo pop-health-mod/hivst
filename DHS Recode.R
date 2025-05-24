@@ -1,5 +1,6 @@
 # Gambia (only ever heard of hivst) code
 
+
 # Clearing all objects
 rm(list = ls())
 gc() 
@@ -121,18 +122,18 @@ bendhs2017f <- bendhs2017f %>%
   ))
 
 # benin female dhs 2017 deno and num (12443, 77)
-bendhs_design_f <- svydesign(ids = ~psu, strata = ~strata, 
-                           weights = ~ind_wt, data = bendhs2017f, nest = TRUE)
-
-ben_prop_f <- svyciprop(~I(hivst_use == 1), 
-                        design = bendhs_design_f, method = "logit", level = 0.95)
-se_hivst_use_f <- SE(ben_prop_f)
-
-ben_hivst_prop_f <-  0.00619 
-se_hivst_use_f <- 0.000703135 
-
-eff_ss_f <- (ben_hivst_prop_f * (1 - ben_hivst_prop_f)) / (se_hivst_use_f^2)
-bendhsf_num <- ben_hivst_prop_f * eff_ss_f
+# bendhs_design_f <- svydesign(ids = ~psu, strata = ~strata, 
+#                            weights = ~ind_wt, data = bendhs2017f, nest = TRUE)
+# 
+# ben_prop_f <- svyciprop(~I(hivst_use == 1), 
+#                         design = bendhs_design_f, method = "logit", level = 0.95)
+# se_hivst_use_f <- SE(ben_prop_f)
+# 
+# ben_hivst_prop_f <-  0.00619 
+# se_hivst_use_f <- 0.000703135 
+# 
+# eff_ss_f <- (ben_hivst_prop_f * (1 - ben_hivst_prop_f)) / (se_hivst_use_f^2)
+# bendhsf_num <- ben_hivst_prop_f * eff_ss_f
 
 
 
@@ -250,22 +251,72 @@ bendhs2017m <- bendhs2017m %>%
 
 
 # benin male dhs 2017 deno and num (6766, 33)
-bendhs_design_m <- svydesign(ids = ~psu, strata = ~strata, 
-                             weights = ~ind_wt, data = bendhs2017m, nest = TRUE)
+# bendhs_design_m <- svydesign(ids = ~psu, strata = ~strata, 
+#                              weights = ~ind_wt, data = bendhs2017m, nest = TRUE)
+# 
+# ben_prop_m <- svyciprop(~I(hivst_use == 1), 
+#                         design = bendhs_design_m, method = "logit", level = 0.95)
+# se_hivst_use_m <- SE(ben_prop_m)
+# 
+# ben_hivst_prop_m <-  0.00493 
+# se_hivst_use_m <- 0.0008514875  
+# 
+# eff_ss_m <- (ben_hivst_prop_m * (1 - ben_hivst_prop_m)) / (se_hivst_use_m^2)
+# bendhsm_num <- ben_hivst_prop_m * eff_ss_m
+# 
 
-ben_prop_m <- svyciprop(~I(hivst_use == 1), 
-                        design = bendhs_design_m, method = "logit", level = 0.95)
-se_hivst_use_m <- SE(ben_prop_m)
-
-ben_hivst_prop_m <-  0.00493 
-se_hivst_use_m <- 0.0008514875  
-
-eff_ss_m <- (ben_hivst_prop_m * (1 - ben_hivst_prop_m)) / (se_hivst_use_m^2)
-bendhsm_num <- ben_hivst_prop_m * eff_ss_m
-
-
-
-
+#------- age grp wise deno and num --------
+# table(bendhs2017m$agegrp)
+# 
+# # Recode the existing agegrp into new age groups
+# bendhs2017m <- bendhs2017m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9, 10) ~ "Group 4 (Age 50+)",
+#       TRUE ~ NA_character_  # Handle unexpected values
+#     )
+#   )
+# 
+# 
+# bendhs_design_m <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = bendhs2017m,
+#   nest = TRUE
+# )
+# # Calculate the proportion of HIV testing usage by the new age groups
+# ben_prop_age_m <- svyby(
+#   ~I(hivst_use == 1),
+#   ~agegroup_new,
+#   design = bendhs_design_m,
+#   FUN = svyciprop,
+#   method = "logit",
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename the resulting columns for clarity
+# ben_prop_age_m <- ben_prop_age_m %>%
+#   rename(
+#     prop = `I(hivst_use == 1)`,
+#     se_prop = `se.as.numeric(I(hivst_use == 1))`
+#   )
+# 
+# 
+# # Calculate denominator (deno) and numerator (num)
+# ben_prop_age_m <- ben_prop_age_m %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+#     num = prop * deno                          # Calculate numerator
+#   )
+# 
+# ben_prop_age_m_selected <- ben_prop_age_m %>%
+#   select(agegroup_new, deno, num)
+# 
 
 # Combining male and female for Benin
 combined_bendhs <- bind_rows(bendhs2017f, bendhs2017m)
@@ -586,14 +637,15 @@ bfadhs2021m <- bfadhs2021m %>% mutate(last_hivresult = case_when(
 combined_bfadhs <- bind_rows(bfadhs2021f, bfadhs2021m)
 
 #------- age grp wise deno and num --------
-
-# Recode the existing agegrp into new age groups
+# table(bfadhs2021m$agegrp)
+# # Recode the existing agegrp into new age groups
 # bfadhs2021m <- bfadhs2021m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 3 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -634,9 +686,6 @@ combined_bfadhs <- bind_rows(bfadhs2021f, bfadhs2021m)
 # 
 # bfa_prop_age_m_selected <- bfa_prop_age_m %>%
 #   select(agegroup_new, deno, num)
-# 
-
-
 
 # checking weighted proportion of hivst (manual check = 0.003)
 #bfadhs_design <- svydesign(ids = ~psu, strata = ~strata, weights = ~ind_wt, data = combined_bfadhs, nest = TRUE)
@@ -958,13 +1007,15 @@ bdidhs2016m <- bdidhs2016m %>%
 
 
 # #--age grpwise den and num-----
+# table(bdidhs2016m$agegrp)
 # # Recode the existing agegrp into new age groups
 # bdidhs2016m <- bdidhs2016m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 3 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -1005,7 +1056,7 @@ bdidhs2016m <- bdidhs2016m %>%
 # 
 # bdi_prop_age_m_selected <- bdi_prop_age_m %>%
 #   select(agegroup_new, deno, num)
-
+# 
 
 # Combining male and female for Burundi
 combined_bdidhs <- bind_rows(bdidhs2016f, bdidhs2016m)
@@ -1349,14 +1400,15 @@ cmrdhs2018m <- cmrdhs2018m %>% mutate(last_hivresult = case_when(
 ))
 
 #------- age grp wise deno and num --------
-
-# Recode the existing agegrp into new age groups
+# table(cmrdhs2018m$agegrp)
+# # Recode the existing agegrp into new age groups
 # cmrdhs2018m <- cmrdhs2018m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9, 10) ~ "Group 3 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -1397,8 +1449,7 @@ cmrdhs2018m <- cmrdhs2018m %>% mutate(last_hivresult = case_when(
 # 
 # cmr_prop_age_m_selected <- cmr_prop_age_m %>%
 #   select(agegroup_new, deno, num)
-# 
-# 
+
 
 
 # Combining male and female for cameroon
@@ -1695,14 +1746,15 @@ civdhs2021m <- civdhs2021m %>% mutate(last_hivresult = case_when(
 ))
 
 #------- age grp wise deno and num --------
-
-# Recode the existing agegrp into new age groups
+# table(civdhs2021m$agegrp)
+# # Recode the existing agegrp into new age groups
 # civdhs2021m <- civdhs2021m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 3 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -1743,8 +1795,8 @@ civdhs2021m <- civdhs2021m %>% mutate(last_hivresult = case_when(
 # 
 # civ_prop_age_m_selected <- civ_prop_age_m %>%
 #   select(agegroup_new, deno, num)
-# 
-# 
+
+
 
 # Combining male and female for Cote d'Ivoire
 combined_civdhs <- bind_rows(civdhs2021f, civdhs2021m)
@@ -2173,24 +2225,22 @@ gha_prop_age_f_selected <- gha_prop_age_f %>%
 
 #ghana female dhs 2022 deno and num (6250.364, 150.6338)
 
-ghadhs_design_f <- svydesign(
-  ids = ~psu, strata = ~strata, weights = ~ind_wt, data = ghadhs2022f, nest = TRUE)
-gha_prop_f <- svyciprop(~I(hivst_use == 1), design = ghadhs_design_f, method = "logit", level = 0.95)
-se_hivst_use_f <- SE(gha_prop_f)
+# ghadhs_design_f <- svydesign(
+#   ids = ~psu, strata = ~strata, weights = ~ind_wt, data = ghadhs2022f, nest = TRUE)
+# gha_prop_f <- svyciprop(~I(hivst_use == 1), design = ghadhs_design_f, method = "logit", level = 0.95)
+# se_hivst_use_f <- SE(gha_prop_f)
+# 
+# ghaprop_hivst_use_f <-  0.0241 
+# gha_se_hivst_use_f <- 0.001939807 
+# 
+# eff_ss_f <- (ghaprop_hivst_use_f * (1 - ghaprop_hivst_use_f)) / (gha_se_hivst_use_f^2)
+# ghamicsf_num <- ghaprop_hivst_use_f * eff_ss_f
 
-ghaprop_hivst_use_f <-  0.0241 
-gha_se_hivst_use_f <- 0.001939807 
 
-eff_ss_f <- (ghaprop_hivst_use_f * (1 - ghaprop_hivst_use_f)) / (gha_se_hivst_use_f^2)
-ghamicsf_num <- ghaprop_hivst_use_f * eff_ss_f
-
-
-
-#-----Male------
-
+#-----male------
 ghadhs_male_ind <- read_dta("Ghana_2022_DHS\\GHMR8ADT\\GHMR8AFL.DTA")
 
-# Selecting and renaming variables(no observation for exchange_sex)
+# Selecting and renaming variables (no obs for exchange_sex)
 ghadhs2022m <- ghadhs_male_ind %>%
   select(
     psu = mv001,                     # PSU/Cluster
@@ -2205,14 +2255,15 @@ ghadhs2022m <- ghadhs_male_ind %>%
     curr_marital = mv501,            # Current marital status
     schl_years = mv106,              # Highest level of schooling
     wealth_index = mv190,            # Wealth quintile
-    total_partners = mv766b,         # Number of sex partners in the last 12 months
+    total_partners =  mv766b,        # Number of sex partners in the last 12 months
     ever_heard = mv751,              # Ever heard of HIV
-    selftest_dhs = mv856,            # Knowledge and use of HIV self-test
+    selftest_dhs= mv856,             # Knowledge and use of HIV self-test
     ever_tested = mv781,             # Ever tested for HIV
     received_hivresult =  mv828,     # Whether received result from last HIV test
-    last_hivtest = mv826a,           # How many months ago last tested for HIV 
+    last_hivtest = mv826a,            # How many months ago last tested for HIV
     last_hivresult = mv861           # result of last hiv test
   ) 
+
 
 # Calculating the median year of interview
 median(ghadhs2022m$year, na.rm = TRUE) 
@@ -2300,6 +2351,12 @@ ghadhs2022m <- ghadhs2022m %>% mutate(last_hivresult = case_when(
 
 # age grp wise deno and num
 
+
+
+# table(ghadhs2022m$agegrp)
+# table(ghadhs2022m$agegroup_new)
+
+
 # Recode the existing agegrp into new age groups
 ghadhs2022m <- ghadhs2022m %>%
   mutate(
@@ -2307,6 +2364,7 @@ ghadhs2022m <- ghadhs2022m %>%
       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+      agegrp %in% c(8,9) ~ "Group 4 (Age 50+)",
       TRUE ~ NA_character_  # Handle unexpected values
     )
   )
@@ -2664,14 +2722,15 @@ gindhs2018m <- gindhs2018m %>% mutate(last_hivtest = case_when(
 ))
 
 #------- age grp wise deno and num --------
-
+table(gindhs2018m$agegrp)
 # Recode the existing agegrp into new age groups
 # gindhs2018m <- gindhs2018m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 4 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -2713,7 +2772,7 @@ gindhs2018m <- gindhs2018m %>% mutate(last_hivtest = case_when(
 # gin_prop_age_m_selected <- gin_prop_age_m %>%
 #   select(agegroup_new, deno, num)
 # 
-
+# 
 
 # Combining male and female for Guinea
 combined_gindhs <- bind_rows(gindhs2018f, gindhs2018m)
@@ -2998,7 +3057,8 @@ kendhs2022m <- kendhs2022m %>%
     agegroup_new = case_when(
       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-      agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+      agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+      agegrp %in% 8 ~ "Group 4 (Age 50+)",
       TRUE ~ NA_character_  # Handle unexpected values
     )
   )
@@ -3320,54 +3380,58 @@ lsodhs2023m <- lsodhs2023m %>% mutate(last_hivresult = case_when(
   TRUE ~ NA_real_            # Missing or other values
 ))
 
-# Recode the existing agegrp into new age groups
-lsodhs2023m <- lsodhs2023m %>%
-  mutate(
-    agegroup_new = case_when(
-      agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
-      agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-      agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
-      TRUE ~ NA_character_  # Handle unexpected values
-    )
-  )
-
-
-lsodhs_design_m <- svydesign(
-  ids = ~psu,
-  strata = ~strata,
-  weights = ~ind_wt,
-  data = lsodhs2023m,
-  nest = TRUE
-)
-# Calculate the proportion of HIV testing usage by the new age groups
-lso_prop_age_m <- svyby(
-  ~I(hivst_use == 1),
-  ~agegroup_new,
-  design = lsodhs_design_m,
-  FUN = svyciprop,
-  method = "logit",
-  vartype = "se",
-  level = 0.95
-)
-
-# Rename the resulting columns for clarity
-lso_prop_age_m <- lso_prop_age_m %>%
-  rename(
-    prop = `I(hivst_use == 1)`,
-    se_prop = `se.as.numeric(I(hivst_use == 1))`
-  )
-
-
-# Calculate denominator (deno) and numerator (num)
-lso_prop_age_m <- lso_prop_age_m %>%
-  mutate(
-    deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
-    num = prop * deno                          # Calculate numerator
-  )
-
-lso_prop_age_m_selected <- lso_prop_age_m %>%
-  select(agegroup_new, deno, num)
-
+#---age grp wise deno and numerator----
+# table(lsodhs2023m$agegrp)
+# 
+# # Recode the existing agegrp into new age groups
+# lsodhs2023m <- lsodhs2023m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 4 (Age 50+)",
+#       TRUE ~ NA_character_  # Handle unexpected values
+#     )
+#   )
+# 
+# 
+# lsodhs_design_m <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = lsodhs2023m,
+#   nest = TRUE
+# )
+# # Calculate the proportion of HIV testing usage by the new age groups
+# lso_prop_age_m <- svyby(
+#   ~I(hivst_use == 1),
+#   ~agegroup_new,
+#   design = lsodhs_design_m,
+#   FUN = svyciprop,
+#   method = "logit",
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename the resulting columns for clarity
+# lso_prop_age_m <- lso_prop_age_m %>%
+#   rename(
+#     prop = `I(hivst_use == 1)`,
+#     se_prop = `se.as.numeric(I(hivst_use == 1))`
+#   )
+# 
+# 
+# # Calculate denominator (deno) and numerator (num)
+# lso_prop_age_m <- lso_prop_age_m %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+#     num = prop * deno                          # Calculate numerator
+#   )
+# 
+# lso_prop_age_m_selected <- lso_prop_age_m %>%
+#   select(agegroup_new, deno, num)
+# 
 
 # Combining male and female for Lesotho
 combined_lsodhs <- bind_rows(lsodhs2023f, lsodhs2023m)
@@ -3483,7 +3547,7 @@ lbrdhs2019f <- lbrdhs2019f %>% mutate(last_hivtest = case_when(
 ))
 
 #------- age grp wise deno and num --------
-
+#table(lbrdhs2019f$agegrp)
 # # Recode the existing agegrp into new age groups
 # lbrdhs2019f <- lbrdhs2019f %>%
 #   mutate(
@@ -3640,13 +3704,15 @@ lbrdhs2019m <- lbrdhs2019m %>% mutate(last_hivtest = case_when(
 
 
 #----agegrp wise den num--------
+table(lbrdhs2019m$agegrp)
 # Recode the existing agegrp into new age groups
 # lbrdhs2019m <- lbrdhs2019m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 4 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -3688,7 +3754,7 @@ lbrdhs2019m <- lbrdhs2019m %>% mutate(last_hivtest = case_when(
 # lbr_prop_age_m_selected <- lbr_prop_age_m %>%
 #   select(agegroup_new, deno, num)
 # 
-
+# 
 
 # Combining male and female for Liberia
 combined_lbrdhs <- bind_rows(lbrdhs2019f, lbrdhs2019m)
@@ -3972,54 +4038,56 @@ mdgdhs2021m <- mdgdhs2021m %>% mutate(last_hivtest = case_when(
 ))
 
 #--- age grp wise deno and num -------
-
+# table(mdgdhs2021m$agegrp)
 # # Recode the existing agegrp into new age groups
-# mdgdhs2021m <- mdgdhs2021m %>%
+#  mdgdhs2021m <- mdgdhs2021m %>%
 #   mutate(
-#     agegroup_new = case_when(
-#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
-#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
-#       TRUE ~ NA_character_  # Handle unexpected values
-#     )
-#   )
+#      agegroup_new = case_when(
+#        agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#        agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#        agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#        agegrp %in% c(8, 9) ~ "Group 4 (Age 50+)",
 # 
+#        TRUE ~ NA_character_  # Handle unexpected values
+#      )
+# )
+# #
 # mdgdhs_design_m <- svydesign(
 #   ids = ~psu,
 #   strata = ~strata,
 #   weights = ~ind_wt,
 #   data = mdgdhs2021m,
-#   nest = TRUE
-# )
-# # Calculate the proportion of HIV testing usage by the new age groups
+#    nest = TRUE
+#  )
+# # # Calculate the proportion of HIV testing usage by the new age groups
 # mdg_prop_age_m <- svyby(
-#   ~I(hivst_use == 1),
+#  ~I(hivst_use == 1),
 #   ~agegroup_new,
 #   design = mdgdhs_design_m,
 #   FUN = svyciprop,
-#   method = "logit",
+#    method = "logit",
 #   vartype = "se",
-#   level = 0.95
-# )
-# 
-# # Rename the resulting columns for clarity
-# mdg_prop_age_m <- mdg_prop_age_m %>%
+#    level = 0.95
+#  )
+# #
+# #  Rename the resulting columns for clarity
+#  mdg_prop_age_m <- mdg_prop_age_m %>%
 #   rename(
 #     prop = `I(hivst_use == 1)`,
-#     se_prop = `se.as.numeric(I(hivst_use == 1))`
+#      se_prop = `se.as.numeric(I(hivst_use == 1))`
 #   )
-# 
-# 
-# # Calculate denominator (deno) and numerator (num)
-# mdg_prop_age_m <- mdg_prop_age_m %>%
-#   mutate(
+# #
+# #
+# # # Calculate denominator (deno) and numerator (num)
+#  mdg_prop_age_m <- mdg_prop_age_m %>%
+#    mutate(
 #     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
 #     num = prop * deno                          # Calculate numerator
 #   )
 # 
-# mdg_prop_age_m_selected <- mdg_prop_age_m %>%
-#   select(agegroup_new, deno, num)
-# 
+#  mdg_prop_age_m_selected <- mdg_prop_age_m %>%
+#    select(agegroup_new, deno, num)
+
 
 
 #mdgdhs_design_m <- svydesign(ids = ~psu, strata = ~strata, weights = ~ind_wt, data = mdgdhs2021m, nest = TRUE)
@@ -4353,13 +4421,16 @@ mwidhs2015m <- mwidhs2015m %>% mutate(last_hivtest = case_when(
 
 
 # # --- age grp wise den and num----
+# table(mwidhs2015m$agegrp)
 # # Recode the existing agegrp into new age groups
 # mwidhs2015m <- mwidhs2015m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% 8 ~ "Group 4 (Age 50+)",
+#       
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -4400,8 +4471,8 @@ mwidhs2015m <- mwidhs2015m %>% mutate(last_hivtest = case_when(
 # 
 # mwi_prop_age_m_selected <- mwi_prop_age_m %>%
 #   select(agegroup_new, deno, num)
-
-
+# 
+# 
 
 #2015 malawi dhs male deno and num (2795.972, 30.47609)
 #mwidhs_design_m <- svydesign(ids = ~psu, strata = ~strata, weights = ~ind_wt, data = mwidhs2015m, nest = TRUE)
@@ -4575,8 +4646,6 @@ mlidhs2018f <- mlidhs2018f %>% mutate(last_hivtest = case_when(
 # 
 # mli_prop_age_f_selected <- mli_prop_age_f %>%
 #   select(agegroup_new, deno, num)
-# 
-# 
 
 
 
@@ -4686,55 +4755,56 @@ mlidhs2018m <- mlidhs2018m %>% mutate(last_hivtest = case_when(
 
 
 #------- age grp wise deno and num --------
-
-# Recode the existing agegrp into new age groups
-mlidhs2018m <- mlidhs2018m %>%
-  mutate(
-    agegroup_new = case_when(
-      agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
-      agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-      agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
-      TRUE ~ NA_character_  # Handle unexpected values
-    )
-  )
-
-
-mlidhs_design_m <- svydesign(
-  ids = ~psu,
-  strata = ~strata,
-  weights = ~ind_wt,
-  data = mlidhs2018m,
-  nest = TRUE
-)
-# Calculate the proportion of HIV testing usage by the new age groups
-mli_prop_age_m <- svyby(
-  ~I(hivst_use == 1),
-  ~agegroup_new,
-  design = mlidhs_design_m,
-  FUN = svyciprop,
-  method = "logit",
-  vartype = "se",
-  level = 0.95
-)
-
-# Rename the resulting columns for clarity
-mli_prop_age_m <- mli_prop_age_m %>%
-  rename(
-    prop = `I(hivst_use == 1)`,
-    se_prop = `se.as.numeric(I(hivst_use == 1))`
-  )
-
-
-# Calculate denominator (deno) and numerator (num)
-mli_prop_age_m <- mli_prop_age_m %>%
-  mutate(
-    deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
-    num = prop * deno                          # Calculate numerator
-  )
-
-mli_prop_age_m_selected <- mli_prop_age_m %>%
-  select(agegroup_new, deno, num)
-
+# table(mlidhs2018m$agegrp)
+# # Recode the existing agegrp into new age groups
+# mlidhs2018m <- mlidhs2018m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 3 (Age 50+)",
+#       TRUE ~ NA_character_  # Handle unexpected values
+#     )
+#   )
+# 
+# 
+# mlidhs_design_m <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = mlidhs2018m,
+#   nest = TRUE
+# )
+# # Calculate the proportion of HIV testing usage by the new age groups
+# mli_prop_age_m <- svyby(
+#   ~I(hivst_use == 1),
+#   ~agegroup_new,
+#   design = mlidhs_design_m,
+#   FUN = svyciprop,
+#   method = "logit",
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename the resulting columns for clarity
+# mli_prop_age_m <- mli_prop_age_m %>%
+#   rename(
+#     prop = `I(hivst_use == 1)`,
+#     se_prop = `se.as.numeric(I(hivst_use == 1))`
+#   )
+# 
+# 
+# # Calculate denominator (deno) and numerator (num)
+# mli_prop_age_m <- mli_prop_age_m %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+#     num = prop * deno                          # Calculate numerator
+#   )
+# 
+# mli_prop_age_m_selected <- mli_prop_age_m %>%
+#   select(agegroup_new, deno, num)
+# 
 
 
 
@@ -4975,7 +5045,375 @@ mrtdhs2019m <- mrtdhs2019m %>%
 combined_mrtdhs <- bind_rows(mrtdhs2019f, mrtdhs2019m)
 
 #-------------------------------------------------------------------------------
+# Mozambique 2022-23 (no biomarker data)
+#-----Female------
+mozdhs_female_ind <- read_dta("Mozambique_2022-23_DHS\\MZIR81DT\\MZIR81FL.DTA")
+table(mozdhs_female_ind$v856)
 
+# Selecting and renaming variables 
+mozdhs2022f <- mozdhs_female_ind %>%
+  select(
+    psu = v001,                     # PSU/Cluster
+    strata = v022,                  # Strata
+    province = v101,                # Area/Province
+    region = v102,                  # Urban/ Rural Area
+    ind_wt = v005,                  # Individual weight
+    year = v007,                    # Survey year
+    hhid = v002,                    # Household ID
+    age = v012,                     # Age of the respondent
+    agegrp = v013,                  # Age in 5y age groups
+    curr_marital = v501,            # Current marital status
+    schl_years = v106,              # Highest level of schooling
+    wealth_index = v190,            # Wealth quintile
+    exchange_sex = v791a,           # Had sex in return for gifts, cash or other in the last 12 months
+    total_partners =  v766b,        # Number of sex partners in the last 12 months
+    ever_heard = v751,              # Ever heard of HIV
+    selftest_dhs= v856,             # Knowledge and use of HIV self-test
+    ever_tested = v781,             # Ever tested for HIV
+    received_hivresult =  v828,     # Whether received result from last HIV test
+    last_hivtest = v826a,           # How many months ago last tested for HIV 
+    #last_hivresult = v473b         # result of last hiv test (not available)
+  ) 
+
+# Calculating the median year of interview
+median(mozdhs2022f$year, na.rm = TRUE) #2022
+
+# Adding columns for country, survey ID
+mozdhs2022f <- mozdhs2022f %>% mutate(
+  country = "Mozambique", survey_id = "MOZ2022DHS", med_year = 2022)
+
+# Reordering columns to make country and survey_id the leftmost columns
+mozdhs2022f <- mozdhs2022f %>% select(country, survey_id, med_year, everything())
+
+# Adding the 'sex' column with value 0 (women)
+mozdhs2022f <- mozdhs2022f %>% mutate(sex = 0) %>% relocate(sex, .after = agegrp)
+
+# Correcting individual weights 
+mozdhs2022f <- mozdhs2022f %>% mutate(ind_wt = ind_wt / 1e6)
+
+# Recoding province
+mozdhs2022f$province <- as.character(mozdhs2022f$province)
+
+# Creating the hivst_knwldge and hivst_use variables
+mozdhs2022f <- mozdhs2022f %>% 
+  mutate(
+  hivst_knwldge = case_when(
+    selftest_dhs == 0 ~ 0,
+    selftest_dhs %in% c(1, 2) ~ 1,
+    TRUE ~ 0
+  ),
+  hivst_use = case_when(
+    selftest_dhs == 1 ~ 1,
+    TRUE ~ 0
+  )
+)
+
+# moving to the right of the selftest_dhs column
+mozdhs2022f <- mozdhs2022f %>% relocate(hivst_knwldge, hivst_use, .after = selftest_dhs)
+
+# Recoding region
+mozdhs2022f <- mozdhs2022f %>% mutate(region = case_when(
+  region == 1 ~ 1,   # Urban
+  region == 2 ~ 0,   # Rural
+  TRUE ~ NA_real_    # Missing
+))
+
+# Recoding the curr_marital 
+mozdhs2022f <- mozdhs2022f %>% mutate(curr_marital = case_when(
+  curr_marital == 0 ~ 1,   # Single
+  curr_marital == 3 ~ 2,   # Widowed
+  curr_marital == 4 ~ 3,   # Divorced
+  curr_marital == 5 ~ 4,   # Separated
+  curr_marital %in% c(1, 2) ~ 5,  # Married/In a Union
+  TRUE ~ NA_real_          # Missing or any other values
+))
+
+
+# Recoding the wealth quintile the specified labels
+mozdhs2022f <- mozdhs2022f %>% mutate(wealth_index = factor(wealth_index, 
+                                                            levels = c(1, 2, 3, 4, 5), 
+                                                            labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")))
+
+# Recoding the total_partners variable
+mozdhs2022f <- mozdhs2022f %>% mutate(total_partners = case_when(
+  total_partners == 98 ~ 88,   # Recode 98 as 88 (don't know)
+  total_partners == 95 ~ 98,   # Recode 95 as 98 (refused)
+  TRUE ~ total_partners        # Keep other values the same
+))
+
+
+# Recoding the last_hivtest
+mozdhs2022f <- mozdhs2022f %>% mutate(last_hivtest = case_when(
+  last_hivtest %in% c(0:11) ~ 1,  # Tested <12 months ago
+  last_hivtest %in% c(12:23) ~ 2, # Tested 1-2 years ago
+  last_hivtest == 95 ~ 3,      # Tested more than 2 years ago
+  last_hivtest == 98 ~ 88,     # Don't know
+  TRUE ~ NA_real_              # Missing 
+))
+
+
+
+
+# # moz female dhs 2022 deno and num (8289, 176)
+# mozdhs_design_f <- svydesign(ids = ~psu, strata = ~strata,
+#                            weights = ~ind_wt, data = mozdhs2022f, nest = TRUE)
+# 
+# moz_prop_f <- svyciprop(~I(hivst_use == 1),
+#                         design = mozdhs_design_f, method = "logit", level = 0.95)
+# se_hivst_use_f <- SE(moz_prop_f)
+# 
+# moz_hivst_prop_f <-  0.0212
+# moz_hivst_use_f <- 0.001582267
+# 
+# eff_ss_f <- (moz_hivst_prop_f * (1 - moz_hivst_prop_f)) / (se_hivst_use_f^2)
+# mozdhsf_num <- moz_hivst_prop_f * eff_ss_f
+
+
+#  age grp wise deno and num
+
+# Recode the existing agegrp into new age groups
+# table(mozdhs2022f$agegrp)
+# mozdhs2022f <- mozdhs2022f %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       TRUE ~ NA_character_  # Handle unexpected values
+#     )
+#   )
+# 
+# mozdhs_design_f <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = mozdhs2022f,
+#   nest = TRUE
+# )
+# # Calculate the proportion of HIV testing usage by the new age groups
+# moz_prop_age_f <- svyby(
+#   ~I(hivst_use == 1),
+#   ~agegroup_new,
+#   design = mozdhs_design_f,
+#   FUN = svyciprop,
+#   method = "logit",
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename the resulting columns for clarity
+# moz_prop_age_f <- moz_prop_age_f %>%
+#   rename(
+#     prop = `I(hivst_use == 1)`,
+#     se_prop = `se.as.numeric(I(hivst_use == 1))`
+#   )
+# 
+# 
+# # Calculate denominator (deno) and numerator (num)
+# moz_prop_age_f <- moz_prop_age_f %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+#     num = prop * deno                          # Calculate numerator
+#   )
+# 
+# moz_prop_age_f_selected <- moz_prop_age_f %>%
+#   select(agegroup_new, deno, num)
+# 
+
+
+#-----Male------
+
+mozdhs_male_ind <- read_dta("Mozambique_2022-23_DHS\\MZMR81DT\\MZMR81FL.DTA")
+
+# Selecting and renaming variables
+mozdhs2022m <- mozdhs_male_ind %>%
+  select(
+    psu = mv001,                     # PSU/Cluster
+    strata = mv022,                  # Strata
+    province = mv101,                # Area/Province
+    region = mv102,                  # Urban/ Rural Area
+    ind_wt = mv005,                  # Individual weight
+    year = mv007,                    # Survey year
+    hhid = mv002,                    # Household ID
+    age = mv012,                     # Age of the respondent
+    agegrp = mv013,                  # Age in 5y age groups
+    curr_marital = mv501,            # Current marital status
+    schl_years = mv106,              # Highest level of schooling
+    wealth_index = mv190,            # Wealth quintile
+    exchange_sex = mv791a,           # Had sex in return for gifts, cash or other in the last 12 months
+    total_partners = mv766b,         # Number of sex partners in the last 12 months
+    ever_heard = mv751,              # Ever heard of HIV
+    selftest_dhs = mv856,            # Knowledge and use of HIV self-test
+    ever_tested = mv781,             # Ever tested for HIV
+    received_hivresult =  mv828,     # Whether received result from last HIV test
+    last_hivtest = mv826a,           # How many months ago last tested for HIV 
+    #last_hivresult = mv861           # result of last hiv test (NA)
+  ) 
+
+# Calculating the median year of interview
+median(mozdhs2022m$year, na.rm = TRUE) #2022
+
+# Adding columns for country, survey ID
+mozdhs2022m <- mozdhs2022m %>% mutate(
+  country = "Mozambique", survey_id = "MOZ2022DHS", med_year = 2022)
+
+# Reordering columns to make country and survey_id the leftmost columns
+mozdhs2022m <- mozdhs2022m %>% select(country, survey_id, med_year, everything())
+
+# Adding the 'sex' column with value 1 (men)
+mozdhs2022m <- mozdhs2022m %>% mutate(sex = 1) %>% relocate(sex, .after = agegrp)
+
+# Correcting individual weights 
+mozdhs2022m <- mozdhs2022m %>% mutate(ind_wt = ind_wt / 1e6)
+
+# Recoding province
+mozdhs2022m$province <- as.character(mozdhs2022m$province)
+
+
+# Creating the hivst_knwldge and hivst_use variables
+mozdhs2022m <- mozdhs2022m %>% mutate(
+  hivst_knwldge = case_when(
+    selftest_dhs == 0 ~ 0,
+    selftest_dhs %in% c(1, 2) ~ 1,
+    TRUE ~ 0
+  ),
+  hivst_use = case_when(
+    selftest_dhs == 1 ~ 1,
+    TRUE ~ 0
+  )
+)
+
+# moving to the right of the selftest_dhs column
+mozdhs2022m <- mozdhs2022m %>% relocate(hivst_knwldge, hivst_use, .after = selftest_dhs)
+
+# Recoding region
+mozdhs2022m <- mozdhs2022m %>% mutate(region = case_when(
+  region == 1 ~ 1,   # Urban
+  region == 2 ~ 0,   # Rural
+  TRUE ~ NA_real_    # Missing
+))
+
+# Recoding the curr_marital 
+mozdhs2022m <- mozdhs2022m %>% mutate(curr_marital = case_when(
+  curr_marital == 0 ~ 1,   # Single
+  curr_marital == 3 ~ 2,   # Widowed
+  curr_marital == 4 ~ 3,   # Divorced
+  curr_marital == 5 ~ 4,   # Separated
+  curr_marital %in% c(1, 2) ~ 5,  # Married/In a Union
+  TRUE ~ NA_real_          # Missing or any other values
+))
+
+
+# Recoding the wealth quintile for specified labels
+mozdhs2022m <- mozdhs2022m %>% mutate(wealth_index = factor(wealth_index, 
+                                                            levels = c(1, 2, 3, 4, 5), 
+                                                            labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")))
+
+# Recoding the total_partners variable
+mozdhs2022m <- mozdhs2022m %>% mutate(total_partners = case_when(
+  total_partners == 98 ~ 88,   # Recode 98 as 88 (don't know)
+  total_partners == 95 ~ 98,   # Recode 95 as 98 (refused)
+  TRUE ~ total_partners        # Keep other values the same
+))
+
+# Recoding the last_hivtest
+mozdhs2022m <- mozdhs2022m %>% mutate(last_hivtest = case_when(
+  last_hivtest %in% 0:11 ~ 1,      # Tested less than 1 year ago
+  last_hivtest %in% 12:23 ~ 2,     # Tested 1-2 years ago
+  last_hivtest == 95 ~ 3,          # Tested more than 2 years ago
+  last_hivtest == 98 ~ 88,         # Don't know
+  TRUE ~ NA_real_                  # Missing or other values
+))
+
+
+# moz male dhs 2022 deno and num (3164, 107)
+# mozdhs_design_m <- svydesign(ids = ~psu, strata = ~strata,
+#                              weights = ~ind_wt, data = mozdhs2022m, nest = TRUE)
+# 
+# moz_prop_m <- svyciprop(~I(hivst_use == 1),
+#                         design = mozdhs_design_m, method = "logit", level = 0.95)
+# se_hivst_use_m <- SE(moz_prop_m)
+# 
+# moz_hivst_prop_m <-  0.0337
+# moz_hivst_use_m <- 0.003208174
+# 
+# eff_ss_m <- (moz_hivst_prop_m * (1 - moz_hivst_prop_m)) / (se_hivst_use_m^2)
+# mozdhsm_num <- moz_hivst_prop_m * eff_ss_m
+
+
+#--- age grp wise deno and num -------
+# table(mozdhs2022m$agegrp)
+# # Recode the existing agegrp into new age groups
+#  mozdhs2022m <- mozdhs2022m %>%
+#   mutate(
+#      agegroup_new = case_when(
+#        agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#        agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#        agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#        agegrp %in% 8 ~ "Group 4 (Age 50+)",
+# 
+#        TRUE ~ NA_character_  # Handle unexpected values
+#      )
+# )
+# 
+# mozdhs_design_m <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = mozdhs2022m,
+#    nest = TRUE
+#  )
+# # # Calculate the proportion of HIV testing usage by the new age groups
+# moz_prop_age_m <- svyby(
+#  ~I(hivst_use == 1),
+#   ~agegroup_new,
+#   design = mozdhs_design_m,
+#   FUN = svyciprop,
+#    method = "logit",
+#   vartype = "se",
+#    level = 0.95
+#  )
+# #
+# #  Rename the resulting columns for clarity
+#  moz_prop_age_m <- moz_prop_age_m %>%
+#   rename(
+#     prop = `I(hivst_use == 1)`,
+#      se_prop = `se.as.numeric(I(hivst_use == 1))`
+#   )
+# #
+# #
+# # # Calculate denominator (deno) and numerator (num)
+#  moz_prop_age_m <- moz_prop_age_m %>%
+#    mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+#     num = prop * deno                          # Calculate numerator
+#   )
+# 
+#  moz_prop_age_m_selected <- moz_prop_age_m %>%
+#    select(agegroup_new, deno, num)
+# 
+
+# Combining male and female for Madagascar
+combined_mozdhs <- bind_rows(mozdhs2022f, mozdhs2022m)
+
+# # hivst use and knowledge overall
+# mozdhs_design <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = combined_mozdhs,
+#   nest = TRUE
+# )
+# 
+# prop <- svyciprop(~I(hivst_knwldge == 1), 
+#                   design = mozdhs_design, method = "logit", level = 0.95)
+# 
+# prop2 <- svyciprop(~I(hivst_use == 1), 
+#                    design = mozdhs_design, method = "logit", level = 0.95)
+# 
+# nrow(combined_mozdhs)
+
+#--------------------------------------------------------------------------
 # Rwanda 2019-20 
 
 #-----Female------
@@ -5185,6 +5623,61 @@ rwadhs2019m <- rwadhs2019m %>% mutate(last_hivtest = case_when(
   last_hivtest == 98 ~ 88,         # Don't know
   TRUE ~ NA_real_                  # Missing or other values
 ))
+
+
+#---age grp wise deno and numerator----
+#  table(rwadhs2019m$agegrp)
+# 
+# # Recode the existing agegrp into new age groups
+# rwadhs2019m <- rwadhs2019m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 4 (Age 50+)",
+#       TRUE ~ NA_character_  # Handle unexpected values
+#     )
+#   )
+# 
+# 
+# rwadhs_design_m <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = rwadhs2019m,
+#   nest = TRUE
+# )
+# # Calculate the proportion of HIV testing usage by the new age groups
+# rwa_prop_age_m <- svyby(
+#   ~I(hivst_use == 1),
+#   ~agegroup_new,
+#   design = rwadhs_design_m,
+#   FUN = svyciprop,
+#   method = "logit",
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename the resulting columns for clarity
+# rwa_prop_age_m <- rwa_prop_age_m %>%
+#   rename(
+#     prop = `I(hivst_use == 1)`,
+#     se_prop = `se.as.numeric(I(hivst_use == 1))`
+#   )
+# 
+# 
+# # Calculate denominator (deno) and numerator (num)
+# rwa_prop_age_m <- rwa_prop_age_m %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+#     num = prop * deno                          # Calculate numerator
+#   )
+# 
+# rwa_prop_age_m_selected <- rwa_prop_age_m %>%
+#   select(agegroup_new, deno, num)
+# 
+# 
 
 # Combining male and female for Rwanda
 combined_rwadhs <- bind_rows(rwadhs2019f, rwadhs2019m)
@@ -5496,14 +5989,15 @@ sendhs2017m <- sendhs2017m %>% mutate(last_hivtest = case_when(
 ))
 
 #------den num for age grp----------------
-
-# Recode the existing agegrp into new age groups
+# table(sendhs2017m$agegrp)
+# # Recode the existing agegrp into new age groups
 # sendhs2017m <- sendhs2017m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 4 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -5544,10 +6038,359 @@ sendhs2017m <- sendhs2017m %>% mutate(last_hivtest = case_when(
 # 
 # sen_prop_age_m_selected <- sen_prop_age_m %>%
 #   select(agegroup_new, deno, num)
-
+# 
 
 # Combining male and female for Senegal
 combined_sendhs <- bind_rows(sendhs2017f, sendhs2017m)
+
+#------------------------------------------------------------------------------
+
+# Senegal 2023 ( no biomarker)
+
+#-----Female------
+
+sendhs_female_ind <- read_dta("Senegal_2023_CONTINUOUSDHS\\SNIR8SDT\\SNIR8SFL.DTA")
+
+# Selecting and renaming variables
+sendhs2023f <- sendhs_female_ind %>%
+  select(
+    psu = v001,                     # PSU/Cluster
+    strata = v022,                  # Strata
+    province = v101,                # Area/Province
+    region = v102,                  # Urban/ Rural Area
+    ind_wt = v005,                  # Individual weight
+    year = v007,                    # Survey year
+    hhid = v002,                    # Household ID
+    age = v012,                     # Age of the respondent
+    agegrp = v013,                  # Age in 5y age groups
+    curr_marital = v501,            # Current marital status
+    schl_years = v106,              # Highest level of schooling
+    wealth_index = v190,            # Wealth quintile
+    exchange_sex = v791a,           # Had sex in return for gifts, cash or other in the last 12 months
+    total_partners =  v766b,        # Number of sex partners in the last 12 months
+    ever_heard = v751,              # Ever heard of HIV
+    selftest_dhs= v856,             # Knowledge and use of HIV self-test
+    ever_tested = v781,             # Ever tested for HIV
+    received_hivresult =  v828,     # Whether received result from last HIV test
+    last_hivtest = v826a            # How many months ago last tested for HIV 
+  ) 
+
+# Calculating the median year of interview
+median(sendhs2023f$year, na.rm = TRUE) #2023
+
+# Adding columns for country, survey ID
+sendhs2023f <- sendhs2023f %>% mutate(
+  country = "Senegal",survey_id = "SEN2023DHS", med_year = 2023)
+
+# Reordering columns to make country and survey_id the leftmost columns
+sendhs2023f <- sendhs2023f %>%
+  select(country, survey_id, med_year, everything())
+
+# Adding the 'sex' column with value 0 (women)
+sendhs2023f <- sendhs2023f %>% mutate(sex = 0) %>% relocate(sex, .after = agegrp)
+
+# Correcting individual and HIV weights 
+sendhs2023f <- sendhs2023f %>% mutate(ind_wt = ind_wt / 1e6)
+
+# Recoding province
+sendhs2023f$province <- as.character(sendhs2023f$province)
+
+
+# Creating the hivst_knwldge and hivst_use variables
+sendhs2023f <- sendhs2023f %>%
+  mutate(
+    hivst_knwldge = case_when(
+      selftest_dhs == 0 ~ 0,
+      selftest_dhs %in% c(1, 2) ~ 1,
+      TRUE ~ 0
+    ),
+    hivst_use = case_when(
+      selftest_dhs == 1 ~ 1,
+      TRUE ~ 0
+    )
+  )
+
+# moving to the right of the selftest_dhs column
+sendhs2023f <- sendhs2023f %>% relocate(hivst_knwldge, hivst_use, .after = selftest_dhs)
+
+# Recoding region
+sendhs2023f <- sendhs2023f %>%
+  mutate(region = case_when(
+    region == 1 ~ 1,   # Urban
+    region == 2 ~ 0,   # Rural
+    TRUE ~ NA_real_    # Missing
+  ))
+
+# Recoding the curr_marital 
+sendhs2023f <- sendhs2023f %>%
+  mutate(curr_marital = case_when(
+    curr_marital == 0 ~ 1,   # Single
+    curr_marital == 3 ~ 2,   # Widowed
+    curr_marital == 4 ~ 3,   # Divorced
+    curr_marital == 5 ~ 4,   # Separated
+    curr_marital %in% c(1, 2) ~ 5,  # Married/In a Union
+    TRUE ~ NA_real_          # Missing or any other values
+  ))
+
+# Recoding the wealth quintile the specified labels
+sendhs2023f <- sendhs2023f %>% mutate(wealth_index = factor(wealth_index, 
+                                                            levels = c(1, 2, 3, 4, 5), 
+                                                            labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")))
+
+# Recoding the schl_years variable
+sendhs2023f <- sendhs2023f %>%
+  mutate(schl_years = case_when(
+    schl_years == 6 ~ 88,  # Recode 6 as 88 (don't know)
+    is.na(schl_years) ~ NA_real_,  # Ensure missing values remain NA
+    TRUE ~ schl_years  # Keep other values the same
+  ))
+
+# Recoding the total_partners
+sendhs2023f <- sendhs2023f %>% mutate(total_partners = case_when(
+  total_partners == 98 ~ 88,   # Recode 98 as 88 (don't know)
+  total_partners == 95 ~ NA_real_,  # Recode 95 as NA
+  TRUE ~ total_partners        # Keep other values the same
+))
+
+
+# Recoding the last_hivtest
+sendhs2023f <- sendhs2023f %>%
+  mutate(last_hivtest = case_when(
+    last_hivtest %in% c(0:11) ~ 1,  # Tested <12 months ago
+    last_hivtest %in% c(12:23) ~ 2, # Tested 1-2 years ago
+    last_hivtest == 95 ~ 3,      # Tested more than 2 years ago
+    TRUE ~ NA_real_              # Missing or other values
+  ))
+
+
+# # senegal female dhs 2023 deno and num (6389, 36)
+# sendhs_design_f <- svydesign(ids = ~psu, strata = ~strata,
+#                            weights = ~ind_wt, data = sendhs2023f, nest = TRUE)
+# 
+# sen_prop_f <- svyciprop(~I(hivst_use == 1),
+#                         design = sendhs_design_f, method = "logit", level = 0.95)
+# se_hivst_use_f <- SE(sen_prop_f)
+# 
+# sen_hivst_prop_f <-  0.00557
+# sen_hivst_use_f <- 0.0009310899 
+# 
+# eff_ss_f <- (sen_hivst_prop_f * (1 - sen_hivst_prop_f)) / (se_hivst_use_f^2)
+# sendhsf_num <- sen_hivst_prop_f * eff_ss_f
+
+#------- age grp wise deno and num --------
+
+# Recode the existing agegrp into new age groups
+# table(sendhs2023f$agegrp)
+# sendhs2023f <- sendhs2023f %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       TRUE ~ NA_character_  # Handle unexpected values
+#     )
+#   )
+# 
+# 
+# sendhs_design_f <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = sendhs2023f,
+#   nest = TRUE
+# )
+# # Calculate the proportion  HIV testing usage by the new age groups
+# sen_prop_age_f <- svyby(
+#   ~I(hivst_use == 1),
+#   ~agegroup_new,
+#   design = sendhs_design_f,
+#   FUN = svyciprop,
+#   method = "logit",
+#   vartype = "se",
+#   level = 0.95
+# )
+# 
+# # Rename the resulting columns to clarity
+# sen_prop_age_f <- sen_prop_age_f %>%
+#   rename(
+#     prop = `I(hivst_use == 1)`,
+#     se_prop = `se.as.numeric(I(hivst_use == 1))`
+#   )
+# 
+# 
+# # Calculate denominator (deno) and numerator (num)
+# sen_prop_age_f <- sen_prop_age_f %>%
+#   mutate(
+#     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+#     num = prop * deno                          # Calculate numerator
+#   )
+# 
+# sen_prop_age_f_selected <- sen_prop_age_f %>%
+#   select(agegroup_new, deno, num)
+# 
+
+#-----Male------
+
+sendhs_male_ind <- read_dta("Senegal_2023_CONTINUOUSDHS\\SNMR8SDT\\SNMR8SFL.DTA")
+
+# Selecting and renaming variables
+sendhs2023m <- sendhs_male_ind %>%
+  select(
+    psu = mv001,                     # PSU/Cluster
+    strata = mv022,                  # Strata
+    province = mv101,                # Area/Province
+    region = mv102,                  # Urban/ Rural Area
+    ind_wt = mv005,                  # Individual weight
+    year = mv007,                    # Survey year
+    hhid = mv002,                    # Household ID
+    age = mv012,                     # Age of the respondent
+    agegrp = mv013,                  # Age in 5y age groups
+    curr_marital = mv501,            # Current marital status
+    schl_years = mv106,              # Highest level of schooling
+    wealth_index = mv190,            # Wealth quintile
+    exchange_sex = mv791a,           # Had sex in return for gifts, cash or other in the last 12 months
+    total_partners = mv766b,         # Number of sex partners in the last 12 months
+    ever_heard = mv751,              # Ever heard of HIV
+    selftest_dhs = mv856,            # Knowledge and use of HIV self-test
+    ever_tested = mv781,             # Ever tested for HIV
+    received_hivresult =  mv828,     # Whether received result from last HIV test
+    last_hivtest = mv826a            # How many months ago last tested for HIV 
+  ) 
+
+# Calculating the median year of interview
+median(sendhs2023m$year, na.rm = TRUE) #2023
+
+# Adding columns for country, survey ID
+sendhs2023m <- sendhs2023m %>% mutate(
+  country = "Senegal", survey_id = "SEN2023DHS", med_year = 2023)
+
+# Reordering columns to make country and survey_id the leftmost columns
+sendhs2023m <- sendhs2023m %>% select(country, survey_id, med_year, everything())
+
+# Adding the 'sex' column with value 1 (men)
+sendhs2023m <- sendhs2023m %>% mutate(sex = 1) %>% relocate(sex, .after = agegrp)  
+
+# Correcting individual and HIV weights 
+sendhs2023m <- sendhs2023m %>% mutate(ind_wt = ind_wt / 1e6)
+
+# Recoding province
+sendhs2023m$province <- as.character(sendhs2023m$province)
+
+
+# Creating the hivst_knwldge and hivst_use variables
+sendhs2023m <- sendhs2023m %>%
+  mutate(
+    hivst_knwldge = case_when(
+      selftest_dhs == 0 ~ 0,
+      selftest_dhs %in% c(1, 2) ~ 1,
+      TRUE ~ 0
+    ),
+    hivst_use = case_when(
+      selftest_dhs == 1 ~ 1,
+      TRUE ~ 0
+    )
+  )
+
+
+# moving to the right of the selftest_dhs column
+sendhs2023m <- sendhs2023m %>% relocate(hivst_knwldge, hivst_use, .after = selftest_dhs)
+
+# Recoding region
+sendhs2023m <- sendhs2023m %>%
+  mutate(region = case_when(
+    region == 1 ~ 1,   # Urban
+    region == 2 ~ 0,   # Rural
+    TRUE ~ NA_real_    # Missing
+  ))
+
+# Recoding the curr_marital 
+sendhs2023m <- sendhs2023m %>%
+  mutate(curr_marital = case_when(
+    curr_marital == 0 ~ 1,   # Single
+    curr_marital == 3 ~ 2,   # Widowed
+    curr_marital == 4 ~ 3,   # Divorced
+    curr_marital == 5 ~ 4,   # Separated
+    curr_marital %in% c(1, 2) ~ 5,  # Married/In a Union
+    TRUE ~ NA_real_          # Missing or any other values
+  ))
+
+
+# Recoding the wealth quintile for specified labels
+sendhs2023m <- sendhs2023m %>% mutate(wealth_index = factor(wealth_index, 
+                                                            levels = c(1, 2, 3, 4, 5), 
+                                                            labels = c("Lowest", "Second", "Middle", "Fourth", "Highest")))
+
+# Recoding the total_partners
+sendhs2023m <- sendhs2023m %>%
+  mutate(total_partners = case_when(
+    total_partners == 98 ~ 88,   # Recode 98 as 88 (don't know)
+    total_partners == 95 ~ NA_real_,  # Recode 95 as NA
+    TRUE ~ total_partners        # Keep other values the same
+  ))
+
+
+# Recoding the last_hivtest
+sendhs2023m <- sendhs2023m %>% mutate(last_hivtest = case_when(
+  last_hivtest %in% c(0:11) ~ 1,  # Tested <12 months ago
+  last_hivtest %in% c(12:24) ~ 2, # Tested 1-2 years ago
+  last_hivtest %in% c(95:96) ~ 3, # Tested more than 2 years ago
+  TRUE ~ NA_real_              # Missing or other values
+))
+
+
+# senegal male dhs 2023 deno and num (6389, 36)
+sendhs_design_m <- svydesign(ids = ~psu, strata = ~strata,
+                             weights = ~ind_wt, data = sendhs2023m, nest = TRUE)
+
+sen_prop_m <- svyciprop(~I(hivst_use == 1),
+                        design = sendhs_design_m, method = "logit", level = 0.95)
+se_hivst_use_m <- SE(sen_prop_m)
+
+sen_hivst_prop_m <-  0.00557
+sen_hivst_use_m <- 0.0009310899 
+
+eff_ss_m <- (sen_hivst_prop_m * (1 - sen_hivst_prop_m)) / (se_hivst_use_m^2)
+sendhsm_num <- sen_hivst_prop_m * eff_ss_m
+
+
+#------den num for age grp----------------
+# table(sendhs2023m$agegrp)
+# # Recode the existing agegrp into new age groups
+# sendhs2023m <- sendhs2023m %>%
+#   mutate(
+#     agegroup_new = case_when(
+#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 4 (Age 50+)",
+#       TRUE ~ NA_character_  # Handle unexpected values
+#     )
+#   )
+# table(sendhs2023m$agegroup_new)
+# 
+# sen_m_tab <- table(sendhs2023m$agegroup_new, sendhs2023m$hivst_use)
+# 
+# scaled_sen_m <- sen_m_tab * 0.8
+
+# Combining male and female for Senegal
+combined_sendhs2 <- bind_rows(sendhs2023f, sendhs2023m)
+
+# # hivst use and knowledge overall
+# sendhs_design <- svydesign(
+#   ids = ~psu,
+#   strata = ~strata,
+#   weights = ~ind_wt,
+#   data = combined_sendhs2,
+#   nest = TRUE
+# )
+# 
+# prop <- svyciprop(~I(hivst_knwldge == 1), 
+#                   design = sendhs_design, method = "logit", level = 0.95)
+# 
+# prop2 <- svyciprop(~I(hivst_use == 1), 
+#                   design = sendhs_design, method = "logit", level = 0.95)
+# 
+# nrow(combined_sendhs2)
 
 #------------------------------------------------------------------------------
 
@@ -5867,14 +6710,15 @@ sledhs2019m <- sledhs2019m %>% mutate(last_hivtest = case_when(
 ))
 
 # # --------age grp wise deno and num----------
-# 
-# # Recode the existing agegrp into new age groups
+# table(sledhs2019m$agegrp)
+# # # Recode the existing agegrp into new age groups
 # sledhs2019m <- sledhs2019m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8,9) ~ "Group 4 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -5917,20 +6761,20 @@ sledhs2019m <- sledhs2019m %>% mutate(last_hivtest = case_when(
 #   select(agegroup_new, deno, num)
 # 
 # 
-
-
-#extract design adjusted SE
-sledhs_design_m <- svydesign(
-  ids = ~psu, strata = ~strata, weights = ~ind_wt, data = sledhs2019m, nest = TRUE)
-sle_prop <- svyciprop(~I(hivst_use == 1), design = sledhs_design_m, method = "logit", level = 0.95)
-ci <- confint(sle_prop)  
-se_hivst_use <- (ci[2] - ci[1]) / (2 * 1.96)  
-
-sleprop_hivst_use_m <-  0.0213
-sle_se_hivst_use_m <- 0.002677955
-
-eff_ss_m <- (sleprop_hivst_use_m * (1 - sleprop_hivst_use_m)) / (sle_se_hivst_use_m^2)
-sledhsm_num <- sleprop_hivst_use_m * eff_ss_m
+# 
+# 
+# #extract design adjusted SE
+# sledhs_design_m <- svydesign(
+#   ids = ~psu, strata = ~strata, weights = ~ind_wt, data = sledhs2019m, nest = TRUE)
+# sle_prop <- svyciprop(~I(hivst_use == 1), design = sledhs_design_m, method = "logit", level = 0.95)
+# ci <- confint(sle_prop)  
+# se_hivst_use <- (ci[2] - ci[1]) / (2 * 1.96)  
+# 
+# sleprop_hivst_use_m <-  0.0213
+# sle_se_hivst_use_m <- 0.002677955
+# 
+# eff_ss_m <- (sleprop_hivst_use_m * (1 - sleprop_hivst_use_m)) / (sle_se_hivst_use_m^2)
+# sledhsm_num <- sleprop_hivst_use_m * eff_ss_m
 
 #2019 sle_m (denominator: 2906.85, numerator: 61.91591)
 
@@ -6063,7 +6907,7 @@ zafdhs2016f <- zafdhs2016f %>%
     TRUE ~ NA_real_              # Missing or other values
   ))
 # #------- age grp wise deno and num --------
-# 
+#table(zafdhs2016f$agegrp)
 # # Recode the existing agegrp into new age groups
 # zafdhs2016f <- zafdhs2016f %>%
 #   mutate(
@@ -6235,14 +7079,15 @@ zafdhs2016m <- zafdhs2016m %>% mutate(last_hivtest = case_when(
 ))
 
 #------- age grp wise deno and num --------
-
-# # Recode the existing agegrp into new age groups
+# table(zafdhs2016m$agegrp)
+# # # Recode the existing agegrp into new age groups
 # zafdhs2016m <- zafdhs2016m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% c(8, 9) ~ "Group 4 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -6283,10 +7128,7 @@ zafdhs2016m <- zafdhs2016m %>% mutate(last_hivtest = case_when(
 # zaf_prop_age_m_selected <- zaf_prop_age_m %>%
 #   select(agegroup_new, deno, num)
 # 
-# 
-# 
-# 
-# 
+
 
 
 # agegrp conflicts in female and male dataset
@@ -6604,7 +7446,7 @@ tzadhs2022m <- tzadhs2022m %>% mutate(last_hivresult = case_when(
 ))
 
 #------- age grp wise deno and num --------
-
+#table(tzadhs2022m$agegrp)
 # # Recode the existing agegrp into new age groups
 # tzadhs2022m <- tzadhs2022m %>%
 #   mutate(
@@ -6926,14 +7768,15 @@ ugadhs2016m <- ugadhs2016m %>% mutate(last_hivtest = case_when(
 ))
 
 #------- age grp wise deno and num --------
-
+# table(ugadhs2016m$agegrp)
 # # Recode the existing agegrp into new age groups
 # ugadhs2016m <- ugadhs2016m %>%
 #   mutate(
 #     agegroup_new = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#       agegrp %in% 8 ~ "Group 4 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -7288,53 +8131,54 @@ zmbdhs2018m <- zmbdhs2018m %>% mutate(last_hivtest = case_when(
 
 
 # # Recode the existing agegrp into new age groups
-# zmbdhs2018m <- zmbdhs2018m %>%
-#   mutate(
-#     agegroup_new = case_when(
-#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
-#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
-#       TRUE ~ NA_character_  # Handle unexpected values
-#     )
-#   )
+# table(zmbdhs2018m$agegrp)
+#  zmbdhs2018m <- zmbdhs2018m %>%
+#    mutate(
+#      agegroup_new = case_when(
+#        agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+#        agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+#        agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35-49)",
+#        agegrp %in% c(8,9) ~ "Group 4 (Age 50+)",
+#        TRUE ~ NA_character_  # Handle unexpected values
+#      )
+#    )
+# #
+# #
+#  zmbdhs_design_m <- svydesign(
+#    ids = ~psu,
+#    strata = ~strata,
+#    weights = ~ind_wt,
+#    data = zmbdhs2018m,
+#    nest = TRUE
+#  )
+# # # Calculate the proportion of HIV testing usage by the new age groups
+#  zmb_prop_age_m <- svyby(
+#    ~I(hivst_use == 1),
+#    ~agegroup_new,
+#    design = zmbdhs_design_m,
+#    FUN = svyciprop,
+#    method = "logit",
+#    vartype = "se",
+#    level = 0.95
+#  )
+# #
+#  # Rename the resulting columns for clarity
+#  zmb_prop_age_m <- zmb_prop_age_m %>%
+#    rename(
+#      prop = `I(hivst_use == 1)`,
+#      se_prop = `se.as.numeric(I(hivst_use == 1))`
+#    )
 # 
 # 
-# zmbdhs_design_m <- svydesign(
-#   ids = ~psu,
-#   strata = ~strata,
-#   weights = ~ind_wt,
-#   data = zmbdhs2018m,
-#   nest = TRUE
-# )
-# # Calculate the proportion of HIV testing usage by the new age groups
-# zmb_prop_age_m <- svyby(
-#   ~I(hivst_use == 1),
-#   ~agegroup_new,
-#   design = zmbdhs_design_m,
-#   FUN = svyciprop,
-#   method = "logit",
-#   vartype = "se",
-#   level = 0.95
-# )
+# # # Calculate denominator (deno) and numerator (num)
+#  zmb_prop_age_m <- zmb_prop_age_m %>%
+#    mutate(
+#      deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+#      num = prop * deno                          # Calculate numerator
+#    )
 # 
-# # Rename the resulting columns for clarity
-# zmb_prop_age_m <- zmb_prop_age_m %>%
-#   rename(
-#     prop = `I(hivst_use == 1)`,
-#     se_prop = `se.as.numeric(I(hivst_use == 1))`
-#   )
-# 
-# 
-# # Calculate denominator (deno) and numerator (num)
-# zmb_prop_age_m <- zmb_prop_age_m %>%
-#   mutate(
-#     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
-#     num = prop * deno                          # Calculate numerator
-#   )
-# 
-# zmb_prop_age_m_selected <- zmb_prop_age_m %>%
+#  zmb_prop_age_m_selected <- zmb_prop_age_m %>%
 #   select(agegroup_new, deno, num)
-# 
 
 
 # Combining male and female for Zambia 2018
@@ -7648,7 +8492,11 @@ zwedhs2015m <- zwedhs2015m %>% mutate(last_hivtest = case_when(
 ))
 
 #----- age grp wise deno and num ---
+#        agegrp %in% c(8, 9) ~ "Group 4 (Age 50+)",
 
+# table(zwedhs2015m$agegrp)
+# table(zwedhs2015m$agegroup_new)
+# 
 # # Recode the existing agegrp into new age groups
 # zwedhs2015m <- zwedhs2015m %>%
 #   mutate(
@@ -7656,6 +8504,7 @@ zwedhs2015m <- zwedhs2015m %>% mutate(last_hivtest = case_when(
 #       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
 #       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
 #       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+#       agegrp %in% 8 ~ "Group 4 (Age 50+)",
 #       TRUE ~ NA_character_  # Handle unexpected values
 #     )
 #   )
@@ -7740,8 +8589,10 @@ list_dhs <- list(
   combined_mwidhs,
   combined_mlidhs,
   combined_mrtdhs,
+  combined_mozdhs,
   combined_rwadhs,
   combined_sendhs,
+  combined_sendhs2,
   combined_sledhs,
   combined_zafdhs,
   combined_tzadhs,
@@ -7763,12 +8614,15 @@ list_dhs_f <- list(
   gindhs2018f,
   kendhs2022f,
   lbrdhs2019f,
+  lsodhs2023f,
   mdgdhs2021f,
   mwidhs2015f,
   mlidhs2018f,
   mrtdhs2019f,
+  mozdhs2022f,
   rwadhs2019f,
   sendhs2017f,
+  sendhs2023f,
   sledhs2019f,
   zafdhs2016f,
   tzadhs2022f,
@@ -7790,12 +8644,15 @@ list_dhs_m <- list(
   gindhs2018m,
   kendhs2022m,
   lbrdhs2019m,
+  lsodhs2023m,
   mdgdhs2021m,
   mwidhs2015m,
   mlidhs2018m,
   mrtdhs2019m,
+  mozdhs2022m,
   rwadhs2019m,
   sendhs2017m,
+  sendhs2023m,
   sledhs2019m,
   zafdhs2016m,
   tzadhs2022m,
