@@ -855,10 +855,8 @@ combined_plot <- rr_retesting_forest + phi_forest + rr_male_forest +
   plot_annotation(tag_levels = "A") +
   plot_layout(ncol = 3)
 
-# Print the combined plot
 combined_plot
 
-#3nnewww---------
 
 
 

@@ -14,702 +14,8 @@ setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
 
 fit <- readRDS("hivst_stan_fit_apr17.rds")
 
-
-
-#---pop at the beginning of the year (as WPP reports mid year pop)----
-countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", 
-               "Sierra Leone", "Zambia", "Mali", "Uganda",
-               "Lesotho", "Mozambique", "Rwanda",
-               "Burkina Faso", "Burundi", "Cameroon", "Cote d'Ivoire",
-               "Guinea", "Liberia", "Senegal", "South Africa", 
-               "United Republic of Tanzania", "Namibia", "Botswana", 
-               "Guinea-Bissau", "Democratic Republic of the Congo", "Eswatini", "Benin")
-
-# time specification
-start <- 2011
-end <- 2024
-dt <- 0.1
-time <- seq(start, end - dt, by = dt) + 1
-niter <- (end - start) / dt
-n_yr <- end - start
-
-# mapping hivst rate to the appropriate yearly one
-beta_ind <- seq(1, niter, by = 1 / dt) 
-yr_ind <- rep(1, niter) 
-for (i in 2:length(beta_ind)) {
-  yr_ind[beta_ind[i - 1]:(beta_ind[i] - 1)] <- i - 1
-}
-
-yr_ind[(niter - 1 / dt + 1):niter] <- length(beta_ind)
-
-
-# survey and program data list 
-cnt_data <- list(
-  kenya = list(
-    yr_svy = c(2012.5, 2018.5, 2022.5),
-    ind_svy = (c(2012.5, 2018.5, 2022.5) - start) / dt, 
-    den_svy_f = matrix(
-      c(1900, 1983, 1897, 817, # 2012
-        2491, 2554, 4338, 1145, # 2018 
-        4980, 5037, 4523, -999), # 2022
-      nrow = 3, byrow = TRUE),
-    num_svy_f = matrix(
-      c(29, 45, 33, 14, # 2012
-        89, 111, 102, 12, # 2018 
-        203, 328, 195, -999), # 2022
-      nrow = 3, byrow = TRUE),
-    den_svy_m = matrix(
-      c(253, 888, 611, 390, # 2012 
-        2245, 1187, 3448, 622,# 2018
-        2691, 1181, 2334, 556), # 2022 
-      nrow = 3, byrow = TRUE),
-    num_svy_m = matrix(
-      c(10, 31, 18, 7, # 2012
-        54, 54, 106, 14, # 2018 
-        108, 181, 227, 36), # 2022
-      nrow = 3, byrow = TRUE),
-    yr_hts = c(2018,  2019,   2020,    2021,   2022,  2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(197200, 400000, 595953, 630000, 342610, 617317),
-    se_hts = c(197200, 400000, 595953, 630000, 342610, 617317) * 0.1
-  ),
-  
-  ghana = list(
-    yr_svy = c(2017.5, 2022.5),
-    ind_svy = (c(2017.5, 2022.5) - start) / dt,
-    den_svy_f = matrix(
-      c(3303, 1908, 2386, -999, # 2017
-        3133, 2389, 2509, -999), # 2022
-      nrow = 2, byrow = TRUE),
-    num_svy_f = matrix(
-      c(52, 72, 47, -999, # 2017
-        42, 97, 51, -999), # 2022
-      nrow = 2, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1927, 645, 856, -999, # 2017 
-        1604, 1547, 1222, 617), # 2022 
-      nrow = 2, byrow = TRUE),
-    num_svy_m = matrix(
-      c(9, 21, 13, -999, # 2017
-        9, 48, 29, 7), # 2022
-      nrow = 2, byrow = TRUE),
-    yr_hts = c(2020,  2021,   2022,  2023) + 0.5,
-    ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(20000, 1323, 235000, 140500),
-    se_hts = c(20000, 1323, 235000, 140500) * 0.1
-  ),
-  malawi = list(
-    yr_svy = c(2015.5, 2019.5, 2020.5),
-    ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
-    den_svy_f = matrix(
-      c( 6698, 4260, 4117, -999, # 2015
-         8372, 5690, 5570, -999, # 2019
-         3544, 2504, 3145, 1530), # 2020
-      nrow = 3, byrow = TRUE),
-    num_svy_f = matrix(
-      c(50, 48, 39, -999, # 2015
-        540, 412, 273, -999, # 2019
-        273, 193, 169, 24), # 2020
-      nrow = 3, byrow = TRUE),
-    den_svy_m = matrix(
-      c(858, 1041, 1061, 148, # 2015 DHS
-        2546, 1368, 1519, -999,# 2019
-        2217, 2199, 2377, 1440), # 2020 
-      nrow = 3, byrow = TRUE),
-    num_svy_m = matrix(
-      c(6, 17, 12, 2, # 2015 DHS
-        230, 131, 109, -999, # 2019 
-        190, 219, 163, 49), # 2020
-      nrow = 3, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(408900, 101256, 561282, 602657, 735385, 910088),
-    se_hts =  c(408900, 101256, 561282, 602657, 735385, 910088) * 0.1 
-  ),
-  madagascar = list(
-    yr_svy = c(2018.5, 2021.5),
-    ind_svy = (c(2018.5, 2021.5) - start) / dt,
-    den_svy_f = matrix(
-      c(3796, 1712, 2117, -999, # 2018
-        4793, 1859, 4414, -999), # 2021
-      nrow = 2, byrow = TRUE),
-    num_svy_f = matrix(
-      c( 41, 48, 30, -999, # 2018
-         10, 9, 10, -999), # 2021
-      nrow = 2, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1188, 888, 1711, -999, # 2018 
-        2971, 2607, 1610, 749), # 2021 DHS
-      nrow = 2, byrow = TRUE),
-    num_svy_m = matrix(
-      c(9, 17, 18, -999, # 2018
-        13, 18, 17, 7), # 2021 DHS
-      nrow = 2, byrow = TRUE),
-    yr_hts = c(2022,  2023) + 0.5,
-    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(2500, 2500),
-    se_hts = c(2500, 2500) * 0.1
-  ),
-  
-  zimbabwe = list(
-    yr_svy = c(2015.5, 2019.5, 2020.5),
-    ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
-    den_svy_f = matrix(
-      c(4078, 2387, 1661, -999, # 2015
-        2332, 1954, 1978, -999, # 2019
-        2759, 2343, 3081, 1876), # 2020
-      nrow = 3, byrow = TRUE),
-    num_svy_f = matrix(
-      c(8, 11, 3, -999, # 2015
-        116, 137, 95, -999, # 2019
-        166, 213, 177, 42), # 2020
-      nrow = 3, byrow = TRUE),
-    den_svy_m = matrix(
-      c(2254, 1950, 1453, 333, # 2015 dhs
-        998, 611, 870, -999,# 2019
-        2124, 1340, 1960, 1137), # 2020 
-      nrow = 3, byrow = TRUE),
-    num_svy_m = matrix(
-      c(22, 34, 35, 6, # 2015 dhs
-        39, 46, 47, -999, # 2019 
-        112, 117, 122, 31), # 2020
-      nrow = 3, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(197408, 174566, 240434, 459517, 414499, 513090),
-    se_hts = c(197408, 174566, 240434, 459517, 414499, 513090) * 0.1
-  ),
-  
-  sierraleone = list(
-    yr_svy = c(2017.5, 2019.5),
-    ind_svy = (c(2017.5, 2019.5) - start) / dt,
-    den_svy_f = matrix(
-      c(5854, 4421, 4019, -999, # 2017
-        2203, 1346, 2236, -999), # 2019
-      nrow = 2, byrow = TRUE),
-    num_svy_f = matrix(
-      c(167, 170, 125, -999, # 2017
-        70, 68, 80, -999), # 2019
-      nrow = 2, byrow = TRUE),
-    den_svy_m = matrix(
-      c(5854, 4421, 4019, -999, # 2017 
-        1609, 541, 1157, 773), # 2019 DHS
-      nrow = 2, byrow = TRUE),
-    num_svy_m = matrix(
-      c(167, 170, 125, -999, # 2017
-        22, 17, 25, 15), # 2019 DHS
-      nrow = 2, byrow = TRUE),
-    yr_hts = c(2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(2678, 1173, 50340),
-    se_hts = c(2678, 1173, 50340) * 0.1
-  ),
-  zambia = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1845, 1419, 1394, -999), # 2018
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(47, 51, 36, -999), # 2018
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1555, 1531, 1820, 579), # 2018 dhs
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(38, 52, 53, 9), # 2018 dhs
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(315348, 781175, 639225, 23750, 33153, 95559),
-    se_hts = c(315348, 781175, 639225, 23750, 33153, 95559) * 0.1
-  ),
-  mali = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2046, 1434, 1526, -999), # 2018
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(17, 15, 20, -999), # 2018
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1361, 1189, 943, 484), # 2018 dhs
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(2, 4, 4, 5), # 2018 dhs
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(7763, 169962, 11375, 235729),
-    se_hts = c(7763, 169962, 11375, 235729) * 0.1
-  ),
-  uganda = list(
-    yr_svy =  2016.5,
-    ind_svy = (2016.5 - start) / dt,
-    den_svy_f = matrix(
-      c(6404, 2748, 3072, -999), # 2016
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(223, 205, 97, -999), # 2016
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1639, 1009, 1094, 257), # 2016 dhs
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(58, 95, 59, 8), # 2016 dhs
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(42570, 306421, 750698, 681602),
-    se_hts = c(42570, 306421, 750698, 681602) * 0.1
-  ),
-  lesotho  = list(
-    yr_svy =  c(2020.5, 2023.5),
-    ind_svy = (c(2020.5, 2023.5) - start) / dt,
-    den_svy_f = matrix(
-      c(2024, 1786, 2170, 1824, # 2020
-        1498, 889, 1464, -999), # 2023
-      nrow = 2, byrow = TRUE),
-    num_svy_f = matrix(
-      c(226, 224, 134, 34, # 2020
-        852, 538, 482, -999), # 2023
-      nrow = 2, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1449, 1254, 1643, 1014, # 2020
-        388, 478, 490, 214), # 2023 dhs
-      nrow = 2, byrow = TRUE),
-    num_svy_m = matrix(
-      c(146, 182, 126, 24, # 2020
-        132, 241, 145, 33), # 2023 dhs
-      nrow = 2, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(58917, 42650, 164236, 281277, 301762, 262915),
-    se_hts = c(58917, 42650, 164236, 281277, 301762, 262915) * 0.1
-  ),
-  mozambique = list(
-    yr_svy =  2021.5,
-    ind_svy = (2021.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2372, 1943, 2263, 1156), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(227, 259, 215, 43), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1828, 1294, 1709, 899),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(110, 149, 170, 56), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(67883, 203966, 683345),
-    se_hts = c(67883, 203966, 683345) * 0.1
-  ),
-  rwanda = list(
-    yr_svy =  2019.5,
-    ind_svy = (2019.5 - start) / dt,
-    den_svy_f = matrix(
-      c(4995, 3401, 4987, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(57, 70, 43, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1809, 1046, 1173, 715),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(14, 39, 17, 3), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = 2023 + 0.5,
-    ind_hts = (2023 - start + 0.5) / dt,
-    hts_dat = 62683,
-    se_hts = 62683 * 0.1
-  ),
-  burkinafaso = list(
-    yr_svy =  2021.5,
-    ind_svy = (2021.5 - start) / dt,
-    den_svy_f = matrix(
-      c(3870, 5248, 3926, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(7, 17, 10, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(2336, 1026, 1451, 622),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(4, 9, 9, 2), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2022, 2023) + 0.5,
-    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(968, 3367),
-    se_hts = c(968, 3367) * 0.1
-  ),
-  burundi = list(
-    yr_svy =  2016.5,
-    ind_svy = (2016.5 - start) / dt,
-    den_svy_f = matrix(
-      c(3182, 4642, 1929, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(7, 16, 3, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(2756, 1372, 2230, 3009),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(5, 10, 10, 1), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = 2023 + 0.5,
-    ind_hts = (2023 - start + 0.5) / dt,
-    hts_dat = 78013,
-    se_hts = 78013 * 0.1
-  ),
-  cameroon = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(3721, 2750, 2138, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(48, 88, 50, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1381, 1151, 1008, 665),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(27, 45, 52, 22), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2021, 2022) + 0.5,
-    ind_hts = (c(2021,2022) - start + 0.5) / dt,
-    hts_dat = c(15000, 33073),
-    se_hts = c(15000,33073) * 0.1
-  ),
-  cotedivoire = list(
-    yr_svy =  2021.5,
-    ind_svy = (2021.5 - start) / dt,
-    den_svy_f = matrix(
-      c(3313, 2067, 1231, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(17, 31, 16, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(872, 815, 853, 597),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(5, 12, 16, 3), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(1159, 111184, 117556, 41774, 60154),
-    se_hts = c(1159, 111184, 117556, 41774, 60154) * 0.1
-  ),
-  guinea = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2279, 1720, 2194, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(14, 20, 15, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1006, 904, 959, 632),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(3, 6, 5, 1), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2019, 2022) + 0.5,
-    ind_hts = (c(2019, 2022) - start + 0.5) / dt,
-    hts_dat = c(12, 152),
-    se_hts = c(12, 152) * 0.1
-  ),
-  liberia = list(
-    yr_svy =  2019.5,
-    ind_svy = (2019.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2313, 829, 1095, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(18, 18, 19, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(952, 444, 849, 284),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(5, 9, 10, 7), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = 2023 + 0.5,
-    ind_hts = (2023 - start + 0.5) / dt,
-    hts_dat = 12129,
-    se_hts = 12129 * 0.1
-  ),
-  senegal = list(
-    yr_svy =  2017.5,
-    ind_svy = (2017.5 - start) / dt,
-    den_svy_f = matrix(
-      c(4458, 3271, 5904, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(4, 10, 10, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(3384, 655, 3226, 330),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(1, 1, 2, 3), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(7307, 18860, 5505, 4056, 11932),
-    se_hts = c(7307, 18860, 5505, 4056, 11932) * 0.1
-  ),
-  southafrica = list(
-    yr_svy =  2016.5,
-    ind_svy = (2016.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1734, 1637, 1470, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(39, 62, 42, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(264, 526, 469, 307),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(6, 17, 17, 2), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(1200000, 794034, 913418, 212000),
-    se_hts = c(1200000, 794034, 913418, 212000) * 0.1
-  ),
-  tanzania = list(
-    yr_svy =  2022.5,
-    ind_svy = (2022.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2937, 2173, 2523, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(68, 103, 71, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1439, 916, 1096, -999),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(28, 61, 66, -999), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(25810, 14940, 19000, 38717, 809603, 1447029),
-    se_hts = c(25810, 14940, 19000, 38717, 809603, 1447029) * 0.1
-  ),
-  
-  namibia = list(
-    yr_svy =  2017.5,
-    ind_svy = (2017.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1851, 2159, 2696, 650), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(66, 105, 70, 6), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1050, 1342, 1782, 398),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(15, 59, 50, 4), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(3910, 40075, 47258, 130000, 27974),
-    se_hts = c(3910, 40075, 47258, 130000, 27974) * 0.1
-  ),
-  
-  botswana = list(
-    yr_svy =  2021.5,
-    ind_svy = (2021.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1958, 2002, 3199, 811), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(50, 71, 46, 6), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1559, 1401, 2348, 475),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(22, 30, 50, 3), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(7000, 3848, 8403, 16405),
-    se_hts = c(7000, 3848, 8403, 16405) * 0.1
-  ),
-  
-  guineabissau = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2347, 1097, 1339, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(38, 44, 28, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(279, 233, 210, -999),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(7, 11, 11, -999), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = 2020 + 0.5,
-    ind_hts = (2020 - start + 0.5) / dt,
-    hts_dat = 37500,
-    se_hts = 37500 * 0.1
-  ),
-  
-  drc = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1733, 1626, 1404, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(22, 37, 24, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(244, 419, 259, -999),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(5, 16, 11, -999), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2020, 2021) + 0.5,
-    ind_hts = (c(2018, 2020, 2021) - start + 0.5) / dt,
-    hts_dat = c(500, 7158, 7480),
-    se_hts = c(500, 7158, 7480) * 0.1
-  ),
-  eswatini = list(
-    yr_svy = c(2021.5, 2022.5),
-    ind_svy = (c(2021.5, 2022.5) - start) / dt,
-    den_svy_f = matrix(
-      c(642, 484, 479, -999, # 2021
-        1552, 1348, 1612, 1076), # 2022 phia
-      nrow = 2, byrow = TRUE),
-    num_svy_f = matrix(
-      c(194, 178, 101, -999, #2021
-        470, 360, 213, 54), # 2022 pia
-      nrow = 2, byrow = TRUE),
-    den_svy_m = matrix(
-      c(601, 377, 349, -999, # 2021 MICS
-        1425, 924, 1110, 587),  # 2022 PHIA
-      nrow = 2, byrow = TRUE),
-    num_svy_m = matrix(
-      c(118, 122, 85, -999, # 2021
-        271, 283, 177, 22), # 2022 phia
-      nrow = 2, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022) - start + 0.5) / dt,
-    hts_dat = c(33159, 32531, 191990, 78570, 111912),
-    se_hts = c(33159, 32531, 191990, 78570, 111912) * 0.1
-  ),
-  
-  benin = list(
-    yr_svy =  2017.5,
-    ind_svy = (2017.5 - start) / dt,
-    den_svy_f = matrix(
-      c(4180, 5512, 3754, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(20, 34, 20, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(3054, 1961, 1868, 1079),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(3, 17, 15, 3), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2022, 2023) + 0.5,
-    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(5173, 8149),
-    se_hts = c(5173, 8149) * 0.1
-  )
-)
-
-# adding svy_dat,lci,uci after list as the operations cant be performed inside list
-cnt_data <- lapply(cnt_data, function(x) {
-  x$svy_dat_f <- x$num_svy_f / x$den_svy_f
-  x$lci_svy_f <- x$svy_dat_f - qnorm(0.975) * sqrt(x$svy_dat_f * (1 - x$svy_dat_f) / x$den_svy_f)
-  x$uci_svy_f <- x$svy_dat_f + qnorm(0.975) * sqrt(x$svy_dat_f * (1 - x$svy_dat_f) / x$den_svy_f)
-  return(x)
-})
-
-cnt_data <- lapply(cnt_data, function(x) {
-  x$svy_dat_m <- x$num_svy_m / x$den_svy_m
-  x$lci_svy_m <- x$svy_dat_m - qnorm(0.975) * sqrt(x$svy_dat_m * (1 - x$svy_dat_m) / x$den_svy_m)
-  x$uci_svy_m <- x$svy_dat_m + qnorm(0.975) * sqrt(x$svy_dat_m * (1 - x$svy_dat_m) / x$den_svy_m)
-  return(x)
-})
-
-# combining svy and pgm data for all countries
-# survey by age (combining gender)
-num_svy1 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$num_svy_m[, 1], x$num_svy_f[, 1]))) #rows=countries, cols=sex
-den_svy1 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$den_svy_m[, 1], x$den_svy_f[, 1])))
-num_svy2 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$num_svy_m[, 2], x$num_svy_f[, 2])))
-den_svy2 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$den_svy_m[, 2], x$den_svy_f[, 2])))
-num_svy3 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$num_svy_m[, 3], x$num_svy_f[, 3])))
-den_svy3 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$den_svy_m[, 3], x$den_svy_f[, 3])))
-num_svy4 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$num_svy_m[, 4], x$num_svy_f[, 4])))
-den_svy4 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$den_svy_m[, 4], x$den_svy_f[, 4])))
-
-# to check that every missing value (-999) is both in female or male
-# if (any(!apply(rbind(num_svy4, den_svy4), 1, function(row) all(row > 0) || all(row < 0)))) { 
-#   print('stop, missing 50+ age inconsistent by sex') }
-
-
-
-# the survey
-ind_svy <- unlist(lapply(cnt_data, function(x) x$ind_svy))
-hts_dat <- unlist(lapply(cnt_data, function(x) x$hts_dat)) #rows=countries, cols=time points
-se_hts <- unlist(lapply(cnt_data, function(x) x$se_hts))
-ind_hts <- unlist(lapply(cnt_data, function(x) x$ind_hts))
-
-# survey and hts indices
-n_cnt <- length(cnt_data)
-n_svy_by_cnt <- unlist(lapply(cnt_data, function(x) length(x$yr_svy))) 
-n_hts_by_cnt <- unlist(lapply(cnt_data, function(x) length(x$ind_hts)))
-
-# hts
-hts_idx_s <- NULL
-hts_idx_e <- NULL
-hts_idx_s[1] <- 1  
-hts_idx_e[1] <- n_hts_by_cnt[1]
-
-# survey
-# cnt_no_age50 <- unlist(lapply(cnt_data, function(x) ifelse(all(x$num_svy_m[, 4] == -999), 0, 1)))
-# age_grp_na <- unlist(lapply(cnt_data, function(x) ifelse(x$num_svy_m[, 4] == -999, 0, 1)))
-
-svy_idx_s <- NULL
-svy_idx_e <- NULL
-svy_idx_s[1] <- 1
-svy_idx_e[1] <- n_svy_by_cnt[1]
-
-# remaining countries
-for (c in 2:n_cnt) {
-  # survey
-  svy_idx_s[c] <- svy_idx_s[c - 1] + n_svy_by_cnt[c - 1]
-  svy_idx_e[c] <- svy_idx_s[c] + n_svy_by_cnt[c] - 1   
-  # hts
-  hts_idx_s[c] <- hts_idx_s[c - 1] + n_hts_by_cnt[c - 1]
-  hts_idx_e[c] <- hts_idx_s[c] + n_hts_by_cnt[c] - 1
-}
-
-idx_pop <- seq(from = 1, to = (n_cnt * 4), by = 4)
-
-
+#--run model codes from the final model all countries age and sex stratification script-----
+# then we run the following
 #-----------------plots from fit--------------------
 
 # testing rate
@@ -848,19 +154,24 @@ phi_forest
 
 
 #---rr retest and phi side by side panel-----
-rrretest_phi <- plot_grid(rr_retesting_forest, phi_forest, ncol = 2)
-#ggsave("rrretest_phi_plot.png", plot = rrretest_phi, width = 16, height = 6, dpi = 300)
 
 # library(patchwork)
 # 
 # rrretest_phi <- rr_retesting_forest +
 #   phi_forest +
-#   plot_annotation(tag_levels = "A")
+#   plot_annotation(tag_levels = "A") &
+#   theme(
+#     text        = element_text(size = 18),      
+#     axis.title  = element_text(size = 16),       
+#     axis.text   = element_text(size = 14),       
+#     plot.tag    = element_text(size = 20),       
+#     strip.text  = element_text(size = 16)        
+#   )
 # 
 # ggsave("rrretest_phi_plot.png",
 #        plot   = rrretest_phi,
-#        width  = 13, height = 13, dpi = 600)
-
+#        width  = 13, height = 10, dpi = 300)
+# 
 
 #-------- rate ratio male 15-24 years ---------------
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_male_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -1106,8 +417,6 @@ ggsave("rrage_malefemale.png",
        width  = 13, height = 13, dpi = 600)
 
 
-
-
 # all parameters side by side panel
 
 # library(patchwork)
@@ -1348,7 +657,6 @@ p_age
 
 
 #ggsave("trend_age_plot.png", plot = p_age, width = 8, height = 6, dpi = 300)
-
 
 
 #------overall trend---------
@@ -2045,6 +1353,599 @@ overall_country_estimates
 #write_clip(df_last_dt, object_type = "table")
 
 #ggsave("country-estimate_2024.png", plot = overall_country_estimates, width = 8, height = 6, dpi = 300)
+
+
+#-----------------------------------------------------------------------------
+
+# survey data for men and women (no age group)
+cnt_data <- list(
+  kenya = list(
+    yr_svy = c(2012.5, 2018.5, 2022.5),
+    ind_svy = (c(2012.5, 2018.5, 2022.5) - start) / dt,
+    den_svy = round(cbind(c(4605, 16082, 11562), c(6350, 17880, 25725))),
+    num_svy = round(cbind(c(148, 340, 1044), c(116, 436, 1242))),
+    yr_hts = c(2018,  2019,   2020,    2021,   2022,  2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(197200, 400000, 595953, 630000, 342610, 617317),
+    se_hts = c(197200, 400000, 595953, 630000, 342610, 617317) * 0.1
+  ),
+  ghana = list(
+    yr_svy = c(2017.5, 2022.5),
+    ind_svy = (c(2017.5, 2022.5) - start) / dt,
+    den_svy = round(cbind(c(2553, 4558), c(5575, 6250))),
+    num_svy = round(cbind(c(37, 83), c(132, 151))),
+    yr_hts = c(2020,  2021,   2022,  2023) + 0.5,
+    ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(20000, 1323, 235000, 140500),
+    se_hts = c(20000, 1323, 235000, 140500) * 0.1
+  ),
+  malawi = list(
+    yr_svy = c(2015.5, 2019.5, 2020.5),
+    ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+    den_svy = round(cbind(c(2796, 2150, 5165), c(14792, 6669, 5920))),
+    num_svy = round(cbind(c(30, 214, 406), c(136, 443, 373))),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(408900, 101256, 561282, 602657, 735385, 910088),
+    se_hts =  c(408900, 101256, 561282, 602657, 735385, 910088) * 0.1 
+  ),
+  madagascar = list(
+    yr_svy = c(2018.5, 2021.5),
+    ind_svy = (c(2018.5, 2021.5) - start) / dt,
+    den_svy = round(cbind(c(3055, 6178), c(5039, 6825))),
+    num_svy = round(cbind(c(35, 44), c(84, 20))),
+    yr_hts = c(2022,  2023) + 0.5,
+    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(2500, 2500),
+    se_hts = c(2500, 2500) * 0.1
+  ),
+  zimbabwe = list(
+    yr_svy = c(2015.5, 2019.5, 2020.5),
+    ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+    den_svy = round(cbind(c(6717, 3343, 6576), c(7964, 8104, 10058))),
+    num_svy = round(cbind(c(118, 171, 381), c(21, 447, 594))),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(197408, 174566, 240434, 459517, 414499, 513090),
+    se_hts = c(197408, 174566, 240434, 459517, 414499, 513090) * 0.1
+  ),
+  sierraleone = list(
+    yr_svy = c(2017.5, 2019.5),
+    ind_svy = (c(2017.5, 2019.5) - start) / dt,
+    den_svy = round(cbind(c(2465, 2907), c(5096, 2607))),
+    num_svy = round(cbind(c(50, 62), c(165, 101))),
+    yr_hts = c(2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(2678, 1173, 50340),
+    se_hts = c(2678, 1173, 50340) * 0.1
+  ),
+  zambia = list(
+    yr_svy =  2018.5,
+    ind_svy = (2018.5 - start) / dt,
+    den_svy = round(cbind(3756,2869)),
+    num_svy = round(cbind(104,82)),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(315348, 781175, 639225, 23750, 33153, 95559),
+    se_hts = c(315348, 781175, 639225, 23750, 33153, 95559) * 0.1
+  ),
+  mali = list(
+    yr_svy =  2018.5,
+    ind_svy = (2018.5 - start) / dt,
+    den_svy = round(cbind(3740,2990)),
+    num_svy = round(cbind(15,31)),
+    yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(7763, 169962, 11375, 235729),
+    se_hts = c(7763, 169962, 11375, 235729) * 0.1
+  ),
+  uganda = list(
+    yr_svy =  2016.5,
+    ind_svy = (2016.5 - start) / dt,
+    den_svy = round(cbind(3640,8640)),
+    num_svy = round(cbind(203,389)),
+    yr_hts = c(2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(42570, 306421, 750698, 681602),
+    se_hts = c(42570, 306421, 750698, 681602) * 0.1
+  ),
+  lesotho  = list(
+    yr_svy =  c(2020.5, 2023.5),
+    ind_svy = (c(2020.5, 2023.5) - start) / dt,
+    den_svy = round(cbind(c(4729, 2284), c(5038,5131))),
+    num_svy = round(cbind(c(474, 837), c(435, 2529))),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(58917, 42650, 164236, 281277, 301762, 262915),
+    se_hts = c(58917, 42650, 164236, 281277, 301762, 262915) * 0.1
+  ),
+  mozambique = list(
+    yr_svy =  c(2021.5, 2022.5),
+    ind_svy = (c(2021.5, 2022.5) - start) / dt,
+    den_svy = round(cbind(c(1483, 3164), c(1590, 8289))),
+    num_svy = round(cbind(c(128, 107), c(174, 176))),
+    yr_hts = c(2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(67883, 203966, 683345),
+    se_hts = c(67883, 203966, 683345) * 0.1
+  ),
+  rwanda = list(
+    yr_svy =  2019.5,
+    ind_svy = (2019.5 - start) / dt,
+    den_svy = round(cbind(3840,10700)),
+    num_svy = round(cbind(62,140)),
+    yr_hts = 2023 + 0.5,
+    ind_hts = (2023 - start + 0.5) / dt,
+    hts_dat = 62683,
+    se_hts = 62683 * 0.1
+  ),
+  burkinafaso = list(
+    yr_svy =  2021.5,
+    ind_svy = (2021.5 - start) / dt,
+    den_svy = round(cbind(3570,11000)),
+    num_svy = round(cbind(18,27)),
+    yr_hts = c(2022, 2023) + 0.5,
+    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(968, 3367),
+    se_hts = c(968, 3367) * 0.1
+  ),
+  burundi = list(
+    yr_svy =  2016.5,
+    ind_svy = (2016.5 - start) / dt,
+    den_svy = round(cbind(6620,6340)),
+    num_svy = round(cbind(25,16)),
+    yr_hts = 2023 + 0.5,
+    ind_hts = (2023 - start + 0.5) / dt,
+    hts_dat = 78013,
+    se_hts = 78013 * 0.1
+  ),
+  cameroon = list(
+    yr_svy =  2018.5,
+    ind_svy = (2018.5 - start) / dt,
+    den_svy = round(cbind(2660,7090)),
+    num_svy = round(cbind(90,147)),
+    yr_hts = c(2021, 2022) + 0.5,
+    ind_hts = (c(2021,2022) - start + 0.5) / dt,
+    hts_dat = c(15000, 33073),
+    se_hts = c(15000,33073) * 0.1
+  ),
+  cotedivoire = list(
+    yr_svy =  2021.5,
+    ind_svy = (2021.5 - start) / dt,
+    den_svy = round(cbind(2490,3900)),
+    num_svy = round(cbind(31,41)),
+    yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(1159, 111184, 117556, 41774, 60154),
+    se_hts = c(1159, 111184, 117556, 41774, 60154) * 0.1
+  ),
+  guinea = list(
+    yr_svy =  2018.5,
+    ind_svy = (2018.5 - start) / dt,
+    den_svy = round(cbind(3580,3570)),
+    num_svy = round(cbind(14,29)),
+    yr_hts = c(2019, 2022) + 0.5,
+    ind_hts = (c(2019, 2022) - start + 0.5) / dt,
+    hts_dat = c(12, 152),
+    se_hts = c(12, 152) * 0.1
+  ),
+  liberia = list(
+    yr_svy =  2019.5,
+    ind_svy = (2019.5 - start) / dt,
+    den_svy = round(cbind(2350,3630)),
+    num_svy = round(cbind(29,55)),
+    yr_hts = 2023 + 0.5,
+    ind_hts = (2023 - start + 0.5) / dt,
+    hts_dat = 12129,
+    se_hts = 12129 * 0.1
+  ),
+  senegal = list(
+    yr_svy =  c(2017.5, 2023.5),
+    ind_svy = (c(2017.5, 2023.5) - start) / dt,
+    den_svy = round(cbind(c(2080,4982), c(12000, 6389))),
+    num_svy = round(cbind(c(3,5), c(21, 36))),
+    yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(7307, 18860, 5505, 4056, 11932),
+    se_hts = c(7307, 18860, 5505, 4056, 11932) * 0.1
+  ),
+  southafrica = list(
+    yr_svy =  2016.5,
+    ind_svy = (2016.5 - start) / dt,
+    den_svy = round(cbind(1150,4290)),
+    num_svy = round(cbind(30,127)),
+    yr_hts = c(2018, 2019, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(1200000, 794034, 913418, 212000),
+    se_hts = c(1200000, 794034, 913418, 212000) * 0.1
+  ),
+  tanzania = list(
+    yr_svy =  2022.5,
+    ind_svy = (2022.5 - start) / dt,
+    den_svy = round(cbind(3110,4980)),
+    num_svy = round(cbind(141,160)),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(25810, 14940, 19000, 38717, 809603, 1447029),
+    se_hts = c(25810, 14940, 19000, 38717, 809603, 1447029) * 0.1
+  ),
+  namibia = list(
+    yr_svy =  2017.5,
+    ind_svy = (2017.5 - start) / dt,
+    den_svy = round(cbind(3651,3881)),
+    num_svy = round(cbind(148,93)),
+    yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(3910, 40075, 47258, 130000, 27974),
+    se_hts = c(3910, 40075, 47258, 130000, 27974) * 0.1
+  ),
+  botswana = list(
+    yr_svy =  2021.5,
+    ind_svy = (2021.5 - start) / dt,
+    den_svy = round(cbind(3108,2911)),
+    num_svy = round(cbind(59,68)),
+    yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(7000, 3848, 8403, 16405),
+    se_hts = c(7000, 3848, 8403, 16405) * 0.1
+  ),
+  guineabissau = list(
+    yr_svy =  2018.5,
+    ind_svy = (2018.5 - start) / dt,
+    den_svy = round(cbind(376,2518)),
+    num_svy = round(cbind(15,63)),
+    yr_hts = 2020 + 0.5,
+    ind_hts = (2020 - start + 0.5) / dt,
+    hts_dat = 37500,
+    se_hts = 37500 * 0.1
+  ),
+  drc = list(
+    yr_svy =  2018.5,
+    ind_svy = (2018.5 - start) / dt,
+    den_svy = round(cbind(4891,17405)),
+    num_svy = round(cbind(146,296)),
+    yr_hts = c(2018, 2020, 2021) + 0.5,
+    ind_hts = (c(2018, 2020, 2021) - start + 0.5) / dt,
+    hts_dat = c(500, 7158, 7480),
+    se_hts = c(500, 7158, 7480) * 0.1
+  ),
+  eswatini = list(
+    yr_svy = c(2021.5, 2022.5),
+    ind_svy = (c(2021.5, 2022.5) - start) / dt,
+    den_svy = round(cbind(c(2040, 1327), c(3394, 1606))),
+    num_svy = round(cbind(c(399, 339), c(694, 494))),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022) - start + 0.5) / dt,
+    hts_dat = c(33159, 32531, 191990, 78570, 111912),
+    se_hts = c(33159, 32531, 191990, 78570, 111912) * 0.1
+  ),
+  benin = list(
+    yr_svy =  2017.5,
+    ind_svy = (2017.5 - start) / dt,
+    den_svy = round(cbind(6766,12443)),
+    num_svy = round(cbind(33,77)),
+    yr_hts = c(2022, 2023) + 0.5,
+    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(5173, 8149),
+    se_hts = c(5173, 8149) * 0.1
+  )
+)
+
+
+
+# ----sum across all age groups for male and female----
+svy_m_full <- rstan::summary(fit, "svy_prd_m", probs = c(0.025, 0.5, 0.975))$summary
+svy_m_full <- as.data.frame(svy_m_full)
+svy_m_full$param <- rownames(svy_m_full)
+
+
+# Split out each country, then each age group
+n_cnt <- length(countries)
+svy_m_list <- vector("list", n_cnt)  # each element is a list of 4 data frames (age groups)
+for (c in seq_len(n_cnt)) {
+  ix_c <- grepl(paste0("\\[", c, ","), svy_m_full$param)
+  tmp_c <- svy_m_full[ix_c, ]
+  
+  # Separate the 4 age groups
+  ages <- vector("list", 4)
+  for (a in 1:4) {
+    ix_a <- grepl(paste0(",", a, "\\]$"), tmp_c$param)
+    ages[[a]] <- tmp_c[ix_a, ]
+  }
+  svy_m_list[[c]] <- ages
+}
+
+# Similarly for women
+svy_f_full <- rstan::summary(fit, "svy_prd_f", probs = c(0.025, 0.5, 0.975))$summary
+svy_f_full <- as.data.frame(svy_f_full)
+svy_f_full$param <- rownames(svy_f_full)
+
+svy_f_list <- vector("list", n_cnt)
+for (c in seq_len(n_cnt)) {
+  ix_c <- grepl(paste0("\\[", c, ","), svy_f_full$param)
+  tmp_c <- svy_f_full[ix_c, ]
+  
+  ages <- vector("list", 4)
+  for (a in 1:4) {
+    ix_a <- grepl(paste0(",", a, "\\]$"), tmp_c$param)
+    ages[[a]] <- tmp_c[ix_a, ]
+  }
+  svy_f_list[[c]] <- ages
+}
+
+# new code for aggregation across all age groups for male and female
+time_vec <- time  
+n_time <- length(time_vec)
+
+# aggregated results in a list of length n_cnt
+svy_m_agg <- vector("list", n_cnt)  # each element: data.frame with columns "time", "p2.5", "p50", "p97.5"
+svy_f_agg <- vector("list", n_cnt)  # same for women
+
+for (c_idx in seq_len(n_cnt)) {
+  # population for weighting
+  pop_c <- pop[[c_idx]]  # 4 x 2 matrix
+  pop_m <- pop_c[,1]      # men in each of the 4 age groups
+  pop_f <- pop_c[,2]      # women
+  
+  # retrieve the 4 data frames for men:
+  # each df has n_time rows, columns: mean, se_mean, sd, 2.5%, 25%, 50%, 75%, 97.5%, ...
+  age_df_m <- svy_m_list[[c_idx]]  # length=4
+  age_df_f <- svy_f_list[[c_idx]]
+  
+  # numeric vectors for aggregated 2.5%, 50%, 97.5%
+  p2.5_m <- p50_m <- p97.5_m <- numeric(n_time)
+  p2.5_f <- p50_f <- p97.5_f <- numeric(n_time)
+  
+  # Weighted sums of proportions:
+  sum_pop_m <- sum(pop_m)
+  sum_pop_f <- sum(pop_f)
+  
+  for (i in seq_len(n_time)) {
+    # For men, each age group a:
+    #   proportion in age_df_m[[a]]$`50%`[i]
+    # Weighted by pop_m[a]
+    
+    # 2.5% for men
+    num_2.5_m <- 0
+    num_50_m  <- 0
+    num_97.5_m<- 0
+    for (a in 1:4) {
+      num_2.5_m  <- num_2.5_m  + pop_m[a] * age_df_m[[a]]$`2.5%`[i]
+      num_50_m   <- num_50_m   + pop_m[a] * age_df_m[[a]]$`50%`[i]
+      num_97.5_m <- num_97.5_m + pop_m[a] * age_df_m[[a]]$`97.5%`[i]
+    }
+    p2.5_m[i]  <- num_2.5_m  / sum_pop_m
+    p50_m[i]   <- num_50_m   / sum_pop_m
+    p97.5_m[i] <- num_97.5_m / sum_pop_m
+    
+    num_2.5_f  <- 0
+    num_50_f   <- 0
+    num_97.5_f <- 0
+    for (a in 1:4) {
+      num_2.5_f  <- num_2.5_f  + pop_f[a] * age_df_f[[a]]$`2.5%`[i]
+      num_50_f   <- num_50_f   + pop_f[a] * age_df_f[[a]]$`50%`[i]
+      num_97.5_f <- num_97.5_f + pop_f[a] * age_df_f[[a]]$`97.5%`[i]
+    }
+    p2.5_f[i]  <- num_2.5_f  / sum_pop_f
+    p50_f[i]   <- num_50_f   / sum_pop_f
+    p97.5_f[i] <- num_97.5_f / sum_pop_f
+  }
+  
+  # combining into data frames
+  svy_m_agg[[c_idx]] <- data.frame(
+    time   = time_vec,
+    p2.5   = p2.5_m,
+    p50    = p50_m,
+    p97.5  = p97.5_m
+  )
+  svy_f_agg[[c_idx]] <- data.frame(
+    time   = time_vec,
+    p2.5   = p2.5_f,
+    p50    = p50_f,
+    p97.5  = p97.5_f
+  )
+}
+
+
+png("aggregate_survey_plots.png", width=14, height=28, units="in", res=300)
+par(mfrow=c(9,3), mar=c(4,4,2,1))  
+
+cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe",
+                   "sierraleone", "zambia", "mali", "uganda",
+                   "lesotho", "mozambique", "rwanda",
+                   "burkinafaso", "burundi", "cameroon", "cotedivoire",
+                   "guinea", "liberia", "senegal", "southafrica","tanzania",
+                   "namibia", "botswana", "guineabissau","drc", "eswatini", "benin")
+alphabetical_cnt <- order(cnt_lowercase)
+
+for (c_idx in alphabetical_cnt) {
+  men_df  <- svy_m_agg[[c_idx]]  # columns = time, p2.5, p50, p97.5
+  women_df<- svy_f_agg[[c_idx]]
+  
+  # observed survey data
+  obs_yr <- cnt_data[[c_idx]]$yr_svy  
+  obs_m  <- cnt_data[[c_idx]]$num_svy[,1] / cnt_data[[c_idx]]$den_svy[,1]  # men
+  obs_f  <- cnt_data[[c_idx]]$num_svy[,2] / cnt_data[[c_idx]]$den_svy[,2]  # women
+  
+  plot(NA, xlim=range(time), ylim=c(0,1), 
+       xlab="Year", ylab="Proporition ever used HIVST",
+       main=paste("Country:", countries[c_idx]))
+  
+  # men line
+  lines(men_df$time, men_df$p50, col="blue", lwd=2)
+  polygon(x = c(men_df$time, rev(men_df$time)),
+          y = c(men_df$p2.5, rev(men_df$p97.5)),
+          col = adjustcolor("blue", alpha.f=0.3),
+          border=NA)
+  points(obs_yr, obs_m, pch=19, col="blue")
+  
+  # women line
+  lines(women_df$time, women_df$p50, col="red", lwd=2)
+  polygon(x = c(women_df$time, rev(women_df$time)),
+          y = c(women_df$p2.5, rev(women_df$p97.5)),
+          col = adjustcolor("red", alpha.f=0.3),
+          border=NA)
+  points(obs_yr+0.2, obs_f, pch=19, col="red") # offset a bit on x-axis
+  
+  legend("topleft", c("Men","Women"), 
+         col=c("blue","red"), lwd=2, bty="n")
+}
+dev.off()
+
+#---side by side age aggregated men women plot and program data fit----
+plot_survey_agg_one_country <- function(
+    c_idx,
+    svy_m_agg, svy_f_agg,
+    time, 
+    cnt_data, 
+    countries
+) {
+  # Extract the aggregated men/women data frames
+  men_df   <- svy_m_agg[[c_idx]]   # columns: time, p2.5, p50, p97.5
+  women_df <- svy_f_agg[[c_idx]]
+  
+  # Observed data
+  obs_yr <- cnt_data[[c_idx]]$yr_svy  
+  obs_m  <- cnt_data[[c_idx]]$num_svy[,1] / cnt_data[[c_idx]]$den_svy[,1]  # men
+  obs_f  <- cnt_data[[c_idx]]$num_svy[,2] / cnt_data[[c_idx]]$den_svy[,2]  # women
+  
+  plot(
+    x    = NA,
+    y    = NA,
+    xlim = range(time),
+    ylim = c(0,1),
+    xlab = "Year",
+    ylab = "Proportion Ever Used HIVST",
+    main = paste("HIVST Uptake -", countries[c_idx])
+  )
+  
+  # men line + ribbon
+  lines(men_df$p50 ~ men_df$time, col="blue", lwd=2)
+  polygon(
+    x = c(men_df$time, rev(men_df$time)),
+    y = c(men_df$p2.5, rev(men_df$p97.5)),
+    col = adjustcolor("blue", alpha.f=0.3),
+    border=NA
+  )
+  points(obs_yr, obs_m, pch=19, col="blue")
+  
+  # women line + ribbon
+  lines(women_df$p50 ~ women_df$time, col="red", lwd=2)
+  polygon(
+    x = c(women_df$time, rev(women_df$time)),
+    y = c(women_df$p2.5, rev(women_df$p97.5)),
+    col = adjustcolor("red", alpha.f=0.3),
+    border=NA
+  )
+  points(obs_yr+0.2, obs_f, pch=19, col="red")
+  
+  legend("topleft", c("Men","Women"), col=c("blue","red"), lwd=2, bty="n")
+}
+
+
+plot_hts_one_country <- function(
+    c_idx,
+    hts_list,
+    cnt_data,
+    time,
+    countries
+) {
+  df_c <- hts_list[[c_idx]]  # columns: 2.5%, 50%, 97.5%, etc.
+  
+  plot(
+    x    = time,
+    y    = df_c$`50%`,
+    type = "l",
+    col  = "blue",
+    lwd  = 2,
+    main = paste("HIVST kits -", countries[c_idx]),
+    xlab = "Year",
+    ylab = "Number of HIVST kits",
+    ylim = c(0, max(df_c$`97.5%`, na.rm=TRUE))
+  )
+  
+  polygon(
+    x = c(time, rev(time)),
+    y = c(df_c$`2.5%`, rev(df_c$`97.5%`)),
+    col = adjustcolor("blue", alpha.f = 0.3),
+    border = NA
+  )
+  
+  # Observed program data
+  t_obs   <- cnt_data[[c_idx]]$yr_hts
+  obs_hts <- cnt_data[[c_idx]]$hts_dat
+  points(t_obs, obs_hts, pch = 16, col = "red")
+}
+
+
+
+N <- length(alphabetical_cnt)  # 27
+
+png("svypgmfit.png",
+    width = 20, height = 28,   
+    units = "in", res = 300)
+
+par(mfrow = c(14, 4), mar = c(4, 4, 2, 1))
+
+i <- 1
+while (i <= N) {
+  c1 <- alphabetical_cnt[i]
+  
+  plot_survey_agg_one_country(
+    c_idx     = c1,
+    svy_m_agg = svy_m_agg,
+    svy_f_agg = svy_f_agg,
+    time      = time,
+    cnt_data  = cnt_data,
+    countries = countries
+  )
+  plot_hts_one_country(
+    c_idx    = c1,
+    hts_list = hts_list,
+    cnt_data = cnt_data,
+    time     = time,
+    countries= countries
+  )
+  
+  if (i + 1 <= N) {
+    c2 <- alphabetical_cnt[i + 1]
+    
+    plot_survey_agg_one_country(
+      c_idx     = c2,
+      svy_m_agg = svy_m_agg,
+      svy_f_agg = svy_f_agg,
+      time      = time,
+      cnt_data  = cnt_data,
+      countries = countries
+    )
+    plot_hts_one_country(
+      c_idx    = c2,
+      hts_list = hts_list,
+      cnt_data = cnt_data,
+      time     = time,
+      countries= countries
+    )
+  }
+  
+  i <- i + 2
+}
+
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

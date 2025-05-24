@@ -6338,19 +6338,19 @@ sendhs2023m <- sendhs2023m %>% mutate(last_hivtest = case_when(
 ))
 
 
-# senegal male dhs 2023 deno and num (6389, 36)
-sendhs_design_m <- svydesign(ids = ~psu, strata = ~strata,
-                             weights = ~ind_wt, data = sendhs2023m, nest = TRUE)
-
-sen_prop_m <- svyciprop(~I(hivst_use == 1),
-                        design = sendhs_design_m, method = "logit", level = 0.95)
-se_hivst_use_m <- SE(sen_prop_m)
-
-sen_hivst_prop_m <-  0.00557
-sen_hivst_use_m <- 0.0009310899 
-
-eff_ss_m <- (sen_hivst_prop_m * (1 - sen_hivst_prop_m)) / (se_hivst_use_m^2)
-sendhsm_num <- sen_hivst_prop_m * eff_ss_m
+# senegal male dhs 2023 deno and num (4982, 5)
+# sendhs_design_m <- svydesign(ids = ~psu, strata = ~strata,
+#                              weights = ~ind_wt, data = sendhs2023m, nest = TRUE)
+# 
+# sen_prop_m <- svyciprop(~I(hivst_use == 1),
+#                         design = sendhs_design_m, method = "logit", level = 0.95)
+# se_hivst_use_m <- SE(sen_prop_m)
+# 
+# sen_hivst_prop_m <-  0.001016
+# sen_hivst_use_m <-  0.0004513518  
+# 
+# eff_ss_m <- (sen_hivst_prop_m * (1 - sen_hivst_prop_m)) / (se_hivst_use_m^2)
+# sendhsm_num <- sen_hivst_prop_m * eff_ss_m
 
 
 #------den num for age grp----------------

@@ -363,68 +363,56 @@ saveRDS(df_metaf, file="D:\\Downloads\\df_metaf.rds")
 df_metam <- rbind(df_survey1m, df_survey2m, df_survey3m, df_survey4m, df_survey5m, df_survey6m, df_survey7m, df_survey8m)
 saveRDS(df_metam, file="D:\\Downloads\\df_metam.rds")
 
-
-library(dplyr)
-library(stringr)
-library(metafor)
-library(forestplot)
-
-df_metaf <- readRDS("D:\\Downloads\\df_metaf.rds")
-df_metam <- readRDS("D:\\Downloads\\df_metam.rds")
-
-# male and female seperately
-
-# Random-effects meta-analysis
-res <- rma.uni(
-  yi    = df_metaf$logOR,   
-  sei   = df_metaf$seLogOR,
-  method = "REML"
-)
-summary(res)
-forest(res)
-
-# Exponentiate the estimates
-df_metaf <- df_metaf %>%
-  mutate(
-    or       = exp(logOR),
-    or_lower = exp(logOR - 1.96 * seLogOR),
-    or_upper = exp(logOR + 1.96 * seLogOR)
-  )
-
-
-# Random-effects meta-analysis
-resm <- rma.uni(
-  yi    = df_metam$logOR,   
-  sei   = df_metam$seLogOR,
-  method = "REML"
-)
-summary(resm)
-forest(resm)
-
-# Exponentiate the estimates
-df_metaf <- df_metaf %>%
-  mutate(
-    or       = exp(logOR),
-    or_lower = exp(logOR - 1.96 * seLogOR),
-    or_upper = exp(logOR + 1.96 * seLogOR)
-  )
-
-
-
-
+#---this part is for RE on male and female separately-----
+# library(dplyr)
+# library(stringr)
+# library(metafor)
+# library(forestplot)
+# 
+# df_metaf <- readRDS("D:\\Downloads\\df_metaf.rds")
+# df_metam <- readRDS("D:\\Downloads\\df_metam.rds")
+# 
+# # male and female seperately
+# 
+# # Random-effects meta-analysis
+# res <- rma.uni(
+#   yi    = df_metaf$logOR,   
+#   sei   = df_metaf$seLogOR,
+#   method = "REML"
+# )
+# summary(res)
+# forest(res)
+# 
+# # Exponentiate the estimates
+# df_metaf <- df_metaf %>%
+#   mutate(
+#     or       = exp(logOR),
+#     or_lower = exp(logOR - 1.96 * seLogOR),
+#     or_upper = exp(logOR + 1.96 * seLogOR)
+#   )
+# 
+# 
+# # Random-effects meta-analysis
+# resm <- rma.uni(
+#   yi    = df_metam$logOR,   
+#   sei   = df_metam$seLogOR,
+#   method = "REML"
+# )
+# summary(resm)
+# forest(resm)
+# 
+# # Exponentiate the estimates
+# df_metaf <- df_metaf %>%
+#   mutate(
+#     or       = exp(logOR),
+#     or_lower = exp(logOR - 1.96 * seLogOR),
+#     or_upper = exp(logOR + 1.96 * seLogOR)
+#   )
+#---this part is for RE on male and female separately-----
 
 # overall
-df_meta <- readRDS("D:\\Downloads\\df_meta.rds")
-
-df_meta <- df_meta %>%
-  mutate(
-    year    = str_extract(survey, "\\d{4}$"),
-    country = survey %>%
-      str_remove("\\d{4}$") %>%
-      str_remove("(?i)PHIA") %>% 
-      str_remove("(?i)AIS")  %>%
-      str_trim()
-  )
+library(dplyr)
+library(stringr)
 
 iso3_to_name <- c(
   "NAM"  = "Namibia",
@@ -437,7 +425,21 @@ iso3_to_name <- c(
   "BWAB" = "Botswana"
 )
 
-df_meta$country <- iso3_to_name[df_meta$country]
+df_meta <- readRDS("D:/Downloads/df_meta.rds") %>%
+  mutate(
+    year    = str_extract(survey, "\\d{4}$"),
+    country = survey %>%
+      str_remove("\\d{4}$") %>%
+      str_remove("(?i)PHIA") %>% 
+      str_remove("(?i)AIS")  %>%
+      str_trim(),
+    country = iso3_to_name[country]
+  ) %>%
+  arrange(country)
+
+rownames(df_meta) <- NULL
+df_meta
+
 
 # Random-effects meta-analysis
 res <- rma.uni(
@@ -501,7 +503,6 @@ forestplot(
 )
 
 
-
 png("D:/Downloads/MSc Thesis/hivst/surveys with biomarker data/RE_metanalysis_forestplot.png", width = 10, height = 8, units = "in", res = 300)  # Adjust size/res as needed
 forestplot(
   labeltext  = labeltext,
@@ -519,7 +520,15 @@ forestplot(
                  "fpDrawSummaryCI"),
   zero       = 1,
   xlab       = "Odds Ratio (95% CI)",
-  boxsize    = 0.2
+  boxsize    = 0.2,
+  
+  txt_gp = fpTxtGp(
+    label = gpar(fontsize = 12),   # row labels (country/year text)
+    ticks = gpar(fontsize = 24),   # x-axis tick labels (e.g. 0.5, 1, 1.5)
+    xlab  = gpar(fontsize = 24),   # the "Odds Ratio (95% CI)" text
+    title = gpar(fontsize = 16),   # title
+    summary = gpar(fontface = "bold", fontsize = 12)  # the "Overall" label/diamond
+  )
 )
 dev.off()
 
