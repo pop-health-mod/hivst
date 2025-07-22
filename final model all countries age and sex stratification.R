@@ -1,5 +1,5 @@
-#---April 15: adding separate age rate ratios for men and women----
-# ---testing code for the final age and sex stratified model to code plots----
+
+# ----- final age and sex stratified model with constraint on number of tests ----
 rm(list = ls())
 gc()
 
@@ -27,6 +27,7 @@ countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe",
                "Guinea-Bissau", "Democratic Republic of the Congo", "Eswatini", "Benin")
 
 age_grp <- list("15-24" = 16:25, "25-34" = 26:35, "35-49" = 36:50, "50+"   = 51:101)
+
 # matrix with 4 age groups rows for each country, c1=Male, c2=Female
 pop_agegrp_fn <- function(country, popM, popF, age_groups) {
   wpp_m <- popM[popM$name == country, !(colnames(popM) %in% as.character(1949:2009))]
@@ -55,10 +56,10 @@ pop <- lapply(countries, function(ctry) {
 pop_all_combined <- do.call(rbind, pop)
 
 # time specification
-start <- 2011
-end <- 2024
+start <- 2012
+end <- 2025
 dt <- 0.1
-time <- seq(start, end - dt, by = dt) + 1
+time <- seq(start, end - dt, by = dt) 
 niter <- (end - start) / dt
 n_yr <- end - start
 
@@ -90,9 +91,13 @@ get_entry_rates_m <- function(cn, start, end) {
 }
 
 # matrix [r:years,c:country]  
-entry_m_vec <- do.call(cbind, lapply(countries, 
-                                     function(cn) get_entry_rates_m(cn, start, end)$EntryRate_m[2:14])) # 2011 not needed
+entry_m_vec <- do.call(
+  cbind,
+  lapply(countries, function(cn)
+    get_entry_rates_m(cn, start, end - 1)$EntryRate_m)  
+)
 entry_m_vec <- -log(1 - entry_m_vec)
+
 
 
 # female
@@ -114,7 +119,7 @@ get_entry_rates_f <- function(cn_f, start, end) {
 
 # matrix [r:years,c:country]  
 entry_f_vec <- do.call(cbind, lapply(countries, 
-                                     function(cn_f) get_entry_rates_f(cn_f, start, end)$EntryRate_f[2:14])) # 2011 not needed
+                                     function(cn_f) get_entry_rates_f(cn_f, start, end - 1)$EntryRate_f)) #
 entry_f_vec <- -log(1 - entry_f_vec)
 
 
@@ -139,7 +144,6 @@ calc_mort_agegrp_m <- function(year_int, wpp_popM, mx_male, age_grp) {
   })
 }
 
-
 # function to loop over start to end for one country
 mort_rate_m_agegrp <- function(cn, start_yr, end_yr, age_grp) {
   wpp_m_c <- popM1[
@@ -158,9 +162,9 @@ mort_rate_m_agegrp <- function(cn, start_yr, end_yr, age_grp) {
   return(mort_mat)
 }
 
+
 mort_mat_m <- lapply(countries, function(cn) {
-  mat <- mort_rate_m_agegrp(cn, start, end, age_grp)
-  # removing the row for 2024 as model stops at 2023
+  mat <- mort_rate_m_agegrp(cn, start - 1, end - 1, age_grp)
   mat[1:(end - start), ]
 })
 
@@ -203,11 +207,12 @@ mort_rate_f_agegrp <- function(cn, start_yr, end_yr, age_grp) {
   return(mort_mat)
 }
 
+
 mort_mat_f <- lapply(countries, function(cn) {
-  mat <- mort_rate_f_agegrp(cn, start, end, age_grp)
-  # removing the row for 2024 as model stops at 2023
+  mat <- mort_rate_f_agegrp(cn, start - 1, end - 1, age_grp)
   mat[1:(end - start), ]
 })
+
 
 #--- aging rate alpha ----
 # aging is same for first 2 age groups (1/10), for 3rd group it is 1/15
@@ -380,6 +385,12 @@ data {
   
   // aging rate
   vector[3] alpha;
+  
+  // for constraint
+  int<lower=1>  max_n_miss;                       // widest row of ragged array
+  int<lower=0>  n_miss[n_cnt];                    // number of missing mid years per country
+  int<lower=1,upper=niter> missing_i_mat[n_cnt, max_n_miss]; // matrix for missing time steps
+  real<lower=0> threshold[n_cnt];                 // four times max HTS for each country
 }
 
 parameters {
@@ -563,6 +574,17 @@ for (s in svy_idx_s[c]:svy_idx_e[c]) {
                               + to_vector(model_pred[, 3, 2, 4])) / phi[c];
     hivst[hts_idx_s[c]:hts_idx_e[c]] ~ normal(hts_mod[ind_hts[hts_idx_s[c]:hts_idx_e[c]], c], 
                                               se_hts[hts_idx_s[c]:hts_idx_e[c]]);
+                                              
+  // constraint
+  real thr      = threshold[c];
+  real scale_c  = thr / 4;          
+
+  for (mm in 1:n_miss[c]) {
+    int i = missing_i_mat[c, mm];
+    if (hts_mod[i, c] > thr) {
+      target += -0.5 * square( (hts_mod[i, c] - thr) / scale_c );
+    }
+  }
  }
 }
 
@@ -1281,6 +1303,45 @@ for (c in 2:n_cnt) {
 
 idx_pop <- seq(from = 1, to = (n_cnt * 4), by = 4)
 
+
+# ----- for constraint ----
+# creating matrix for the years of missing program data 
+all_mid_idx <- ((start:(end - 1)) - start + 0.5) / dt     
+missing_idx_list <- vector("list", n_cnt)
+threshold_vec    <- numeric(n_cnt)
+
+# modified constraint for countries with low number of tests
+for (c in seq_len(n_cnt)) {
+  obs_idx_c  <- ind_hts[ hts_idx_s[c] : hts_idx_e[c] ] # observed indices
+  miss_idx_c <- setdiff(all_mid_idx, obs_idx_c) # missing indices
+  missing_idx_list[[c]] <- miss_idx_c
+  
+  #  threshold 
+  max_hts <- max(hts_dat[ hts_idx_s[c] : hts_idx_e[c] ])
+  pop_c   <- sum(pop[[c]])                      
+  prop    <- max_hts / pop_c * 100              
+  
+  if (prop < 0.1) {                             # if < 0.10 % of pop, 0.1 % × pop × 4
+    thr_c <- 0.001 * pop_c * 4                  
+  } else {                                      # if ≥ 0.10 %, old rule
+    thr_c <- 4 * max_hts                       
+  }
+
+  threshold_vec[c] <- thr_c
+}
+
+max_n_miss <- max( lengths(missing_idx_list) )  # widest row
+missing_i_mat <- matrix(1L, nrow = n_cnt, ncol = max_n_miss)  # filler value 1
+n_miss <- integer(n_cnt)
+
+for (c in seq_len(n_cnt)) {
+  n_miss[c] <- length(missing_idx_list[[c]])
+  if (n_miss[c] > 0)
+    missing_i_mat[c, 1:n_miss[c]] <- missing_idx_list[[c]]
+}
+
+threshold_vec # the new constraints
+
 # data for fitting and running 
 data_stan <- list(
   n_cnt = length(cnt_data),
@@ -1314,7 +1375,11 @@ data_stan <- list(
   entry_f = entry_f_vec,
   mort_m = mort_mat_m,
   mort_f = mort_mat_f,
-  alpha = alpha
+  alpha = alpha,
+  max_n_miss = max_n_miss,
+  n_miss = n_miss,
+  missing_i_mat = missing_i_mat,
+  threshold = threshold_vec
 )
 rstan_options(auto_write = TRUE)
 
@@ -1370,18 +1435,10 @@ traceplot(fit, pars = "phi_raw")
 #------saving the model fit and posterior summaries------------
 
 # saving the fit object
-saveRDS(fit, file = "hivst_stan_fit_apr17.rds")
-fit <- readRDS("hivst_stan_fit_apr17.rds")
+saveRDS(fit, file = "hivst_stan_fit_jul21.rds")
+fit <- readRDS("hivst_stan_fit_jul21.rds") 
 
-# saving the compiled StanModel object 
-saveRDS(hivst_stan, "hivst_stan_model_apr17.rds")
-hivst_stan <- readRDS("hivst_stan_model_apr17.rds")
 
-# saving posterior summaries
-# rstan::summary(fit)
-fit_summary <- summary(fit)
-saveRDS(fit_summary, file = "hivst_stan_summary_apr17.rds")
-fit_summary <- readRDS("hivst_stan_summary_apr17.rds")
-# colnames(fit_summary$summary)
-# names(rstan::extract(fit))
+
+
 
