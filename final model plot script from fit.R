@@ -11,8 +11,7 @@ library(clipr)
 
 # ------model fit--------
 setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
-
-fit <- readRDS("hivst_stan_fit_apr17.rds")
+fit <- readRDS("hivst_stan_fit_jul21.rds") 
 
 #--run model codes from the final model all countries age and sex stratification script-----
 # then we run the following
@@ -155,23 +154,23 @@ phi_forest
 
 #---rr retest and phi side by side panel-----
 
-# library(patchwork)
-# 
-# rrretest_phi <- rr_retesting_forest +
-#   phi_forest +
-#   plot_annotation(tag_levels = "A") &
-#   theme(
-#     text        = element_text(size = 18),      
-#     axis.title  = element_text(size = 16),       
-#     axis.text   = element_text(size = 14),       
-#     plot.tag    = element_text(size = 20),       
-#     strip.text  = element_text(size = 16)        
-#   )
-# 
-# ggsave("rrretest_phi_plot.png",
-#        plot   = rrretest_phi,
-#        width  = 13, height = 10, dpi = 300)
-# 
+library(patchwork)
+
+rrretest_phi <- rr_retesting_forest +
+  phi_forest +
+  plot_annotation(tag_levels = "A") &
+  theme(
+    text        = element_text(size = 18),
+    axis.title  = element_text(size = 16),
+    axis.text   = element_text(size = 14),
+    plot.tag    = element_text(size = 20),
+    strip.text  = element_text(size = 16)
+  )
+
+ggsave("rrretest_phi_plot.png",
+       plot   = rrretest_phi,
+       width  = 13, height = 10, dpi = 300)
+
 
 #-------- rate ratio male 15-24 years ---------------
 rr_m_overall <- as.data.frame(rstan::summary(fit, pars = c("beta_male_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -232,7 +231,7 @@ rr_male_forest <- ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   theme(legend.position = "right")
 rr_male_forest
 
-#write_clip(df_rr_m, object_type = "table")
+write_clip(df_rr_m, object_type = "table")
 #ggsave("rr_male_plot.png", plot = rr_male_forest, width = 8, height = 6, dpi = 300)
 
 #-------- rate ratio age ---------------
@@ -396,13 +395,10 @@ top_row <- rr_male_forest +
     plot.margin = margin(t = 5, r = 150, b = 5, l = 150)
   )
 
-# Wrap it so that layout doesn't propagate to others
 top_row_wrapped <- wrap_elements(top_row)
 
-# Bottom row as is
 bottom_row <- rr_age_forest_m + rr_age_forest_f
 
-# Combine
 rrage_malefemale <- 
   top_row_wrapped /                   # top row isolated
   bottom_row +                        # bottom row normal
@@ -417,12 +413,93 @@ ggsave("rrage_malefemale.png",
        width  = 13, height = 13, dpi = 600)
 
 
-# all parameters side by side panel
 
-# library(patchwork)
-# 
-# 
-# top row: 3 plots
+
+# for poster, all 3 rr age plots side by side
+
+rrage_malefemale <- 
+  ( rr_male_forest + rr_age_forest_m + rr_age_forest_f ) +   # wrap in ()
+  plot_layout(
+    ncol   = 3,         
+    guides = "collect"  
+  ) +
+  plot_annotation(tag_levels = "A") &  
+  theme(
+    legend.position = "bottom",            
+    plot.margin     = margin(5, 5, 5, 5)    
+  )
+
+ggsave(
+  "rrage_malefemale_wide.png",
+  rrage_malefemale,
+  width  = 20,    # tweak as needed
+  height = 6,
+  dpi    = 600
+)
+
+
+# alternative plot for poster
+# removing duplicate y‑axes so that country names appear only on the leftmost y axis
+rr_age_forest_m <- rr_age_forest_m +
+  theme(axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank())
+
+rr_age_forest_f <- rr_age_forest_f +
+  theme(axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank())
+
+rrage_malefemale <- 
+  (rr_male_forest + rr_age_forest_m + rr_age_forest_f) +
+  plot_layout(
+    ncol   = 3,
+    widths = c(1, 1.3, 1.3),  
+    guides = "collect"
+  ) +
+  plot_annotation(tag_levels = "A") &
+  theme(
+    legend.position = "bottom",
+    panel.spacing   = unit(1.5, "lines"),   
+    plot.margin     = margin(5.5, 5.5, 5.5, 5.5)
+  )
+
+ggsave(
+  "rrage_malefemale_wide2.png",
+  rrage_malefemale,
+  width  = 20,
+  height = 11,   
+  dpi    = 300
+)
+
+
+# left plot keeps labels
+rr_male_forest <- rr_male_forest +
+  theme(axis.text.y = element_text(size = 12, colour = "black", face = "bold"))
+
+# middle & right plots lose labels
+no_y <- theme(axis.text.y = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.title.y = element_blank())
+
+rr_age_forest_m <- rr_age_forest_m + no_y
+rr_age_forest_f <- rr_age_forest_f + no_y
+
+rrage_malefemale <-
+  (rr_male_forest + rr_age_forest_m + rr_age_forest_f) +
+  plot_layout(ncol = 3, widths = c(1.1, 1.3, 1.3), guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(
+    legend.position = "bottom",
+    panel.spacing   = unit(1.5, "lines")
+  )
+
+ggsave("rrage_malefemale_wide3.png",
+       rrage_malefemale,
+       width = 20, height = 11, dpi = 300)
+
+
+# ---all parameters side by side panel---
 top <- wrap_plots(
   rr_male_forest,
   rr_age_forest_m,
@@ -430,7 +507,6 @@ top <- wrap_plots(
   ncol = 3
 )
 
-# bottom row: a blank cell + your two plots
 bottom <- wrap_plots(
   plot_spacer(),       # empty left cell
   rr_retesting_forest, # 4th plot
@@ -441,7 +517,7 @@ bottom <- wrap_plots(
 
 allpar <- top / bottom +
   plot_annotation(tag_levels = "A") +
-  plot_layout(heights = c(1.2, 1))  # make top row taller if you like
+  plot_layout(heights = c(1.2, 1))  
 
 allpar
 
@@ -555,7 +631,7 @@ sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
 
 sex_trend_plot
 
-# write.table(df_sextrend, "clipboard", sep = "\t", row.names = FALSE)
+#write.table(df_sextrend, "clipboard", sep = "\t", row.names = FALSE)
 #ggsave("trend_sex_plot.png", plot = sex_trend_plot, width = 8, height = 6, dpi = 300)
 
 #------------- overall trend by age groups ------------------
@@ -653,8 +729,6 @@ p_age <- ggplot(df_age, aes(x = time)) +
 p_age
 
 #write_clip(df_age, object_type = "table")
-
-
 
 #ggsave("trend_age_plot.png", plot = p_age, width = 8, height = 6, dpi = 300)
 
@@ -1022,7 +1096,7 @@ combined_trend2 <- combined_trend2 &
     plot.margin = margin(t = 5, r = 5, b = 5, l = 15)  # in pt by default
   )
 
-#ggsave("trend_all4_plot.png", plot = combined_trend2, width = 13, height = 13, dpi = 600)
+ggsave("trend_all4_plot.png", plot = combined_trend2, width = 13, height = 13, dpi = 600)
 
 
 #--- function code to check for survey and program fit--------
@@ -1060,7 +1134,7 @@ for (c in seq_len(n_cnt)) {
 }
 
 # plotting for each country
-png("survey_fit_men.png",
+png("survey_fit_men2.png",
     width = 20, height = 28,
     units = "in", res = 320)
 par(mfrow = c(7, 4))
@@ -1118,7 +1192,7 @@ for (c in seq_len(n_cnt)) {
 }
 
 # plotting for each country
-png("survey_fit_women.png",
+png("survey_fit_women2.png",
     width = 20, height = 28,
     units = "in", res = 320)
 par(mfrow = c(7, 4))
@@ -1174,7 +1248,7 @@ for (c in seq_len(n_cnt)) {
   hts_list[[c]] <- hts_full[ix_c, ]
 }
 
-png("program_data_fit.png",
+png("program_data_fit2.png",
     width = 14, height = 28,
     units = "in", res = 320)
 
@@ -1335,11 +1409,10 @@ overall_country_estimates <- ggplot(df_last_dt, aes(x = reorder(Country, Median)
   geom_errorbar(aes(ymin = LCI, ymax = UCI), width = 0.2, color = "#8B0000", size = 0.7) +  # Deep red error bars
   scale_fill_gradientn(colors = c("#FFF5E1", "#FFA500", "#FF4500", "#FF0000")) +
   coord_flip() +
-  scale_y_continuous(limits = c(0, 50), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 55), expand = c(0, 0)) +
   labs(
     x = NULL,
-    y = "Proportion of people who have used HIVST (%)",
-    title = "National estimates of HIVST uptake in 2024"
+    y = "Proportion of people who have used HIVST (%)"
   ) +
   theme_classic(base_size = 14) +
   theme(
@@ -1350,9 +1423,9 @@ overall_country_estimates <- ggplot(df_last_dt, aes(x = reorder(Country, Median)
 
 overall_country_estimates
 
-#write_clip(df_last_dt, object_type = "table")
+write_clip(df_last_dt, object_type = "table")
 
-#ggsave("country-estimate_2024.png", plot = overall_country_estimates, width = 8, height = 6, dpi = 300)
+ggsave("country-estimate_2024.png", plot = overall_country_estimates, width = 8, height = 6, dpi = 300)
 
 
 #-----------------------------------------------------------------------------
@@ -1639,14 +1712,14 @@ svy_m_full <- as.data.frame(svy_m_full)
 svy_m_full$param <- rownames(svy_m_full)
 
 
-# Split out each country, then each age group
+# splitting out each country, then each age group
 n_cnt <- length(countries)
 svy_m_list <- vector("list", n_cnt)  # each element is a list of 4 data frames (age groups)
 for (c in seq_len(n_cnt)) {
   ix_c <- grepl(paste0("\\[", c, ","), svy_m_full$param)
   tmp_c <- svy_m_full[ix_c, ]
   
-  # Separate the 4 age groups
+  # separateing the 4 age groups
   ages <- vector("list", 4)
   for (a in 1:4) {
     ix_a <- grepl(paste0(",", a, "\\]$"), tmp_c$param)
@@ -1655,7 +1728,7 @@ for (c in seq_len(n_cnt)) {
   svy_m_list[[c]] <- ages
 }
 
-# Similarly for women
+# similarly for women
 svy_f_full <- rstan::summary(fit, "svy_prd_f", probs = c(0.025, 0.5, 0.975))$summary
 svy_f_full <- as.data.frame(svy_f_full)
 svy_f_full$param <- rownames(svy_f_full)
@@ -1702,8 +1775,7 @@ for (c_idx in seq_len(n_cnt)) {
   
   for (i in seq_len(n_time)) {
     # For men, each age group a:
-    #   proportion in age_df_m[[a]]$`50%`[i]
-    # Weighted by pop_m[a]
+    #   proportion in age_df_m[[a]]$`50%`[i] weighted by pop_m[a]
     
     # 2.5% for men
     num_2.5_m <- 0
@@ -1747,7 +1819,7 @@ for (c_idx in seq_len(n_cnt)) {
 }
 
 
-png("aggregate_survey_plots.png", width=14, height=28, units="in", res=300)
+png("aggregate_survey_plots2.png", width=14, height=28, units="in", res=300)
 par(mfrow=c(9,3), mar=c(4,4,2,1))  
 
 cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe",
@@ -1767,8 +1839,10 @@ for (c_idx in alphabetical_cnt) {
   obs_m  <- cnt_data[[c_idx]]$num_svy[,1] / cnt_data[[c_idx]]$den_svy[,1]  # men
   obs_f  <- cnt_data[[c_idx]]$num_svy[,2] / cnt_data[[c_idx]]$den_svy[,2]  # women
   
-  plot(NA, xlim=range(time), ylim=c(0,1), 
-       xlab="Year", ylab="Proporition ever used HIVST",
+  ymax <- max(men_df$p97.5, women_df$p97.5,
+              obs_m, obs_f, na.rm = TRUE) * 1.05
+  plot(NA, xlim = range(time), ylim = c(0, ymax),
+         xlab="Year", ylab="Proporition of HIVST use",
        main=paste("Country:", countries[c_idx]))
   
   # men line
@@ -1800,7 +1874,7 @@ plot_survey_agg_one_country <- function(
     cnt_data, 
     countries
 ) {
-  # Extract the aggregated men/women data frames
+  # Extracting the aggregated men/women data frames
   men_df   <- svy_m_agg[[c_idx]]   # columns: time, p2.5, p50, p97.5
   women_df <- svy_f_agg[[c_idx]]
   
@@ -1809,17 +1883,18 @@ plot_survey_agg_one_country <- function(
   obs_m  <- cnt_data[[c_idx]]$num_svy[,1] / cnt_data[[c_idx]]$den_svy[,1]  # men
   obs_f  <- cnt_data[[c_idx]]$num_svy[,2] / cnt_data[[c_idx]]$den_svy[,2]  # women
   
+  
   plot(
     x    = NA,
     y    = NA,
     xlim = range(time),
-    ylim = c(0,1),
+    ylim = c(0,ymax),
     xlab = "Year",
-    ylab = "Proportion Ever Used HIVST",
+    ylab = "Proportion of HIVST use",
     main = paste("HIVST Uptake -", countries[c_idx])
   )
   
-  # men line + ribbon
+  # men 
   lines(men_df$p50 ~ men_df$time, col="blue", lwd=2)
   polygon(
     x = c(men_df$time, rev(men_df$time)),
@@ -1829,7 +1904,7 @@ plot_survey_agg_one_country <- function(
   )
   points(obs_yr, obs_m, pch=19, col="blue")
   
-  # women line + ribbon
+  # women 
   lines(women_df$p50 ~ women_df$time, col="red", lwd=2)
   polygon(
     x = c(women_df$time, rev(women_df$time)),
@@ -1871,7 +1946,7 @@ plot_hts_one_country <- function(
     border = NA
   )
   
-  # Observed program data
+  # observed program data
   t_obs   <- cnt_data[[c_idx]]$yr_hts
   obs_hts <- cnt_data[[c_idx]]$hts_dat
   points(t_obs, obs_hts, pch = 16, col = "red")
@@ -1881,7 +1956,7 @@ plot_hts_one_country <- function(
 
 N <- length(alphabetical_cnt)  # 27
 
-png("svypgmfit.png",
+png("svypgmfit2.png",
     width = 20, height = 28,   
     units = "in", res = 300)
 
@@ -1934,19 +2009,155 @@ dev.off()
 
 
 
+#------------------------------------------------------------------------------
+#---2 separate plots
+## ----------------------------------------------------------
+
+countries[countries %in% c("Democratic Republic of Congo",
+                           "Democratic Republic of the Congo")] <- "DRC"
+
+countries[countries %in% c("United Republic of Tanzania",
+                           "United Republic of Tanzania")] <- "Tanzania"
+
+plot_survey_agg_one_country <- function(
+    c_idx, svy_m_agg, svy_f_agg, time,
+    cnt_data, countries, ylim = NULL)
+{
+  men_df   <- svy_m_agg[[c_idx]]
+  women_df <- svy_f_agg[[c_idx]]
+  
+  obs_yr <- cnt_data[[c_idx]]$yr_svy
+  obs_m  <- cnt_data[[c_idx]]$num_svy[,1] / cnt_data[[c_idx]]$den_svy[,1]
+  obs_f  <- cnt_data[[c_idx]]$num_svy[,2] / cnt_data[[c_idx]]$den_svy[,2]
+  
+  ## ――dynamic y-limit ----------
+  if (is.null(ylim)) {
+    ymax <- max(men_df$p97.5, women_df$p97.5,
+                obs_m, obs_f, na.rm = TRUE) * 1.05
+    ylim <- c(0, ymax)
+  }
+
+  plot(NA, xlim = range(time), ylim = ylim,
+       xlab = "Year", ylab = "HIVST use proportion",
+       main = paste("HIVST uptake:", countries[c_idx]))
+  
+  lines(men_df$p50 ~ men_df$time, col = "blue", lwd = 2)
+  polygon(c(men_df$time, rev(men_df$time)),
+          c(men_df$p2.5, rev(men_df$p97.5)),
+          col = adjustcolor("blue", 0.30), border = NA)
+  points(obs_yr, obs_m, pch = 19, col = "blue")
+  
+  lines(women_df$p50 ~ women_df$time, col = "red",  lwd = 2)
+  polygon(c(women_df$time, rev(women_df$time)),
+          c(women_df$p2.5, rev(women_df$p97.5)),
+          col = adjustcolor("red", 0.30),  border = NA)
+  points(obs_yr + 0.2, obs_f, pch = 19, col = "red")
+  
+  legend("topleft", c("Men","Women"), col = c("blue","red"),
+         lwd = 2, bty = "n", cex = 0.8)
+}
+
+options(scipen=999)
+plot_hts_one_country <- function(
+    c_idx, hts_list, cnt_data, time, countries, ylim = NULL)
+{
+  df_c <- hts_list[[c_idx]]
+  
+  if (is.null(ylim))
+    ylim <- c(0, max(df_c$`97.5%`, cnt_data[[c_idx]]$hts_dat, na.rm = TRUE))
+  
+  plot(time, df_c$`50%`, type = "l", col = "blue", lwd = 2,
+       main = paste("HIVST kits:", countries[c_idx]),
+       xlab = "Year", ylab = "Number of kits", ylim = ylim)
+  
+  polygon(c(time, rev(time)),
+          c(df_c$`2.5%`, rev(df_c$`97.5%`)),
+          col = adjustcolor("blue", 0.30), border = NA)
+  
+  points(cnt_data[[c_idx]]$yr_hts,
+         cnt_data[[c_idx]]$hts_dat,
+         pch = 16, col = "red")
+}
 
 
 
 
+## -----------------------------------------------------------------
+make_country_page <- function(idx_vec, file_name,
+                              svy_m_agg, svy_f_agg,
+                              hts_list, cnt_data,
+                              time, countries)
+{
+  n_cnt   <- length(idx_vec)
+  n_row   <- ceiling(n_cnt / 2)      # two countries per row
+  n_col   <- 4                       # (survey, hts) × 2
+  
+  png(file_name,
+      width  = 8,     # width
+      height = 10.5,  
+      units  = "in", res = 300)
+  
+  par(mfrow = c(n_row, n_col),
+      mar   = c(3.2, 3.2, 2, 1),     
+      mgp   = c(2, 0.6, 0),          
+      cex   = 0.5)                   
+  
+  i <- 1
+  while (i <= n_cnt) {
+    c1 <- idx_vec[i]
+    
+    plot_survey_agg_one_country(
+      c_idx     = c1,
+      svy_m_agg = svy_m_agg,
+      svy_f_agg = svy_f_agg,
+      time      = time,
+      cnt_data  = cnt_data,
+      countries = countries)
+    
+    plot_hts_one_country(
+      c_idx     = c1,
+      hts_list  = hts_list,
+      cnt_data  = cnt_data,
+      time      = time,
+      countries = countries)
+    
+    if (i + 1 <= n_cnt) {
+      c2 <- idx_vec[i + 1]
+      
+      plot_survey_agg_one_country(
+        c_idx     = c2,
+        svy_m_agg = svy_m_agg,
+        svy_f_agg = svy_f_agg,
+        time      = time,
+        cnt_data  = cnt_data,
+        countries = countries)
+      
+      plot_hts_one_country(
+        c_idx     = c2,
+        hts_list  = hts_list,
+        cnt_data  = cnt_data,
+        time      = time,
+        countries = countries)
+    } else {
+      ## keep the grid square if n_cnt is odd
+      for (k in 1:2) plot.new()
+    }
+    
+    i <- i + 2
+  }
+  
+  dev.off()
+}
+cnt_first14 <- alphabetical_cnt[1:14]
+cnt_last13  <- alphabetical_cnt[15:27]
 
+make_country_page(cnt_first14, "svy_hts_first14.png",
+                  svy_m_agg, svy_f_agg, hts_list,
+                  cnt_data, time, countries)
 
-
-
-
-
-
-
-
+make_country_page(cnt_last13,  "svy_hts_last13.png",
+                  svy_m_agg, svy_f_agg, hts_list,
+                  cnt_data, time, countries)
 
 
 

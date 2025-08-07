@@ -1396,7 +1396,7 @@ init_function <- function() {
     sd_male = runif(1, min = 0.1, max = 1),
     sd_age_male = runif(1, min = 0.1, max = 1),
     sd_age_female = runif(1, min = 0.1, max = 1),
-    beta_restest_overall = rnorm(1, qlogis((1.2 - 0.5) / (2.5 - 0.5)), 0.1),
+    beta_retest_overall = rnorm(1, qlogis((1.2 - 0.5) / (2.5 - 0.5)), 0.1),
     beta_rt_raw = rnorm(data_stan$n_cnt, 0, 0.5),
     beta_male_overall = rnorm(1, log(1), 0.1),
     beta_male_raw = rnorm(data_stan$n_cnt, 0, 0.1),
@@ -1408,7 +1408,7 @@ init_function <- function() {
     beta_age_female_raw1 = rnorm(data_stan$n_cnt, 0, 0.1),  
     beta_age_female_raw2 = rnorm(data_stan$n_cnt, 0, 0.1),  
     beta_age_female_raw3 = rnorm(data_stan$n_cnt, 0, 0.1),
-    beta_phi_overall = rnorm(1, qlogis((0.8 - 0.5) / (1 - 0.5)), 0.1),
+    phi_overall = rnorm(1, qlogis((0.8 - 0.5) / (1 - 0.5)), 0.1),
     phi_raw = rnorm(data_stan$n_cnt, 0, 0.2)
   )
 }
@@ -1432,13 +1432,9 @@ traceplot(fit, pars = "beta_age_female")
 traceplot(fit, pars = "phi_overall")
 traceplot(fit, pars = "phi_raw")
 
-#------saving the model fit and posterior summaries------------
+#------saving the model fit ------------
 
-# saving the fit object
 saveRDS(fit, file = "hivst_stan_fit_jul21.rds")
 fit <- readRDS("hivst_stan_fit_jul21.rds") 
-
-
-
 
 
