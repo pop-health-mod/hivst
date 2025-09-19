@@ -1,6 +1,5 @@
 
 
-# Clearing all objects
 rm(list = ls())
 gc() 
 
@@ -8,6 +7,7 @@ library(haven)
 library(dplyr)
 library(labelled)
 library(survey)
+# Clearing all objects
 
 setwd("D:/Downloads/MSc Thesis/1. thesis rawdata/MICS raw data")
 
@@ -2142,68 +2142,66 @@ mdgmics2018f <- mdgmics2018f %>%
     TRUE ~ last_hivtest              # Keep all other values unchanged
   ))
 
-# # Recode the existing agegrp into new age groups
-# mdgmics2018f <- mdgmics2018f %>%
-#   mutate(
-#     agegroup_new = case_when(
-#       agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
-#       agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
-#       agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
-#       TRUE ~ NA_character_  # Handle unexpected values
-#     )
-#   )
-# 
-# mdgmics_design_f <- svydesign(
-#   ids = ~psu,
-#   strata = ~strata,
-#   weights = ~ind_wt,
-#   data = mdgmics2018f,
-#   nest = TRUE
-# )
-# 
-# 
-# # Calculate the proportion of HIV testing usage by the new age groups
-# mdg_prop_age_f <- svyby(
-#   ~I(hivst_use == 1),
-#   ~agegroup_new,
-#   design = mdgmics_design_f,
-#   FUN = svyciprop,
-#   method = "logit",
-#   vartype = "se",
-#   level = 0.95
-# )
-# 
-# # Rename the resulting columns for clarity
-# mdg_prop_age_f <- mdg_prop_age_f %>%
-#   rename(
-#     prop = `I(hivst_use == 1)`,
-#     se_prop = `se.as.numeric(I(hivst_use == 1))`
-#   )
-# 
-# 
-# # Calculate denominator (deno) and numerator (num)
-# mdg_prop_age_f <- mdg_prop_age_f %>%
-#   mutate(
-#     deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
-#     num = prop * deno                          # Calculate numerator
-#   )
-# 
-# mdg_prop_age_f_selected <- mdg_prop_age_f %>%
-#   select(agegroup_new, deno, num)
-# 
+# Recode the existing agegrp into new age groups
+mdgmics2018f <- mdgmics2018f %>%
+  mutate(
+    agegroup_new = case_when(
+      agegrp %in% c(1, 2) ~ "Group 1 (Age 15-24)",
+      agegrp %in% c(3, 4) ~ "Group 2 (Age 25-34)",
+      agegrp %in% c(5, 6, 7) ~ "Group 3 (Age 35+)",
+      TRUE ~ NA_character_  # Handle unexpected values
+    )
+  )
 
+mdgmics_design_f <- svydesign(
+  ids = ~psu,
+  strata = ~strata,
+  weights = ~ind_wt,
+  data = mdgmics2018f,
+  nest = TRUE
+)
+
+
+# Calculate the proportion of HIV testing usage by the new age groups
+mdg_prop_age_f <- svyby(
+  ~I(hivst_use == 1),
+  ~agegroup_new,
+  design = mdgmics_design_f,
+  FUN = svyciprop,
+  method = "logit",
+  vartype = "se",
+  level = 0.95
+)
+
+# Rename the resulting columns for clarity
+mdg_prop_age_f <- mdg_prop_age_f %>%
+  rename(
+    prop = `I(hivst_use == 1)`,
+    se_prop = `se.as.numeric(I(hivst_use == 1))`
+  )
+
+
+# Calculate denominator (deno) and numerator (num)
+mdg_prop_age_f <- mdg_prop_age_f %>%
+  mutate(
+    deno = (prop * (1 - prop)) / (se_prop^2),  # Calculate denominator
+    num = prop * deno                          # Calculate numerator
+  )
+
+mdg_prop_age_f_selected <- mdg_prop_age_f %>%
+  select(agegroup_new, deno, num)
 
 
 #extract design adjusted SE
-#mdgmics_design <- svydesign(ids = ~psu, strata = ~strata, weights = ~ind_wt, data = mdgmics2018f, nest = TRUE)
-#mdg_prop <- svyciprop(~I(hivst_use == 1), design = mdgmics_design, method = "logit", level = 0.95)
-#se_hivst_use <- SE(mdg_prop)
+mdgmics_design <- svydesign(ids = ~psu, strata = ~strata, weights = ~ind_wt, data = mdgmics2018f, nest = TRUE)
+mdg_prop <- svyciprop(~I(hivst_use == 1), design = mdgmics_design, method = "logit", level = 0.95)
+se_hivst_use <- SE(mdg_prop)
 
-#mdgprop_hivst_use_f <- 0.0166
-#mdg_se_hivst_use_f <- 0.001799979
+mdgprop_hivst_use_f <- 0.0166
+mdg_se_hivst_use_f <- 0.001799979
 
-#eff_ss_f <- (mdgprop_hivst_use_f * (1 - mdgprop_hivst_use_f)) / (mdg_se_hivst_use_f^2)
-#mdgmicsf_num <- mdgprop_hivst_use_f * eff_ss_f
+eff_ss_f <- (mdgprop_hivst_use_f * (1 - mdgprop_hivst_use_f)) / (mdg_se_hivst_use_f^2)
+mdgmicsf_num <- mdgprop_hivst_use_f * eff_ss_f
 
 #mdgmicsf Den: 5038.525 Num: 83.63951
 

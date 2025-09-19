@@ -2,19 +2,24 @@
 rm(list = ls())
 gc()
 
+library(patchwork)
 library(ggplot2)
 library(ggsci)
 library(cowplot)
 library(clipr)
 
-
-
 # ------model fit--------
-setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
-fit <- readRDS("hivst_stan_fit_jul21.rds") 
+#setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
+#fit <- readRDS("hivst_stan_fit_jul21.rds") 
 
-#--run model codes from the final model all countries age and sex stratification script-----
+# modified constraint
+fit <- readRDS("hivst_stan_fit_sep2.rds")
+setwd("E:\\Stan model fits\\Sept 2")
+
+
+# first we run model codes from the final model all countries age and sex stratification script
 # then we run the following
+
 #-----------------plots from fit--------------------
 
 # testing rate
@@ -85,10 +90,8 @@ rr_retesting_forest <- ggplot(df_rr_ov, aes(x = country, y = median, color = sty
   theme(legend.position = "right")
 rr_retesting_forest
 
-#write_clip(df_rr_ov, object_type = "table")
-
-
-#ggsave("rr_retest_plot.png", plot = rr_retesting_forest, width = 8, height = 6, dpi = 300)
+# write_clip(df_rr_ov, object_type = "table")
+# ggsave("rr_retest_plot.png", plot = rr_retesting_forest, width = 8, height = 6, dpi = 300)
 
 # ------- phi -----------------
 phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -147,14 +150,11 @@ phi_forest <- ggplot(df_phi_ov, aes(x = country, y = median, color = style)) +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
 phi_forest
 
-#write_clip(df_phi_ov, object_type = "table")
-
-#ggsave("phi_plot.png", plot = phi_forest, width = 8, height = 6, dpi = 300)
+# write_clip(df_phi_ov, object_type = "table")
+# ggsave("phi_plot.png", plot = phi_forest, width = 8, height = 6, dpi = 300)
 
 
 #---rr retest and phi side by side panel-----
-
-library(patchwork)
 
 rrretest_phi <- rr_retesting_forest +
   phi_forest +
@@ -226,13 +226,19 @@ rr_male_forest <- ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   theme_minimal() +
   labs(title = "", x = "Country", y = "Rate ratio for 15-24 year old men (reference: 15-24 year old women) ", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
-  theme(legend.position = "right") +
-  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
-  theme(legend.position = "right")
+  theme(
+    legend.position = "right",
+    axis.text = element_text(size = 13),
+    axis.title = element_text(size = 14),
+    legend.title = element_text(size = 13),
+    legend.text = element_text(size = 12),
+    plot.title = element_text(size = 16, face = "bold")
+  ) +
+  scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2)))
 rr_male_forest
 
-write_clip(df_rr_m, object_type = "table")
-#ggsave("rr_male_plot.png", plot = rr_male_forest, width = 8, height = 6, dpi = 300)
+# write_clip(df_rr_m, object_type = "table")
+# ggsave("rr_male_plot.png", plot = rr_male_forest, width = 8, height = 6, dpi = 300)
 
 #-------- rate ratio age ---------------
 #---men----
@@ -300,12 +306,19 @@ rr_age_forest_m <- ggplot(df_rr_age_m, aes(x = country, y = median, color = age,
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
-  theme(legend.position = "right") +
+  theme(
+  legend.position = "right",
+  axis.text = element_text(size = 13),
+  axis.title = element_text(size = 14),
+  legend.title = element_text(size = 13),
+  legend.text = element_text(size = 12),
+  plot.title = element_text(size = 16, face = "bold")
+) +
   guides(color = guide_legend(reverse = TRUE), size = "none")
 rr_age_forest_m
 
-#write_clip(df_rr_age_m, object_type = "table")
-#ggsave("rr_age_plot_men.png", plot = rr_age_forest_m, width = 8, height = 6, dpi = 300)
+# write_clip(df_rr_age_m, object_type = "table")
+# ggsave("rr_age_plot_men.png", plot = rr_age_forest_m, width = 8, height = 6, dpi = 300)
 
 #---women----
 rr_age_overall_f <- as.data.frame(rstan::summary(fit, pars = c("beta_age_female_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
@@ -372,23 +385,21 @@ rr_age_forest_f <- ggplot(df_rr_age_f, aes(x = country, y = median, color = age,
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
-  theme(legend.position = "right") +
+theme(
+  legend.position = "right",
+  axis.text = element_text(size = 13),
+  axis.title = element_text(size = 14),
+  legend.title = element_text(size = 13),
+  legend.text = element_text(size = 12),
+  plot.title = element_text(size = 16, face = "bold")
+) +
   guides(color = guide_legend(reverse = TRUE), size = "none")
 rr_age_forest_f
 
-#write_clip(df_rr_age_f, object_type = "table")
-#ggsave("rr_age_plot_women.png", plot = rr_age_forest_f, width = 8, height = 6, dpi = 300)
+# write_clip(df_rr_age_f, object_type = "table")
+# ggsave("rr_age_plot_women.png", plot = rr_age_forest_f, width = 8, height = 6, dpi = 300)
 
 #---rr ref, rr age men women side by side panel-----
-#rrage_malefemale <- plot_grid(rr_age_forest_m, rr_age_forest_f, ncol = 2)
-#ggsave("rrage_malefemale.png", plot = rrage_malefemale, width = 13, height = 6, dpi = 300)
-
-library(patchwork)
-
-# rrage_malefemale <- rr_male_forest + rr_age_forest_m +
-#   rr_age_forest_f +
-#   plot_annotation(tag_levels = "A")
-
 
 top_row <- rr_male_forest +
   theme(
@@ -407,15 +418,12 @@ rrage_malefemale <-
 rrage_malefemale
 
 
-
 ggsave("rrage_malefemale.png",
        plot   = rrage_malefemale,
        width  = 13, height = 13, dpi = 600)
 
 
-
-
-# for poster, all 3 rr age plots side by side
+# ----for poster, all 3 rr age plots side by side----
 
 rrage_malefemale <- 
   ( rr_male_forest + rr_age_forest_m + rr_age_forest_f ) +   # wrap in ()
@@ -631,8 +639,8 @@ sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
 
 sex_trend_plot
 
-#write.table(df_sextrend, "clipboard", sep = "\t", row.names = FALSE)
-#ggsave("trend_sex_plot.png", plot = sex_trend_plot, width = 8, height = 6, dpi = 300)
+# write.table(df_sextrend, "clipboard", sep = "\t", row.names = FALSE)
+# ggsave("trend_sex_plot.png", plot = sex_trend_plot, width = 8, height = 6, dpi = 300)
 
 #------------- overall trend by age groups ------------------
 ext_fit_m <- rstan::extract(fit, pars = "svy_prd_m")$svy_prd_m
@@ -728,13 +736,11 @@ p_age <- ggplot(df_age, aes(x = time)) +
 
 p_age
 
-#write_clip(df_age, object_type = "table")
-
-#ggsave("trend_age_plot.png", plot = p_age, width = 8, height = 6, dpi = 300)
+# write_clip(df_age, object_type = "table")
+# ggsave("trend_age_plot.png", plot = p_age, width = 8, height = 6, dpi = 300)
 
 
 #------overall trend---------
-
 prp_total <- matrix(NA, nrow = n_draws, ncol = niter)
 total_pop <- sum(pop_mat_m) + sum(pop_mat_f)
 
@@ -780,7 +786,7 @@ p_total <- ggplot(df_total, aes(x = time)) +
 
 p_total
 
-#write_clip(df_total, object_type = "table")
+# write_clip(df_total, object_type = "table")
 
 
 #---region wise trend-----
@@ -946,14 +952,11 @@ p_regions <- ggplot(df_regions, aes(x = time, y = median, color = region, fill =
 
 p_regions
 
-#write_clip(df_regions, object_type = "table")
-
-
-#ggsave("trend_region_plot.png", plot = p_regions, width = 8, height = 6, dpi = 300)
+# write_clip(df_regions, object_type = "table")
+# ggsave("trend_region_plot.png", plot = p_regions, width = 8, height = 6, dpi = 300)
 
 
 #---3 trend plots in panel-----------
-# removing legend titles for panel
 # region
 p_regions <- ggplot(df_regions, aes(x = time, y = median, color = region, fill = region)) +
   geom_ribbon(aes(ymin = lci, ymax = uci), alpha = 0.2, color = NA) +
@@ -1089,18 +1092,18 @@ combined_trend2 <- p_total + p_regions + sex_trend_plot + p_age +
     )
   )
 
-combined_trend2
 
 combined_trend2 <- combined_trend2 &
   theme(
     plot.margin = margin(t = 5, r = 5, b = 5, l = 15)  # in pt by default
   )
+combined_trend2
 
 ggsave("trend_all4_plot.png", plot = combined_trend2, width = 13, height = 13, dpi = 600)
 
 
 #--- function code to check for survey and program fit--------
-#  no separate sex dimension in svy_prd_m because it is only for males
+# no separate sex dimension in svy_prd_m because it is only for males
 # svy_prd_m [country=1(kenya), 2(ghana).., niter=130, agegrp=1:4]
 
 cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe",
@@ -1423,9 +1426,8 @@ overall_country_estimates <- ggplot(df_last_dt, aes(x = reorder(Country, Median)
 
 overall_country_estimates
 
-write_clip(df_last_dt, object_type = "table")
-
-ggsave("country-estimate_2024.png", plot = overall_country_estimates, width = 8, height = 6, dpi = 300)
+# write_clip(df_last_dt, object_type = "table")
+# ggsave("country-estimate_2024.png", plot = overall_country_estimates, width = 8, height = 6, dpi = 300)
 
 
 #-----------------------------------------------------------------------------
@@ -1703,7 +1705,6 @@ cnt_data <- list(
     se_hts = c(5173, 8149) * 0.1
   )
 )
-
 
 
 # ----sum across all age groups for male and female----
@@ -2151,11 +2152,11 @@ make_country_page <- function(idx_vec, file_name,
 cnt_first14 <- alphabetical_cnt[1:14]
 cnt_last13  <- alphabetical_cnt[15:27]
 
-make_country_page(cnt_first14, "svy_hts_first14.png",
+make_country_page(cnt_first14, "svy_hts_first142.png",
                   svy_m_agg, svy_f_agg, hts_list,
                   cnt_data, time, countries)
 
-make_country_page(cnt_last13,  "svy_hts_last13.png",
+make_country_page(cnt_last13,  "svy_hts_last132.png",
                   svy_m_agg, svy_f_agg, hts_list,
                   cnt_data, time, countries)
 

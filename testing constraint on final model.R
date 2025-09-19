@@ -1,9 +1,7 @@
-
-# ----- final age and sex stratified model with constraint on number of tests ----
+# ---testing code for the final age and sex stratified model to code plots----
 rm(list = ls())
 gc()
 
-setwd("E:\\Stan model fits")
 setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
 
 library(wpp2024)
@@ -20,15 +18,9 @@ data(mxF1)
 
 #---pop at the beginning of the year (as wpp reports mid year pop)----
 countries <- c("Kenya", "Ghana", "Malawi", "Madagascar", "Zimbabwe", 
-               "Sierra Leone", "Zambia", "Mali", "Uganda",
-               "Lesotho", "Mozambique", "Rwanda",
-               "Burkina Faso", "Burundi", "Cameroon", "Cote d'Ivoire",
-               "Guinea", "Liberia", "Senegal", "South Africa", 
-               "United Republic of Tanzania", "Namibia", "Botswana", 
-               "Guinea-Bissau", "Democratic Republic of the Congo", "Eswatini", "Benin")
+               "Sierra Leone")
 
 age_grp <- list("15-24" = 16:25, "25-34" = 26:35, "35-49" = 36:50, "50+"   = 51:101)
-
 # matrix with 4 age groups rows for each country, c1=Male, c2=Female
 pop_agegrp_fn <- function(country, popM, popF, age_groups) {
   wpp_m <- popM[popM$name == country, !(colnames(popM) %in% as.character(1949:2009))]
@@ -57,10 +49,10 @@ pop <- lapply(countries, function(ctry) {
 pop_all_combined <- do.call(rbind, pop)
 
 # time specification
-start <- 2012
-end <- 2025
+start <- 2011
+end <- 2024
 dt <- 0.1
-time <- seq(start, end - dt, by = dt) 
+time <- seq(start, end - dt, by = dt) + 1
 niter <- (end - start) / dt
 n_yr <- end - start
 
@@ -92,13 +84,9 @@ get_entry_rates_m <- function(cn, start, end) {
 }
 
 # matrix [r:years,c:country]  
-entry_m_vec <- do.call(
-  cbind,
-  lapply(countries, function(cn)
-    get_entry_rates_m(cn, start, end - 1)$EntryRate_m)  
-)
+entry_m_vec <- do.call(cbind, lapply(countries, 
+                                     function(cn) get_entry_rates_m(cn, start, end)$EntryRate_m[2:14])) # 2011 not needed
 entry_m_vec <- -log(1 - entry_m_vec)
-
 
 
 # female
@@ -120,7 +108,7 @@ get_entry_rates_f <- function(cn_f, start, end) {
 
 # matrix [r:years,c:country]  
 entry_f_vec <- do.call(cbind, lapply(countries, 
-                                     function(cn_f) get_entry_rates_f(cn_f, start, end - 1)$EntryRate_f)) #
+                                     function(cn_f) get_entry_rates_f(cn_f, start, end)$EntryRate_f[2:14])) # 2011 not needed
 entry_f_vec <- -log(1 - entry_f_vec)
 
 
@@ -145,6 +133,7 @@ calc_mort_agegrp_m <- function(year_int, wpp_popM, mx_male, age_grp) {
   })
 }
 
+
 # function to loop over start to end for one country
 mort_rate_m_agegrp <- function(cn, start_yr, end_yr, age_grp) {
   wpp_m_c <- popM1[
@@ -163,9 +152,9 @@ mort_rate_m_agegrp <- function(cn, start_yr, end_yr, age_grp) {
   return(mort_mat)
 }
 
-
 mort_mat_m <- lapply(countries, function(cn) {
-  mat <- mort_rate_m_agegrp(cn, start - 1, end - 1, age_grp)
+  mat <- mort_rate_m_agegrp(cn, start, end, age_grp)
+  # removing the row for 2024 as model stops at 2023
   mat[1:(end - start), ]
 })
 
@@ -208,12 +197,11 @@ mort_rate_f_agegrp <- function(cn, start_yr, end_yr, age_grp) {
   return(mort_mat)
 }
 
-
 mort_mat_f <- lapply(countries, function(cn) {
-  mat <- mort_rate_f_agegrp(cn, start - 1, end - 1, age_grp)
+  mat <- mort_rate_f_agegrp(cn, start, end, age_grp)
+  # removing the row for 2024 as model stops at 2023
   mat[1:(end - start), ]
 })
-
 
 #--- aging rate alpha ----
 # aging is same for first 2 age groups (1/10), for 3rd group it is 1/15
@@ -386,6 +374,7 @@ data {
   
   // aging rate
   vector[3] alpha;
+  
   
   // for constraint
   int<lower=1>  max_n_miss;                       // widest row of ragged array
@@ -576,16 +565,18 @@ for (s in svy_idx_s[c]:svy_idx_e[c]) {
     hivst[hts_idx_s[c]:hts_idx_e[c]] ~ normal(hts_mod[ind_hts[hts_idx_s[c]:hts_idx_e[c]], c], 
                                               se_hts[hts_idx_s[c]:hts_idx_e[c]]);
                                               
-  // constraint
+  
+ // constraint
   real thr      = threshold[c];
-  real scale_c  = thr / 4;          
+  real scale_c  = thr / 4;          // slope; change 4 → 5, 6, … to tighten
 
   for (mm in 1:n_miss[c]) {
     int i = missing_i_mat[c, mm];
     if (hts_mod[i, c] > thr) {
-      target += -0.5 * square((hts_mod[i, c] - thr) / scale_c );
+      target += -0.5 * square( (hts_mod[i, c] - thr) / scale_c );
     }
   }
+  
  }
 }
 
@@ -717,27 +708,26 @@ cnt_data <- list(
     yr_svy = c(2018.5, 2021.5),
     ind_svy = (c(2018.5, 2021.5) - start) / dt,
     den_svy_f = matrix(
-      c(3796, 1712, 2117, -999, # 2018 mics
-        4793, 1859, 4414, -999), # 2021 dhs
+      c(3796, 1712, 2117, -999, # 2018
+        4793, 1859, 4414, -999), # 2021
       nrow = 2, byrow = TRUE),
     num_svy_f = matrix(
-      c( 41, 48, 30, -999, # 2018 mics
-         10, 9, 10, -999), # 2021 dhs
+      c( 41, 48, 30, -999, # 2018
+         10, 9, 10, -999), # 2021
       nrow = 2, byrow = TRUE),
     den_svy_m = matrix(
-      c(1188, 888, 1711, -999, # 2018 mics
+      c(1188, 888, 1711, -999, # 2018 
         2971, 2607, 1610, 749), # 2021 DHS
       nrow = 2, byrow = TRUE),
     num_svy_m = matrix(
-      c(9, 17, 18, -999, # 2018 mics
+      c(9, 17, 18, -999, # 2018
         13, 18, 17, 7), # 2021 DHS
       nrow = 2, byrow = TRUE),
     yr_hts = c(2022,  2023) + 0.5,
     ind_hts = (c(2022, 2023) - start + 0.5) / dt,
     hts_dat = c(2500, 2500),
     se_hts = c(2500, 2500) * 0.1
-  ), # for Madagascar, there's a decrease in hivst use prevalence from 2018 mics to 2021 dhs
-  # cross checked the reports to see if there's any discrepancy but they match with the reported proportions
+  ),
   
   zimbabwe = list(
     yr_svy = c(2015.5, 2019.5, 2020.5),
@@ -791,447 +781,6 @@ cnt_data <- list(
     ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
     hts_dat = c(2678, 1173, 50340),
     se_hts = c(2678, 1173, 50340) * 0.1
-  ),
-  zambia = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1845, 1419, 1394, -999), # 2018
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(47, 51, 36, -999), # 2018
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1555, 1531, 1820, 579), # 2018 dhs
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(38, 52, 53, 9), # 2018 dhs
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(315348, 781175, 639225, 23750, 33153, 95559),
-    se_hts = c(315348, 781175, 639225, 23750, 33153, 95559) * 0.1
-  ),
-  mali = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2046, 1434, 1526, -999), # 2018
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(17, 15, 20, -999), # 2018
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1361, 1189, 943, 484), # 2018 dhs
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(2, 4, 4, 5), # 2018 dhs
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(7763, 169962, 11375, 235729),
-    se_hts = c(7763, 169962, 11375, 235729) * 0.1
-  ),
-  uganda = list(
-    yr_svy =  2016.5,
-    ind_svy = (2016.5 - start) / dt,
-    den_svy_f = matrix(
-      c(6404, 2748, 3072, -999), # 2016
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(223, 205, 97, -999), # 2016
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1639, 1009, 1094, 257), # 2016 dhs
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(58, 95, 59, 8), # 2016 dhs
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(42570, 306421, 750698, 681602),
-    se_hts = c(42570, 306421, 750698, 681602) * 0.1
-  ),
-  lesotho  = list(
-    yr_svy =  c(2020.5, 2023.5),
-    ind_svy = (c(2020.5, 2023.5) - start) / dt,
-    den_svy_f = matrix(
-      c(2024, 1786, 2170, 1824, # 2020
-        1498, 889, 1464, -999), # 2023
-      nrow = 2, byrow = TRUE),
-    num_svy_f = matrix(
-      c(226, 224, 134, 34, # 2020
-        852, 538, 482, -999), # 2023
-      nrow = 2, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1449, 1254, 1643, 1014, # 2020
-        388, 478, 490, 214), # 2023 dhs
-      nrow = 2, byrow = TRUE),
-    num_svy_m = matrix(
-      c(146, 182, 126, 24, # 2020
-        132, 241, 145, 33), # 2023 dhs
-      nrow = 2, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(58917, 42650, 164236, 281277, 301762, 262915),
-    se_hts = c(58917, 42650, 164236, 281277, 301762, 262915) * 0.1
-  ),
-  mozambique = list(
-    yr_svy =  c(2021.5, 2022.5),
-    ind_svy = (c(2021.5, 2022.5) - start) / dt,
-    den_svy_f = matrix(
-      c(2372, 1943, 2263, 1156, # 2021
-        4269, 3126, 3071, -999), # 2022
-      nrow = 2, byrow = TRUE),
-    num_svy_f = matrix(
-      c(227, 259, 215, 43, # 2021
-        69, 89, 66, -999), # 2022
-      nrow = 2, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1828, 1294, 1709, 899, # 2021
-        1640, 1118, 1150, 146), # 2022 
-      nrow = 2, byrow = TRUE),
-    num_svy_m = matrix(
-      c(110, 149, 170, 56, # 2021
-        34, 51, 51, 5), # 2022 dhs
-      nrow = 2, byrow = TRUE),
-    yr_hts = c(2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(67883, 203966, 683345),
-    se_hts = c(67883, 203966, 683345) * 0.1
-  ),
-    rwanda = list(
-    yr_svy =  2019.5,
-    ind_svy = (2019.5 - start) / dt,
-    den_svy_f = matrix(
-      c(4995, 3401, 4987, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(57, 70, 43, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1809, 1046, 1173, 715),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(14, 39, 17, 3), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = 2023 + 0.5,
-    ind_hts = (2023 - start + 0.5) / dt,
-    hts_dat = 62683,
-    se_hts = 62683 * 0.1
-  ),
-  burkinafaso = list(
-    yr_svy =  2021.5,
-    ind_svy = (2021.5 - start) / dt,
-    den_svy_f = matrix(
-      c(3870, 5248, 3926, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(7, 17, 10, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(2336, 1026, 1451, 622),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(4, 9, 9, 2), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2022, 2023) + 0.5,
-    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(968, 3367),
-    se_hts = c(968, 3367) * 0.1
-  ),
-  burundi = list(
-    yr_svy =  2016.5,
-    ind_svy = (2016.5 - start) / dt,
-    den_svy_f = matrix(
-      c(3182, 4642, 1929, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(7, 16, 3, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(2756, 1372, 2230, 3009),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(5, 10, 10, 1), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = 2023 + 0.5,
-    ind_hts = (2023 - start + 0.5) / dt,
-    hts_dat = 78013,
-    se_hts = 78013 * 0.1
-  ),
-  cameroon = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(3721, 2750, 2138, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(48, 88, 50, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1381, 1151, 1008, 665),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(27, 45, 52, 22), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2021, 2022) + 0.5,
-    ind_hts = (c(2021,2022) - start + 0.5) / dt,
-    hts_dat = c(15000, 33073),
-    se_hts = c(15000,33073) * 0.1
-  ),
-  cotedivoire = list(
-    yr_svy =  2021.5,
-    ind_svy = (2021.5 - start) / dt,
-    den_svy_f = matrix(
-      c(3313, 2067, 1231, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(17, 31, 16, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(872, 815, 853, 597),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(5, 12, 16, 3), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(1159, 111184, 117556, 41774, 60154),
-    se_hts = c(1159, 111184, 117556, 41774, 60154) * 0.1
-  ),
-  guinea = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2279, 1720, 2194, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(14, 20, 15, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1006, 904, 959, 632),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(3, 6, 5, 1), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2019, 2022) + 0.5,
-    ind_hts = (c(2019, 2022) - start + 0.5) / dt,
-    hts_dat = c(12, 152),
-    se_hts = c(12, 152) * 0.1
-  ),
-  liberia = list(
-    yr_svy =  2019.5,
-    ind_svy = (2019.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2313, 829, 1095, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(18, 18, 19, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(952, 444, 849, 284),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(5, 9, 10, 7), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = 2023 + 0.5,
-    ind_hts = (2023 - start + 0.5) / dt,
-    hts_dat = 12129,
-    se_hts = 12129 * 0.1
-  ),
-  senegal = list(
-    yr_svy =  c(2017.5, 2023.5),
-    ind_svy = (c(2017.5, 2023.5) - start) / dt,
-    den_svy_f = matrix(
-      c(4458, 3271, 5904, -999, # 2017
-        2965, 4634, 2078, -999), # 2023
-      nrow = 2, byrow = TRUE),
-    num_svy_f = matrix(
-      c(4, 10, 10, -999, # 2017
-        12, 31, 14, -999), # 2023
-      nrow = 2, byrow = TRUE),
-    den_svy_m = matrix(
-      c(3384, 655, 3226, 330, # 2017
-        2170, 1087, 1289, 511), # 2023 
-      nrow = 2, byrow = TRUE),
-    num_svy_m = matrix(
-      c(1, 1, 2, 3, # 2017
-        1, 3, 3, 2), # 2023 
-      nrow = 2, byrow = TRUE),
-    yr_hts = c(2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(7307, 18860, 5505, 4056, 11932),
-    se_hts = c(7307, 18860, 5505, 4056, 11932) * 0.1
-  ),
-  southafrica = list(
-    yr_svy =  2016.5,
-    ind_svy = (2016.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1734, 1637, 1470, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(39, 62, 42, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(264, 526, 469, 307),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(6, 17, 17, 2), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(1200000, 794034, 913418, 212000),
-    se_hts = c(1200000, 794034, 913418, 212000) * 0.1
-  ),
-  tanzania = list(
-    yr_svy =  2022.5,
-    ind_svy = (2022.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2937, 2173, 2523, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(68, 103, 71, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1439, 916, 1096, -999),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(28, 61, 66, -999), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(25810, 14940, 19000, 38717, 809603, 1447029),
-    se_hts = c(25810, 14940, 19000, 38717, 809603, 1447029) * 0.1
-  ),
-  
-  namibia = list(
-    yr_svy =  2017.5,
-    ind_svy = (2017.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1851, 2159, 2696, 650), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(66, 105, 70, 6), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1050, 1342, 1782, 398),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(15, 59, 50, 4), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2020, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2018, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(3910, 40075, 47258, 130000, 27974),
-    se_hts = c(3910, 40075, 47258, 130000, 27974) * 0.1
-  ),
-  
-  botswana = list(
-    yr_svy =  2021.5,
-    ind_svy = (2021.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1958, 2002, 3199, 811), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(50, 71, 46, 6), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1559, 1401, 2348, 475),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(22, 30, 50, 3), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2019, 2021, 2022, 2023) + 0.5,
-    ind_hts = (c(2019, 2021, 2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(7000, 3848, 8403, 16405),
-    se_hts = c(7000, 3848, 8403, 16405) * 0.1
-  ),
-  
-  guineabissau = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(2347, 1097, 1339, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(38, 44, 28, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(279, 233, 210, -999),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(7, 11, 11, -999), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = 2020 + 0.5,
-    ind_hts = (2020 - start + 0.5) / dt,
-    hts_dat = 37500,
-    se_hts = 37500 * 0.1
-  ),
-  
-  drc = list(
-    yr_svy =  2018.5,
-    ind_svy = (2018.5 - start) / dt,
-    den_svy_f = matrix(
-      c(1733, 1626, 1404, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(22, 37, 24, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(244, 419, 259, -999),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(5, 16, 11, -999), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2018, 2020, 2021) + 0.5,
-    ind_hts = (c(2018, 2020, 2021) - start + 0.5) / dt,
-    hts_dat = c(500, 7158, 7480),
-    se_hts = c(500, 7158, 7480) * 0.1
-  ),
-  eswatini = list(
-    yr_svy = c(2021.5, 2022.5),
-    ind_svy = (c(2021.5, 2022.5) - start) / dt,
-    den_svy_f = matrix(
-      c(1552, 1348, 1612, 1076, # 2021 phia
-      642, 484, 479, -999), # 2022
-      nrow = 2, byrow = TRUE),
-    num_svy_f = matrix(
-      c(470, 360, 213, 54,# 2021 phia
-        194, 178, 101, -999), # 2022 mics 
-      nrow = 2, byrow = TRUE),
-    den_svy_m = matrix(
-      c(1425, 924, 1110, 587, # 2021 PHIA
-        601, 377, 349, -999), # 2022 MICS 
-      nrow = 2, byrow = TRUE),
-    num_svy_m = matrix(
-      c(271, 283, 177, 22, # 2021 phia
-        118, 122, 85, -999), # 2022 mics
-      nrow = 2, byrow = TRUE),
-    yr_hts = c(2018, 2019, 2020, 2021, 2022) + 0.5,
-    ind_hts = (c(2018, 2019, 2020, 2021, 2022) - start + 0.5) / dt,
-    hts_dat = c(33159, 32531, 191990, 78570, 111912),
-    se_hts = c(33159, 32531, 191990, 78570, 111912) * 0.1
-  ),
-  
-  benin = list(
-    yr_svy =  2017.5,
-    ind_svy = (2017.5 - start) / dt,
-    den_svy_f = matrix(
-      c(4180, 5512, 3754, -999), 
-      nrow = 1, byrow = TRUE),
-    num_svy_f = matrix(
-      c(20, 34, 20, -999), 
-      nrow = 1, byrow = TRUE),
-    den_svy_m = matrix(
-      c(3054, 1961, 1868, 1079),  
-      nrow = 1, byrow = TRUE),
-    num_svy_m = matrix(
-      c(3, 17, 15, 3), 
-      nrow = 1, byrow = TRUE),
-    yr_hts = c(2022, 2023) + 0.5,
-    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
-    hts_dat = c(5173, 8149),
-    se_hts = c(5173, 8149) * 0.1
   )
 )
 
@@ -1261,10 +810,6 @@ den_svy3 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$den_svy_m[, 3], 
 num_svy4 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$num_svy_m[, 4], x$num_svy_f[, 4])))
 den_svy4 <- do.call(rbind, lapply(cnt_data, function(x) cbind(x$den_svy_m[, 4], x$den_svy_f[, 4])))
 
-# to check that every missing value (-999) is both in female or male
-# if (any(!apply(rbind(num_svy4, den_svy4), 1, function(row) all(row > 0) || all(row < 0)))) { 
-#   print('stop, missing 50+ age inconsistent by sex') }
-
 
 
 # the survey
@@ -1285,8 +830,6 @@ hts_idx_s[1] <- 1
 hts_idx_e[1] <- n_hts_by_cnt[1]
 
 # survey
-# cnt_no_age50 <- unlist(lapply(cnt_data, function(x) ifelse(all(x$num_svy_m[, 4] == -999), 0, 1)))
-# age_grp_na <- unlist(lapply(cnt_data, function(x) ifelse(x$num_svy_m[, 4] == -999, 0, 1)))
 
 svy_idx_s <- NULL
 svy_idx_e <- NULL
@@ -1312,27 +855,15 @@ all_mid_idx <- ((start:(end - 1)) - start + 0.5) / dt
 missing_idx_list <- vector("list", n_cnt)
 threshold_vec    <- numeric(n_cnt)
 
-# modified constraint for countries with low number of tests
 for (c in seq_len(n_cnt)) {
-  obs_idx_c  <- ind_hts[ hts_idx_s[c] : hts_idx_e[c] ] # observed indices
-  miss_idx_c <- setdiff(all_mid_idx, obs_idx_c) # missing indices
+  obs_idx_c  <- ind_hts[ hts_idx_s[c] : hts_idx_e[c] ]        # observed indices
+  miss_idx_c <- setdiff(all_mid_idx, obs_idx_c)               # missing indices
   missing_idx_list[[c]] <- miss_idx_c
-  
-  #  threshold 
-  max_hts <- max(hts_dat[ hts_idx_s[c] : hts_idx_e[c] ])
-  pop_c   <- sum(pop[[c]])                      
-  prop    <- max_hts / pop_c * 100              
-  
-  if (prop < 0.1) {                             # if < 0.10 % of pop, 0.1 % × pop × 25 (softer penalty)
-    thr_c <- 0.001 * pop_c * 25                  
-  } else {                                      # if ≥ 0.10 %, old rule
-    thr_c <- 4 * max_hts                       
-  }
-
+  thr_c <- 4 * max( hts_dat[ hts_idx_s[c] : hts_idx_e[c] ] )
   threshold_vec[c] <- thr_c
 }
 
-max_n_miss <- max( lengths(missing_idx_list) )  # widest row
+max_n_miss <- max( lengths(missing_idx_list) )                # widest row
 missing_i_mat <- matrix(1L, nrow = n_cnt, ncol = max_n_miss)  # filler value 1
 n_miss <- integer(n_cnt)
 
@@ -1342,9 +873,9 @@ for (c in seq_len(n_cnt)) {
     missing_i_mat[c, 1:n_miss[c]] <- missing_idx_list[[c]]
 }
 
-threshold_vec # new constraints
 
-# data for fitting and running 
+
+# data stan for fitting and running 
 data_stan <- list(
   n_cnt = length(cnt_data),
   n_yr = n_yr,
@@ -1398,7 +929,7 @@ init_function <- function() {
     sd_male = runif(1, min = 0.1, max = 1),
     sd_age_male = runif(1, min = 0.1, max = 1),
     sd_age_female = runif(1, min = 0.1, max = 1),
-    beta_retest_overall = rnorm(1, qlogis((1.2 - 0.5) / (2.5 - 0.5)), 0.1),
+    beta_restest_overall = rnorm(1, qlogis((1.2 - 0.5) / (2.5 - 0.5)), 0.1),
     beta_rt_raw = rnorm(data_stan$n_cnt, 0, 0.5),
     beta_male_overall = rnorm(1, log(1), 0.1),
     beta_male_raw = rnorm(data_stan$n_cnt, 0, 0.1),
@@ -1410,13 +941,13 @@ init_function <- function() {
     beta_age_female_raw1 = rnorm(data_stan$n_cnt, 0, 0.1),  
     beta_age_female_raw2 = rnorm(data_stan$n_cnt, 0, 0.1),  
     beta_age_female_raw3 = rnorm(data_stan$n_cnt, 0, 0.1),
-    phi_overall = rnorm(1, qlogis((0.8 - 0.5) / (1 - 0.5)), 0.1),
+    beta_phi_overall = rnorm(1, qlogis((0.8 - 0.5) / (1 - 0.5)), 0.1),
     phi_raw = rnorm(data_stan$n_cnt, 0, 0.2)
   )
 }
 
-fit <- sampling(hivst_stan, data = data_stan, iter = 4000, chains = 4, init = init_function,
-                warmup = 2000, thin = 1, control = list(adapt_delta = 0.9))
+fit <- sampling(hivst_stan, data = data_stan, iter = 1500, chains = 4, init = init_function,
+                warmup = 500, thin = 1, control = list(adapt_delta = 0.9))
 # traceplots
 traceplot(fit, pars = "sd_rw")
 traceplot(fit, pars = "sd_phi")
@@ -1434,9 +965,578 @@ traceplot(fit, pars = "beta_age_female")
 traceplot(fit, pars = "phi_overall")
 traceplot(fit, pars = "phi_raw")
 
-#------saving the model fit ------------
+#------saving the model fit and posterior summaries------------
 
-saveRDS(fit, file = "hivst_stan_fit_sep3.rds") # relaxing the constraint for countries with lower coverage
-fit <- readRDS("hivst_stan_fit_sep2.rds") 
+# saving the fit object
+saveRDS(fit, file = "hivst_stan_fit_jul14.rds")
+fit <- readRDS("hivst_stan_fit_jul14.rds")
+
+
+
+#-----------------------------------------------------------------------------
+
+# survey data for men and women (no age group)
+cnt_data <- list(
+  kenya = list(
+    yr_svy = c(2012.5, 2018.5, 2022.5),
+    ind_svy = (c(2012.5, 2018.5, 2022.5) - start) / dt,
+    den_svy = round(cbind(c(4605, 16082, 11562), c(6350, 17880, 25725))),
+    num_svy = round(cbind(c(148, 340, 1044), c(116, 436, 1242))),
+    yr_hts = c(2018,  2019,   2020,    2021,   2022,  2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(197200, 400000, 595953, 630000, 342610, 617317),
+    se_hts = c(197200, 400000, 595953, 630000, 342610, 617317) * 0.1
+  ),
+  ghana = list(
+    yr_svy = c(2017.5, 2022.5),
+    ind_svy = (c(2017.5, 2022.5) - start) / dt,
+    den_svy = round(cbind(c(2553, 4558), c(5575, 6250))),
+    num_svy = round(cbind(c(37, 83), c(132, 151))),
+    yr_hts = c(2020,  2021,   2022,  2023) + 0.5,
+    ind_hts = (c(2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(20000, 1323, 235000, 140500),
+    se_hts = c(20000, 1323, 235000, 140500) * 0.1
+  ),
+  malawi = list(
+    yr_svy = c(2015.5, 2019.5, 2020.5),
+    ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+    den_svy = round(cbind(c(2796, 2150, 5165), c(14792, 6669, 5920))),
+    num_svy = round(cbind(c(30, 214, 406), c(136, 443, 373))),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(408900, 101256, 561282, 602657, 735385, 910088),
+    se_hts =  c(408900, 101256, 561282, 602657, 735385, 910088) * 0.1 
+  ),
+  madagascar = list(
+    yr_svy = c(2018.5, 2021.5),
+    ind_svy = (c(2018.5, 2021.5) - start) / dt,
+    den_svy = round(cbind(c(3055, 6178), c(5039, 6825))),
+    num_svy = round(cbind(c(35, 44), c(84, 20))),
+    yr_hts = c(2022,  2023) + 0.5,
+    ind_hts = (c(2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(2500, 2500),
+    se_hts = c(2500, 2500) * 0.1
+  ),
+  zimbabwe = list(
+    yr_svy = c(2015.5, 2019.5, 2020.5),
+    ind_svy = (c(2015.5, 2019.5, 2020.5) - start) / dt,
+    den_svy = round(cbind(c(6717, 3343, 6576), c(7964, 8104, 10058))),
+    num_svy = round(cbind(c(118, 171, 381), c(21, 447, 594))),
+    yr_hts = c(2018, 2019, 2020, 2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2018, 2019, 2020, 2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(197408, 174566, 240434, 459517, 414499, 513090),
+    se_hts = c(197408, 174566, 240434, 459517, 414499, 513090) * 0.1
+  ),
+  sierraleone = list(
+    yr_svy = c(2017.5, 2019.5),
+    ind_svy = (c(2017.5, 2019.5) - start) / dt,
+    den_svy = round(cbind(c(2465, 2907), c(5096, 2607))),
+    num_svy = round(cbind(c(50, 62), c(165, 101))),
+    yr_hts = c(2021, 2022, 2023) + 0.5,
+    ind_hts = (c(2021, 2022, 2023) - start + 0.5) / dt,
+    hts_dat = c(2678, 1173, 50340),
+    se_hts = c(2678, 1173, 50340) * 0.1
+  )
+)
+
+
+
+# ----sum across all age groups for male and female----
+svy_m_full <- rstan::summary(fit, "svy_prd_m", probs = c(0.025, 0.5, 0.975))$summary
+svy_m_full <- as.data.frame(svy_m_full)
+svy_m_full$param <- rownames(svy_m_full)
+
+
+# Split out each country, then each age group
+n_cnt <- length(countries)
+svy_m_list <- vector("list", n_cnt)  # each element is a list of 4 data frames (age groups)
+for (c in seq_len(n_cnt)) {
+  ix_c <- grepl(paste0("\\[", c, ","), svy_m_full$param)
+  tmp_c <- svy_m_full[ix_c, ]
+  
+  # Separate the 4 age groups
+  ages <- vector("list", 4)
+  for (a in 1:4) {
+    ix_a <- grepl(paste0(",", a, "\\]$"), tmp_c$param)
+    ages[[a]] <- tmp_c[ix_a, ]
+  }
+  svy_m_list[[c]] <- ages
+}
+
+# Similarly for women
+svy_f_full <- rstan::summary(fit, "svy_prd_f", probs = c(0.025, 0.5, 0.975))$summary
+svy_f_full <- as.data.frame(svy_f_full)
+svy_f_full$param <- rownames(svy_f_full)
+
+svy_f_list <- vector("list", n_cnt)
+for (c in seq_len(n_cnt)) {
+  ix_c <- grepl(paste0("\\[", c, ","), svy_f_full$param)
+  tmp_c <- svy_f_full[ix_c, ]
+  
+  ages <- vector("list", 4)
+  for (a in 1:4) {
+    ix_a <- grepl(paste0(",", a, "\\]$"), tmp_c$param)
+    ages[[a]] <- tmp_c[ix_a, ]
+  }
+  svy_f_list[[c]] <- ages
+}
+
+# new code for aggregation across all age groups for male and female
+time_vec <- time  
+n_time <- length(time_vec)
+
+# aggregated results in a list of length n_cnt
+svy_m_agg <- vector("list", n_cnt)  # each element: data.frame with columns "time", "p2.5", "p50", "p97.5"
+svy_f_agg <- vector("list", n_cnt)  # same for women
+
+for (c_idx in seq_len(n_cnt)) {
+  # population for weighting
+  pop_c <- pop[[c_idx]]  # 4 x 2 matrix
+  pop_m <- pop_c[,1]      # men in each of the 4 age groups
+  pop_f <- pop_c[,2]      # women
+  
+  # retrieve the 4 data frames for men:
+  # each df has n_time rows, columns: mean, se_mean, sd, 2.5%, 25%, 50%, 75%, 97.5%, ...
+  age_df_m <- svy_m_list[[c_idx]]  # length=4
+  age_df_f <- svy_f_list[[c_idx]]
+  
+  # numeric vectors for aggregated 2.5%, 50%, 97.5%
+  p2.5_m <- p50_m <- p97.5_m <- numeric(n_time)
+  p2.5_f <- p50_f <- p97.5_f <- numeric(n_time)
+  
+  # Weighted sums of proportions:
+  sum_pop_m <- sum(pop_m)
+  sum_pop_f <- sum(pop_f)
+  
+  for (i in seq_len(n_time)) {
+    # For men, each age group a:
+    #   proportion in age_df_m[[a]]$`50%`[i]
+    # Weighted by pop_m[a]
+    
+    # 2.5% for men
+    num_2.5_m <- 0
+    num_50_m  <- 0
+    num_97.5_m<- 0
+    for (a in 1:4) {
+      num_2.5_m  <- num_2.5_m  + pop_m[a] * age_df_m[[a]]$`2.5%`[i]
+      num_50_m   <- num_50_m   + pop_m[a] * age_df_m[[a]]$`50%`[i]
+      num_97.5_m <- num_97.5_m + pop_m[a] * age_df_m[[a]]$`97.5%`[i]
+    }
+    p2.5_m[i]  <- num_2.5_m  / sum_pop_m
+    p50_m[i]   <- num_50_m   / sum_pop_m
+    p97.5_m[i] <- num_97.5_m / sum_pop_m
+    
+    num_2.5_f  <- 0
+    num_50_f   <- 0
+    num_97.5_f <- 0
+    for (a in 1:4) {
+      num_2.5_f  <- num_2.5_f  + pop_f[a] * age_df_f[[a]]$`2.5%`[i]
+      num_50_f   <- num_50_f   + pop_f[a] * age_df_f[[a]]$`50%`[i]
+      num_97.5_f <- num_97.5_f + pop_f[a] * age_df_f[[a]]$`97.5%`[i]
+    }
+    p2.5_f[i]  <- num_2.5_f  / sum_pop_f
+    p50_f[i]   <- num_50_f   / sum_pop_f
+    p97.5_f[i] <- num_97.5_f / sum_pop_f
+  }
+  
+  # combining into data frames
+  svy_m_agg[[c_idx]] <- data.frame(
+    time   = time_vec,
+    p2.5   = p2.5_m,
+    p50    = p50_m,
+    p97.5  = p97.5_m
+  )
+  svy_f_agg[[c_idx]] <- data.frame(
+    time   = time_vec,
+    p2.5   = p2.5_f,
+    p50    = p50_f,
+    p97.5  = p97.5_f
+  )
+}
+
+
+png("aggregate_survey_plots_new.png", width=12, height=20, units="in", res=300)
+par(mfrow=c(3,2), mar=c(4,4,2,1))  
+
+cnt_lowercase <- c("kenya", "ghana", "malawi", "madagascar", "zimbabwe",
+                   "sierraleone")
+alphabetical_cnt <- order(cnt_lowercase)
+
+for (c_idx in alphabetical_cnt) {
+  men_df  <- svy_m_agg[[c_idx]]  # columns = time, p2.5, p50, p97.5
+  women_df<- svy_f_agg[[c_idx]]
+  
+  # observed survey data
+  obs_yr <- cnt_data[[c_idx]]$yr_svy  
+  obs_m  <- cnt_data[[c_idx]]$num_svy[,1] / cnt_data[[c_idx]]$den_svy[,1]  # men
+  obs_f  <- cnt_data[[c_idx]]$num_svy[,2] / cnt_data[[c_idx]]$den_svy[,2]  # women
+  
+  ymax <- max(men_df$p97.5, women_df$p97.5,
+              obs_m, obs_f, na.rm = TRUE) * 1.05
+  plot(NA, xlim = range(time), ylim = c(0, ymax),
+       xlab="Year", ylab="Proporition of HIVST use",
+       main=paste("Country:", countries[c_idx]))
+  
+  # men line
+  lines(men_df$time, men_df$p50, col="blue", lwd=2)
+  polygon(x = c(men_df$time, rev(men_df$time)),
+          y = c(men_df$p2.5, rev(men_df$p97.5)),
+          col = adjustcolor("blue", alpha.f=0.3),
+          border=NA)
+  points(obs_yr, obs_m, pch=19, col="blue")
+  
+  # women line
+  lines(women_df$time, women_df$p50, col="red", lwd=2)
+  polygon(x = c(women_df$time, rev(women_df$time)),
+          y = c(women_df$p2.5, rev(women_df$p97.5)),
+          col = adjustcolor("red", alpha.f=0.3),
+          border=NA)
+  points(obs_yr+0.2, obs_f, pch=19, col="red") # offset a bit on x-axis
+  
+  legend("topleft", c("Men","Women"), 
+         col=c("blue","red"), lwd=2, bty="n")
+}
+dev.off()
+
+
+
+
+#--- hts results ----
+hts_full <- as.data.frame(rstan::summary(fit, "hivst_prd")$summary)
+hts_full$param <- rownames(hts_full)
+
+# Splitting by countries
+n_cnt <- length(countries)
+hts_list <- vector("list", n_cnt)
+for (c in seq_len(n_cnt)) {
+  ix_c <- grepl(paste0("\\[", c, ","), hts_full$param)
+  hts_list[[c]] <- hts_full[ix_c, ]
+}
+
+png("program_data_fit_new.png",
+    width = 14, height = 28,
+    units = "in", res = 320)
+
+par(mfrow = c(3, 2))
+par(mar = c(3, 4, 2, 1),  
+    oma = c(0, 0, 0, 0))
+
+for (c_idx in alphabetical_cnt) {
+  df_c <- hts_list[[c_idx]]
+  
+  plot(time, df_c$`50%`, type = "l", col = "blue", lwd = 2,
+       main = paste("HTS -", countries[c_idx]),
+       xlab = "Year", ylab = "Number of HIVST kits")
+  
+  polygon(x = c(time, rev(time)),
+          y = c(df_c$`2.5%`, rev(df_c$`97.5%`)),
+          col = adjustcolor("blue", alpha.f = 0.3),
+          border = NA)
+  
+  # observed program data
+  t_obs   <- cnt_data[[c_idx]]$yr_hts
+  obs_hts <- cnt_data[[c_idx]]$hts_dat
+  points(obs_hts ~ t_obs, pch = 16, col = "red")
+}
+
+dev.off()
+
+
+
+
+#---side by side age aggregated men women plot and program data fit----
+plot_survey_agg_one_country <- function(
+    c_idx,
+    svy_m_agg, svy_f_agg,
+    time, 
+    cnt_data, 
+    countries
+) {
+  # Extract the aggregated men/women data frames
+  men_df   <- svy_m_agg[[c_idx]]   # columns: time, p2.5, p50, p97.5
+  women_df <- svy_f_agg[[c_idx]]
+  
+  # Observed data
+  obs_yr <- cnt_data[[c_idx]]$yr_svy  
+  obs_m  <- cnt_data[[c_idx]]$num_svy[,1] / cnt_data[[c_idx]]$den_svy[,1]  # men
+  obs_f  <- cnt_data[[c_idx]]$num_svy[,2] / cnt_data[[c_idx]]$den_svy[,2]  # women
+  
+  
+  plot(
+    x    = NA,
+    y    = NA,
+    xlim = range(time),
+    ylim = c(0,ymax),
+    xlab = "Year",
+    ylab = "Proportion of HIVST use",
+    main = paste("HIVST Uptake -", countries[c_idx])
+  )
+  
+  # men line + ribbon
+  lines(men_df$p50 ~ men_df$time, col="blue", lwd=2)
+  polygon(
+    x = c(men_df$time, rev(men_df$time)),
+    y = c(men_df$p2.5, rev(men_df$p97.5)),
+    col = adjustcolor("blue", alpha.f=0.3),
+    border=NA
+  )
+  points(obs_yr, obs_m, pch=19, col="blue")
+  
+  # women line + ribbon
+  lines(women_df$p50 ~ women_df$time, col="red", lwd=2)
+  polygon(
+    x = c(women_df$time, rev(women_df$time)),
+    y = c(women_df$p2.5, rev(women_df$p97.5)),
+    col = adjustcolor("red", alpha.f=0.3),
+    border=NA
+  )
+  points(obs_yr+0.2, obs_f, pch=19, col="red")
+  
+  legend("topleft", c("Men","Women"), col=c("blue","red"), lwd=2, bty="n")
+}
+
+
+plot_hts_one_country <- function(
+    c_idx,
+    hts_list,
+    cnt_data,
+    time,
+    countries
+) {
+  df_c <- hts_list[[c_idx]]  # columns: 2.5%, 50%, 97.5%, etc.
+  
+  plot(
+    x    = time,
+    y    = df_c$`50%`,
+    type = "l",
+    col  = "blue",
+    lwd  = 2,
+    main = paste("HIVST kits -", countries[c_idx]),
+    xlab = "Year",
+    ylab = "Number of HIVST kits",
+    ylim = c(0, max(df_c$`97.5%`, na.rm=TRUE))
+  )
+  
+  polygon(
+    x = c(time, rev(time)),
+    y = c(df_c$`2.5%`, rev(df_c$`97.5%`)),
+    col = adjustcolor("blue", alpha.f = 0.3),
+    border = NA
+  )
+  
+  # Observed program data
+  t_obs   <- cnt_data[[c_idx]]$yr_hts
+  obs_hts <- cnt_data[[c_idx]]$hts_dat
+  points(t_obs, obs_hts, pch = 16, col = "red")
+}
+
+
+
+N <- length(alphabetical_cnt)  # 27
+
+png("svypgmfit_new.png",
+    width = 20, height = 28,   
+    units = "in", res = 300)
+
+par(mfrow = c(3, 2), mar = c(4, 4, 2, 1))
+
+i <- 1
+while (i <= N) {
+  c1 <- alphabetical_cnt[i]
+  
+  plot_survey_agg_one_country(
+    c_idx     = c1,
+    svy_m_agg = svy_m_agg,
+    svy_f_agg = svy_f_agg,
+    time      = time,
+    cnt_data  = cnt_data,
+    countries = countries
+  )
+  plot_hts_one_country(
+    c_idx    = c1,
+    hts_list = hts_list,
+    cnt_data = cnt_data,
+    time     = time,
+    countries= countries
+  )
+  
+  if (i + 1 <= N) {
+    c2 <- alphabetical_cnt[i + 1]
+    
+    plot_survey_agg_one_country(
+      c_idx     = c2,
+      svy_m_agg = svy_m_agg,
+      svy_f_agg = svy_f_agg,
+      time      = time,
+      cnt_data  = cnt_data,
+      countries = countries
+    )
+    plot_hts_one_country(
+      c_idx    = c2,
+      hts_list = hts_list,
+      cnt_data = cnt_data,
+      time     = time,
+      countries= countries
+    )
+  }
+  
+  i <- i + 2
+}
+
+dev.off()
+
+
+
+#------------------------------------------------------------------------------
+#---2 separateplots
+## ----------------------------------------------------------
+
+countries[countries %in% c("Democratic Republic of Congo",
+                           "Democratic Republic of the Congo")] <- "DRC"
+
+countries[countries %in% c("United Republic of Tanzania",
+                           "United Republic of Tanzania")] <- "Tanzania"
+
+plot_survey_agg_one_country <- function(
+    c_idx, svy_m_agg, svy_f_agg, time,
+    cnt_data, countries, ylim = NULL)
+{
+  men_df   <- svy_m_agg[[c_idx]]
+  women_df <- svy_f_agg[[c_idx]]
+  
+  obs_yr <- cnt_data[[c_idx]]$yr_svy
+  obs_m  <- cnt_data[[c_idx]]$num_svy[,1] / cnt_data[[c_idx]]$den_svy[,1]
+  obs_f  <- cnt_data[[c_idx]]$num_svy[,2] / cnt_data[[c_idx]]$den_svy[,2]
+  
+  ## ――dynamic y-limit ------------------------------------------------
+  if (is.null(ylim)) {
+    ymax <- max(men_df$p97.5, women_df$p97.5,
+                obs_m, obs_f, na.rm = TRUE) * 1.05
+    ylim <- c(0, ymax)
+  }
+  ## ------------------------------------------------------------------
+  
+  plot(NA, xlim = range(time), ylim = ylim,
+       xlab = "Year", ylab = "HIVST use proportion",
+       main = paste("HIVST uptake:", countries[c_idx]))
+  
+  lines(men_df$p50 ~ men_df$time, col = "blue", lwd = 2)
+  polygon(c(men_df$time, rev(men_df$time)),
+          c(men_df$p2.5, rev(men_df$p97.5)),
+          col = adjustcolor("blue", 0.30), border = NA)
+  points(obs_yr, obs_m, pch = 19, col = "blue")
+  
+  lines(women_df$p50 ~ women_df$time, col = "red",  lwd = 2)
+  polygon(c(women_df$time, rev(women_df$time)),
+          c(women_df$p2.5, rev(women_df$p97.5)),
+          col = adjustcolor("red", 0.30),  border = NA)
+  points(obs_yr + 0.2, obs_f, pch = 19, col = "red")
+  
+  legend("topleft", c("Men","Women"), col = c("blue","red"),
+         lwd = 2, bty = "n", cex = 0.8)
+}
+
+options(scipen=999)
+plot_hts_one_country <- function(
+    c_idx, hts_list, cnt_data, time, countries, ylim = NULL)
+{
+  df_c <- hts_list[[c_idx]]
+  
+  if (is.null(ylim))
+    ylim <- c(0, max(df_c$`97.5%`, cnt_data[[c_idx]]$hts_dat, na.rm = TRUE))
+  
+  plot(time, df_c$`50%`, type = "l", col = "blue", lwd = 2,
+       main = paste("HIVST kits:", countries[c_idx]),
+       xlab = "Year", ylab = "Number of kits", ylim = ylim)
+  
+  polygon(c(time, rev(time)),
+          c(df_c$`2.5%`, rev(df_c$`97.5%`)),
+          col = adjustcolor("blue", 0.30), border = NA)
+  
+  points(cnt_data[[c_idx]]$yr_hts,
+         cnt_data[[c_idx]]$hts_dat,
+         pch = 16, col = "red")
+}
+
+
+
+
+## -----------------------------------------------------------------
+make_country_page <- function(idx_vec, file_name,
+                              svy_m_agg, svy_f_agg,
+                              hts_list, cnt_data,
+                              time, countries)
+{
+  n_cnt   <- length(idx_vec)
+  n_row   <- ceiling(n_cnt / 2)      # two countries per row
+  n_col   <- 4                       # (survey, hts) × 2
+  
+  png(file_name,
+      width  = 8,     # inches – Word portrait page width
+      height = 10.5,  # inches – a bit shorter than full 11"
+      units  = "in", res = 300)
+  
+  par(mfrow = c(n_row, n_col),
+      mar   = c(3.2, 3.2, 2, 1),     # tight margins
+      mgp   = c(2, 0.6, 0),          # axis-title spacing
+      cex   = 0.5)                   # down-scale all text
+  
+  i <- 1
+  while (i <= n_cnt) {
+    c1 <- idx_vec[i]
+    
+    plot_survey_agg_one_country(
+      c_idx     = c1,
+      svy_m_agg = svy_m_agg,
+      svy_f_agg = svy_f_agg,
+      time      = time,
+      cnt_data  = cnt_data,
+      countries = countries)
+    
+    plot_hts_one_country(
+      c_idx     = c1,
+      hts_list  = hts_list,
+      cnt_data  = cnt_data,
+      time      = time,
+      countries = countries)
+    
+    if (i + 1 <= n_cnt) {
+      c2 <- idx_vec[i + 1]
+      
+      plot_survey_agg_one_country(
+        c_idx     = c2,
+        svy_m_agg = svy_m_agg,
+        svy_f_agg = svy_f_agg,
+        time      = time,
+        cnt_data  = cnt_data,
+        countries = countries)
+      
+      plot_hts_one_country(
+        c_idx     = c2,
+        hts_list  = hts_list,
+        cnt_data  = cnt_data,
+        time      = time,
+        countries = countries)
+    } else {
+      ## keep the grid square if n_cnt is odd
+      for (k in 1:2) plot.new()
+    }
+    
+    i <- i + 2
+  }
+  
+  dev.off()
+}
+cnt_first14 <- alphabetical_cnt[1:14]
+cnt_last13  <- alphabetical_cnt[15:27]
+
+make_country_page(cnt_first14, "svy_hts_first14.png",
+                  svy_m_agg, svy_f_agg, hts_list,
+                  cnt_data, time, countries)
+
+make_country_page(cnt_last13,  "svy_hts_last13.png",
+                  svy_m_agg, svy_f_agg, hts_list,
+                  cnt_data, time, countries)
+
 
 
