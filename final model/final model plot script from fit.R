@@ -9,18 +9,36 @@ library(cowplot)
 library(clipr)
 
 # ------model fit--------
-#setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
-#fit <- readRDS("hivst_stan_fit_jul21.rds") 
-
-# modified constraint
-fit <- readRDS("hivst_stan_fit_sep2.rds")
 setwd("E:\\Stan model fits\\Sept 2")
+fit <- readRDS("hivst_stan_fit_sep2.rds")
+
+setwd("E:\\Stan model fits\\Sept 2\\Figures for paper")
 
 
 # first we run model codes from the final model all countries age and sex stratification script
 # then we run the following
 
 #-----------------plots from fit--------------------
+
+# SD_RW for reviewer comment
+sd_rw_draws <- as.vector(rstan::extract(fit, pars = "sd_rw")$sd_rw)
+
+quantile(sd_rw_draws, c(0.025, 0.5, 0.975))
+mean(sd_rw_draws)
+sd(sd_rw_draws)
+
+df_sd <- data.frame(sd_rw = sd_rw_draws)
+q <- quantile(sd_rw_draws, c(0.025, 0.5, 0.975))
+
+ggplot(df_sd, aes(x = sd_rw)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 40, alpha = 0.35) +
+  geom_density(linewidth = 1) +
+  geom_vline(xintercept = q[c("2.5%", "50%", "97.5%")],
+             linetype = c("dashed", "solid", "dashed")) +
+  theme_minimal() +
+  labs(x = "sd_rw", y = "Posterior density",
+       title = "Posterior distribution of sd_rw (modified prior)")
+
 
 # testing rate
 pars_beta_t <- matrix(paste0("beta_t[", rep(1:data_stan$n_cnt, each = data_stan$n_yr), ",", rep(1:data_stan$n_yr, data_stan$n_cnt), "]"), 
@@ -93,6 +111,40 @@ rr_retesting_forest
 # write_clip(df_rr_ov, object_type = "table")
 # ggsave("rr_retest_plot.png", plot = rr_retesting_forest, width = 8, height = 6, dpi = 300)
 
+#---prior posterior plot for RR retesting overall-----
+
+# posterior draws (latent)
+post_beta_overall <- as.vector(rstan::extract(fit, pars = "beta_retest_overall")$beta_retest_overall)
+post_rr_overall <- 0.5 + (2.5 - 0.5) * plogis(post_beta_overall)
+
+# prior draws (latent) from Stan prior
+N <- length(post_beta_overall)  # match posterior draw count (nice for plotting)
+
+mu <- qlogis((1.2 - 0.5) / (2.5 - 0.5))  # = logit(0.35)
+sd <- 0.5
+
+prior_beta_overall <- rnorm(N, mean = mu, sd = sd)
+
+prior_rr_overall <- 0.5 + (2.5 - 0.5) * plogis(prior_beta_overall)
+
+df_pp <- rbind(
+  data.frame(value = prior_rr_overall, dist = "Prior"),
+  data.frame(value = post_rr_overall,  dist = "Posterior")
+)
+
+p_rt <- ggplot(df_pp, aes(x = value, fill = dist)) +
+  geom_density(alpha = 0.35) +
+  theme_minimal() +
+  labs(x = "Pooled re-testing rate ratio", y = "Density", fill = "") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "grey50")
+
+ggsave(
+  "p_rt.png",
+  p_rt,
+  width  = 20,
+  height = 11,   
+  dpi    = 300
+)
 # ------- phi -----------------
 phi_overall <- as.data.frame(rstan::summary(fit, pars = c("phi_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 0.5 + (1 - 0.5) * plogis(phi_overall$`50%`)
@@ -153,6 +205,47 @@ phi_forest
 # write_clip(df_phi_ov, object_type = "table")
 # ggsave("phi_plot.png", plot = phi_forest, width = 8, height = 6, dpi = 300)
 
+# --- prior posterior comparison plot for phi ----
+
+# posterior draws 
+post_phi_overall <- rstan::extract(fit, pars = "phi_overall")$phi_overall
+post_phi_pooled  <- 0.5 + 0.5 * plogis(post_phi_overall)
+
+# prior draws 
+set.seed(123)
+
+mu_phi <- qlogis((0.85 - 0.5) / (1 - 0.5))   # same as your Stan prior mean
+sd_phi <- 1                                  # same as your Stan prior SD
+
+N <- length(post_phi_overall)                # match posterior MC size
+prior_phi_overall <- rnorm(N, mean = mu_phi, sd = sd_phi)
+prior_phi_pooled  <- 0.5 + 0.5 * plogis(prior_phi_overall)
+
+df_phi_pp <- rbind(
+  data.frame(value = post_phi_pooled,  dist = "Posterior"),
+  data.frame(value = prior_phi_pooled, dist = "Prior")
+)
+
+ref_val <- 0.85
+p_phi <- ggplot(df_phi_pp, aes(x = value, fill = dist)) +
+  geom_density(alpha = 0.35) +
+  geom_vline(xintercept = ref_val, linetype = "dashed") +
+  labs(
+    x = "Pooled proportion of distributed kits that are used (ϕ)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal()
+
+p_phi
+
+ggsave(
+  "p_phi.png",
+  p_phi,
+  width  = 20,
+  height = 11,   
+  dpi    = 300
+)
 
 #---rr retest and phi side by side panel-----
 
@@ -224,7 +317,7 @@ rr_male_forest <- ggplot(df_rr_m, aes(x = country, y = median, color = style)) +
   scale_size_manual(values = c("Country" = 0.2, "Overall" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Rate ratio for 15-24 year old men (reference: 15-24 year old women) ", color = "Estimates (95% CrI)") +
+  labs(title = "", x = "Country", y = "Rate ratio for 15-24 year old men\n(Reference: 15-24 year old women) ", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(
     legend.position = "right",
@@ -239,6 +332,47 @@ rr_male_forest
 
 # write_clip(df_rr_m, object_type = "table")
 # ggsave("rr_male_plot.png", plot = rr_male_forest, width = 8, height = 6, dpi = 300)
+
+
+# prior posterior comparison plot for RR_male_overall
+
+# posterior draws
+post_beta_male_overall <- rstan::extract(fit, pars = "beta_male_overall")$beta_male_overall
+post_rr_male_pooled <- exp(post_beta_male_overall)
+
+# prior 
+set.seed(123)
+N <- length(post_beta_male_overall)
+
+mu_male <- log(1)   # 0
+sd_male <- 0.5
+
+prior_beta_male_overall <- rnorm(N, mean = mu_male, sd = sd_male)
+prior_rr_male_pooled <- exp(prior_beta_male_overall)
+
+df_male_pp <- rbind(
+  data.frame(value = post_rr_male_pooled,  dist = "Posterior"),
+  data.frame(value = prior_rr_male_pooled, dist = "Prior")
+)
+p_male <- ggplot(df_male_pp, aes(x = value, fill = dist)) +
+  geom_density(alpha = 0.35) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Pooled male-to-female RR (15–24)",
+    y = "Density",
+    fill = ""
+  ) +
+  theme_minimal()
+
+p_male
+
+ggsave(
+  "p_male.png",
+  p_male,
+  width  = 20,
+  height = 11,   
+  dpi    = 300
+)
 
 #-------- rate ratio age ---------------
 #---men----
@@ -302,7 +436,7 @@ rr_age_forest_m <- ggplot(df_rr_age_m, aes(x = country, y = median, color = age,
   scale_size_manual(values = c("individual" = 0.2, "pooled" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Rate ratio by age for men (reference: 15-24 year old men)", color = "Estimates (95% CrI)") +
+  labs(title = "", x = "Country", y = "Rate ratio by age for men\n(Reference: 15-24 year old men)", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
@@ -320,6 +454,64 @@ rr_age_forest_m
 # write_clip(df_rr_age_m, object_type = "table")
 # ggsave("rr_age_plot_men.png", plot = rr_age_forest_m, width = 8, height = 6, dpi = 300)
 
+# prior posterior plot for RR age male
+
+# --- 1) Posterior draws (pooled male age effects) ---
+post_log <- rstan::extract(fit, pars = "beta_age_male_overall")$beta_age_male_overall
+post_rr  <- exp(post_log)   # iterations x 3
+
+# --- 2) Prior draws (matches Stan: Normal(0, 0.5) on log-scale) ---
+set.seed(123)
+n_draw <- nrow(post_log)    # match posterior draws (or set e.g. 5000)
+prior_log <- matrix(rnorm(n_draw * 3, mean = 0, sd = 0.5), ncol = 3)
+prior_rr  <- exp(prior_log)
+
+# --- 3) Long format for faceting ---
+age_lab <- c("25–34 vs 15–24 (men)", "35–49 vs 15–24 (men)", "50+ vs 15–24 (men)")
+
+df_post <- data.frame(
+  value = c(post_rr[,1], post_rr[,2], post_rr[,3]),
+  age   = factor(rep(age_lab, each = n_draw), levels = age_lab),
+  dist  = "Posterior"
+)
+
+df_prior <- data.frame(
+  value = c(prior_rr[,1], prior_rr[,2], prior_rr[,3]),
+  age   = factor(rep(age_lab, each = n_draw), levels = age_lab),
+  dist  = "Prior"
+)
+
+df_pp <- rbind(df_post, df_prior)
+
+# --- 4) Faceted prior–posterior plot (single object you can save/combine later) ---
+p_male_age_pp <- ggplot(df_pp, aes(x = value, fill = dist)) +
+  geom_density(alpha = 0.35) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  facet_wrap(~ age, ncol = 1, scales = "free_x") +
+  labs(
+    x = "Rate ratio (RR)",
+    y = "Density",
+    fill = "",
+    title = "Pooled male specific RR for each age group"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+p_male_age_pp <- p_male_age_pp +
+  labs(title = NULL,
+       caption = "Pooled male specific RR for each age group") +
+  theme(
+    plot.caption = element_text(hjust = 0.5, size = 12),
+    plot.caption.position = "plot"
+  )
+
+ggsave(
+  "p_male_age_pp.png",
+  p_male_age_pp,
+  width  = 20,
+  height = 11,   
+  dpi    = 300
+)
 #---women----
 rr_age_overall_f <- as.data.frame(rstan::summary(fit, pars = c("beta_age_female_overall"), probs = c(0.025, 0.25, 0.5, 0.75, 0.975))$summary)
 exp(rr_age_overall_f$`50%`)
@@ -381,7 +573,7 @@ rr_age_forest_f <- ggplot(df_rr_age_f, aes(x = country, y = median, color = age,
   scale_size_manual(values = c("individual" = 0.2, "pooled" = 1.2)) +       # Line widths
   coord_flip() +
   theme_minimal() +
-  labs(title = "", x = "Country", y = "Rate ratio by age for women (reference: 15-24 year old women)", color = "Estimates (95% CrI)") +
+  labs(title = "", x = "Country", y = "Rate ratio by age for women\n(Reference: 15-24 year old women)", color = "Estimates (95% CrI)") +
   geom_hline(yintercept = 1, linetype = "dashed", color = "grey50") +  # Reference line
   theme(legend.position = "right") +
   scale_x_discrete(labels = function(x) paste0(toupper(substring(x, 1, 1)), substring(x, 2))) +
@@ -398,6 +590,90 @@ rr_age_forest_f
 
 # write_clip(df_rr_age_f, object_type = "table")
 # ggsave("rr_age_plot_women.png", plot = rr_age_forest_f, width = 8, height = 6, dpi = 300)
+
+# -- prior posterior plot for RR age female---
+library(ggplot2)
+
+# --- 1) Posterior draws (pooled female age effects) ---
+post_log <- rstan::extract(fit, pars = "beta_age_female_overall")$beta_age_female_overall
+post_rr  <- exp(post_log)   # iterations x 3
+
+# --- 2) Prior draws (matches Stan: Normal(0, 0.5) on log-scale) ---
+set.seed(123)
+n_draw <- nrow(post_log)    # match posterior draws (or set e.g. 5000)
+prior_log <- matrix(rnorm(n_draw * 3, mean = 0, sd = 0.5), ncol = 3)
+prior_rr  <- exp(prior_log)
+
+# --- 3) Long format for faceting ---
+age_lab <- c("25–34 vs 15–24 (women)", "35–49 vs 15–24 (women)", "50+ vs 15–24 (women)")
+
+df_post <- data.frame(
+  value = c(post_rr[,1], post_rr[,2], post_rr[,3]),
+  age   = factor(rep(age_lab, each = n_draw), levels = age_lab),
+  dist  = "Posterior"
+)
+
+df_prior <- data.frame(
+  value = c(prior_rr[,1], prior_rr[,2], prior_rr[,3]),
+  age   = factor(rep(age_lab, each = n_draw), levels = age_lab),
+  dist  = "Prior"
+)
+
+df_pp <- rbind(df_post, df_prior)
+
+# --- 4) Faceted prior–posterior plot (single object you can save/combine later) ---
+p_female_age_pp <- ggplot(df_pp, aes(x = value, fill = dist)) +
+  geom_density(alpha = 0.35) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  facet_wrap(~ age, ncol = 1, scales = "free_x") +
+  labs(
+    x = "Rate ratio (RR)",
+    y = "Density",
+    fill = "",
+    title = "Pooled female specific RR for each age group"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+# put label bottom-middle (caption)
+p_female_age_pp <- p_female_age_pp +
+  labs(title = NULL,
+       caption = "Pooled female specific RR for each age group") +
+  theme(
+    plot.caption = element_text(hjust = 0.5, size = 12),
+    plot.caption.position = "plot"
+  )
+
+p_female_age_pp
+
+ggsave(
+  "p_female_age_pp.png",
+  p_female_age_pp,
+  width  = 20,
+  height = 11,   
+  dpi    = 300
+)
+
+# all prior posterior plots in one figure
+
+top_row <- p_rt + p_phi + p_male +
+  plot_layout(ncol = 3)
+
+bottom_row <- p_male_age_pp + p_female_age_pp +
+  plot_layout(ncol = 2)
+
+big_fig <- top_row / bottom_row +
+  plot_layout(heights = c(1, 1.6)) +   # give more space to the tall facet plots
+  plot_annotation(tag_levels = "A")    # adds A, B, C, ...
+
+
+ggsave(
+  "big_fig.png",
+  big_fig,
+  width  = 20,
+  height = 11,   
+  dpi    = 300
+)
 
 #---rr ref, rr age men women side by side panel-----
 
@@ -420,7 +696,7 @@ rrage_malefemale
 
 ggsave("rrage_malefemale.png",
        plot   = rrage_malefemale,
-       width  = 13, height = 13, dpi = 600)
+       width  = 8.5, height = 6.5, dpi = 600)
 
 
 # ----for poster, all 3 rr age plots side by side----
@@ -440,8 +716,8 @@ rrage_malefemale <-
 ggsave(
   "rrage_malefemale_wide.png",
   rrage_malefemale,
-  width  = 20,    # tweak as needed
-  height = 6,
+  width  = 14,    # tweak as needed
+  height = 6.5,
   dpi    = 600
 )
 
@@ -625,7 +901,8 @@ sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
     values = c("Male" = "deepskyblue4", "Female" = "deeppink1")
   ) +
   scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
-  scale_y_continuous(breaks = seq(0, 10, by = 1)) +
+  scale_y_continuous(breaks = seq(0, 12, by = 1)) +
+  coord_cartesian(ylim = c(0, 12)) +
   labs(
     x = "Year",
     y = "Proportion of people who have ever used HIVST (%)"
@@ -721,6 +998,7 @@ p_age <- ggplot(df_age, aes(x = time)) +
   )+
   scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
   scale_y_continuous(breaks = seq(0, 20, by = 2)) + 
+  coord_cartesian(ylim = c(0, 12)) +
   labs(
     x = "Year",
     y = "Proportion of people who have ever used HIVST (%)",
@@ -776,9 +1054,10 @@ p_total <- ggplot(df_total, aes(x = time)) +
   geom_line(aes(y = median), color = "palegreen2", size = 1.2) +
   scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
   scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  coord_cartesian(ylim = c(0, 12)) +
   labs(
     x = "Year",
-    y = "Proportion of people who have ever used HIVST (%)"
+    y = "Proportion of people ever used HIVST(%)"
   ) +
   theme_classic(base_size = 14) +
   theme(plot.title = element_text(hjust = 0.5)) +
@@ -831,18 +1110,17 @@ is_ESA <- function(region) {
 }
 
 is_WCA <- function(region) {
-  # We'll treat Western + Central as "WCA"
+  # Western + Central as "WCA"
   region %in% c("Western", "Central")
 }
 
-# Now for each country in `countries`, find if it belongs to ESA or WCA:
+# for each country in `countries`, finding if it belongs to ESA or WCA
 country_super_region <- sapply(countries, function(ctry) {
   if (is_ESA(country_to_region[ctry])) {
     return("ESA")
   } else if (is_WCA(country_to_region[ctry])) {
     return("WCA")
   } else {
-    # If, for some reason, there's a mismatch or new region, handle it
     return(NA_character_)
   }
 })
@@ -915,7 +1193,6 @@ df_regions <- data.frame(
   time = rep(time, times = 2),
   region = rep(c("ESA", "WCA"), each = length(time)),
   
-  # Put proportions in percent
   median = c(esa_med, wca_med) * 100,
   lci    = c(esa_lci,  wca_lci)  * 100,
   uci    = c(esa_uci,  wca_uci)  * 100
@@ -937,6 +1214,7 @@ p_regions <- ggplot(df_regions, aes(x = time, y = median, color = region, fill =
   ) +
   scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
   scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  coord_cartesian(ylim = c(0, 12)) +
   labs(
     x = "Year",
     y = "Proportion of people who have ever used HIVST (%)",
@@ -947,7 +1225,7 @@ p_regions <- ggplot(df_regions, aes(x = time, y = median, color = region, fill =
   ggtitle("HIVST uptake by region") +
   theme(
     legend.position = "bottom",
-    plot.title = element_text(hjust = 0.5)  # center the plot title
+    plot.title = element_text(hjust = 0.5)  
   )
 
 p_regions
@@ -965,20 +1243,20 @@ p_regions <- ggplot(df_regions, aes(x = time, y = median, color = region, fill =
     values = c("ESA" = "darkslateblue", "WCA" = "darkviolet"),
     labels = c("ESA" = "Eastern & Southern Africa",
                "WCA" = "Western & Central Africa"),
-    name   = NULL            # <--- remove legend title
+    name   = NULL            
   ) +
   scale_fill_manual(
     values = c("ESA" = "darkslateblue", "WCA" = "darkviolet"),
     labels = c("ESA" = "Eastern & Southern Africa",
                "WCA" = "Western & Central Africa"),
-    name   = NULL            # <--- remove legend title
+    name   = NULL            
   ) +
   scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
   scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  coord_cartesian(ylim = c(0, 12)) +
   labs(
     x = "Year",
-    y = "Proportion of people who have ever used HIVST (%)"
-    # we omit color= or fill= to avoid legend titles here
+    y = "Proportion of people ever used HIVST(%)"
   ) +
   theme_classic(base_size = 14) +
   ggtitle("HIVST uptake by region") +
@@ -1002,10 +1280,11 @@ sex_trend_plot <- ggplot(df_sextrend, aes(x = time)) +
     values = c("Male" = "deepskyblue4", "Female" = "deeppink1")
   ) +
   scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
-  scale_y_continuous(breaks = seq(0, 10, by = 1)) +
+  scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  coord_cartesian(ylim = c(0, 12)) +
   labs(
     x = "Year",
-    y = "Proportion of people who have ever used HIVST (%)"
+    y = "Proportion of people ever used HIVST(%)"
   ) +
   theme_classic(base_size = 14) +
   theme(
@@ -1037,14 +1316,15 @@ p_age <- ggplot(df_age, aes(x = time)) +
   ) +
   scale_x_continuous(breaks = seq(2012, 2024, by = 2)) +
   scale_y_continuous(breaks = seq(0, 20, by = 2)) +
+  coord_cartesian(ylim = c(0, 12)) +
   labs(
     x = "Year",
-    y = "Proportion of people who have ever used HIVST (%)"
+    y = "Proportion of people ever used HIVST(%)"
   ) +
   theme_classic(base_size = 14) +
   theme(
     legend.position = "bottom",
-    legend.title    = element_blank(),     # remove any remaining title
+    legend.title    = element_blank(),     
     plot.title      = element_text(hjust = 0.5)
   ) +
   guides(
@@ -1061,9 +1341,9 @@ library(patchwork)
 combined_trend <- p_regions + sex_trend_plot + p_age +
   plot_layout(ncol = 3) +
   plot_annotation(
-    tag_levels = "A",              # gives A, B, C
+    tag_levels = "A",              
     theme = theme(
-      plot.tag.position = c(0.08, 0.92),   # x, y in npc units
+      plot.tag.position = c(0.08, 0.92),   
       plot.tag           = element_text(size = 16, face = "bold")
     )
   )
@@ -1072,7 +1352,7 @@ combined_trend
 
 combined_trend <- combined_trend &
   theme(
-    plot.margin = margin(t = 5, r = 5, b = 5, l = 15)  # in pt by default
+    plot.margin = margin(t = 5, r = 5, b = 5, l = 15) 
   )
 
 ggsave("trend_all3_plot.png", plot = combined_trend, width = 13, height = 6, dpi = 300)
@@ -1085,9 +1365,9 @@ library(patchwork)
 combined_trend2 <- p_total + p_regions + sex_trend_plot + p_age +
   plot_layout(ncol = 2) +
   plot_annotation(
-    tag_levels = "A",              # gives A, B, C
+    tag_levels = "A",              
     theme = theme(
-      plot.tag.position = c(0.08, 0.92),   # x, y in npc units
+      plot.tag.position = c(0.08, 0.92),  
       plot.tag           = element_text(size = 16, face = "bold")
     )
   )
@@ -1095,12 +1375,13 @@ combined_trend2 <- p_total + p_regions + sex_trend_plot + p_age +
 
 combined_trend2 <- combined_trend2 &
   theme(
-    plot.margin = margin(t = 5, r = 5, b = 5, l = 15)  # in pt by default
+    plot.margin = margin(t = 5, r = 5, b = 5, l = 15)  
   )
 combined_trend2
 
-ggsave("trend_all4_plot.png", plot = combined_trend2, width = 13, height = 13, dpi = 600)
+ggsave("trend_all4_plot.png", plot = combined_trend2, width = 12, height = 9, dpi = 600)
 
+#ggsave("trend_all4_plot_wo_constraint.png", plot = combined_trend2, width = 13, height = 13, dpi = 600)
 
 #--- function code to check for survey and program fit--------
 # no separate sex dimension in svy_prd_m because it is only for males

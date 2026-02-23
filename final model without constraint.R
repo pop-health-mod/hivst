@@ -3,7 +3,7 @@
 rm(list = ls())
 gc()
 
-setwd("E:\\Stan model fits\\Sept 2")
+setwd("E:\\Stan model fits")
 # setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
 
 library(wpp2024)
@@ -386,12 +386,6 @@ data {
   
   // aging rate
   vector[3] alpha;
-  
-  // for constraint
-  int<lower=1>  max_n_miss;                       // widest row of ragged array
-  int<lower=0>  n_miss[n_cnt];                    // number of missing mid years per country
-  int<lower=1,upper=niter> missing_i_mat[n_cnt, max_n_miss]; // matrix for missing time steps
-  real<lower=0> threshold[n_cnt];                 // four times max HTS for each country
 }
 
 parameters {
@@ -576,16 +570,6 @@ for (s in svy_idx_s[c]:svy_idx_e[c]) {
     hivst[hts_idx_s[c]:hts_idx_e[c]] ~ normal(hts_mod[ind_hts[hts_idx_s[c]:hts_idx_e[c]], c], 
                                               se_hts[hts_idx_s[c]:hts_idx_e[c]]);
                                               
-  // constraint
-  real thr      = threshold[c];
-  real scale_c  = thr / 4;          
-
-  for (mm in 1:n_miss[c]) {
-    int i = missing_i_mat[c, mm];
-    if (hts_mod[i, c] > thr) {
-      target += -0.5 * square((hts_mod[i, c] - thr) / scale_c );
-    }
-  }
  }
 }
 
@@ -624,7 +608,6 @@ generated quantities {
   }
 }
 '
-
 
 # we compile the model and expose the function to invoke it directly in R
 expose_stan_functions(stanc(model_code = hivst_mod))
@@ -900,7 +883,7 @@ cnt_data <- list(
     hts_dat = c(67883, 203966, 683345),
     se_hts = c(67883, 203966, 683345) * 0.1
   ),
-    rwanda = list(
+  rwanda = list(
     yr_svy =  2019.5,
     ind_svy = (2019.5 - start) / dt,
     den_svy_f = matrix(
@@ -1193,7 +1176,7 @@ cnt_data <- list(
     ind_svy = (c(2021.5, 2022.5) - start) / dt,
     den_svy_f = matrix(
       c(1552, 1348, 1612, 1076, # 2021 phia
-      642, 484, 479, -999), # 2022
+        642, 484, 479, -999), # 2022
       nrow = 2, byrow = TRUE),
     num_svy_f = matrix(
       c(470, 360, 213, 54,# 2021 phia
@@ -1306,44 +1289,6 @@ for (c in 2:n_cnt) {
 idx_pop <- seq(from = 1, to = (n_cnt * 4), by = 4)
 
 
-# ----- for constraint ----
-# creating matrix for the years of missing program data 
-all_mid_idx <- ((start:(end - 1)) - start + 0.5) / dt     
-missing_idx_list <- vector("list", n_cnt)
-threshold_vec    <- numeric(n_cnt)
-
-# modified constraint for countries with low number of tests
-for (c in seq_len(n_cnt)) {
-  obs_idx_c  <- ind_hts[ hts_idx_s[c] : hts_idx_e[c] ] # observed indices
-  miss_idx_c <- setdiff(all_mid_idx, obs_idx_c) # missing indices
-  missing_idx_list[[c]] <- miss_idx_c
-  
-  #  threshold 
-  max_hts <- max(hts_dat[ hts_idx_s[c] : hts_idx_e[c] ])
-  pop_c   <- sum(pop[[c]])                      
-  prop    <- max_hts / pop_c * 100              
-  
-  if (prop < 0.1) {                             # if < 0.10 % of pop, 0.1 % × pop × 25 (softer penalty)
-    thr_c <- 0.001 * pop_c * 25                  
-  } else {                                      # if ≥ 0.10 %, old rule
-    thr_c <- 4 * max_hts                       
-  }
-
-  threshold_vec[c] <- thr_c
-}
-
-max_n_miss <- max( lengths(missing_idx_list) )  # widest row
-missing_i_mat <- matrix(1L, nrow = n_cnt, ncol = max_n_miss)  # filler value 1
-n_miss <- integer(n_cnt)
-
-for (c in seq_len(n_cnt)) {
-  n_miss[c] <- length(missing_idx_list[[c]])
-  if (n_miss[c] > 0)
-    missing_i_mat[c, 1:n_miss[c]] <- missing_idx_list[[c]]
-}
-
-threshold_vec # new constraints
-
 # data for fitting and running 
 data_stan <- list(
   n_cnt = length(cnt_data),
@@ -1377,11 +1322,7 @@ data_stan <- list(
   entry_f = entry_f_vec,
   mort_m = mort_mat_m,
   mort_f = mort_mat_f,
-  alpha = alpha,
-  max_n_miss = max_n_miss,
-  n_miss = n_miss,
-  missing_i_mat = missing_i_mat,
-  threshold = threshold_vec
+  alpha = alpha
 )
 rstan_options(auto_write = TRUE)
 
@@ -1436,214 +1377,8 @@ traceplot(fit, pars = "phi_raw")
 
 #------saving the model fit ------------
 
-saveRDS(fit, file = "hivst_stan_fit_sep3.rds") # relaxing the constraint for countries with lower coverage
+saveRDS(fit, file = "hivst_stan_fit_jan28.rds")
+fit <- readRDS("hivst_stan_fit_jan28.rds") 
 
-fit <- readRDS("hivst_stan_fit_sep2.rds") 
 
-
-# -----summary of model diagnostics----
-
-# full summary for all parameters
-sum_all <- rstan::summary(fit)$summary
-
-keep <- !grepl("^(lp__|accept_stat__|stepsize__|treedepth__|n_leapfrog__|divergent__|energy__)", rownames(sum_all)) 
-sum_all2 <- sum_all[keep, , drop = FALSE] 
-max_rhat <- max(sum_all2[, "Rhat"], na.rm = TRUE)
-min_ess <- min(sum_all2[, "n_eff"], na.rm = TRUE) # we're getting min ESS=2 which is problematic
-
-
-# which parameter has min ess=2? Answer: entry_dt
-worst   <- rownames(sum_all2)[which.min(sum_all2[, "n_eff"])]
-min_ess
-worst
-sum_all[worst, c("mean","sd","n_eff","Rhat")]
-
-# removing entry_dt and mort_dt
-keep2 <- !grepl("^(entry_[mf]_dt|mort_[mf]_dt)", rownames(sum_all2))
-
-sum_pars <- sum_all2[keep2, , drop = FALSE]
-min_ess <- min(sum_pars[, "n_eff"], na.rm = TRUE)
-worst   <- rownames(sum_pars)[which.min(sum_pars[, "n_eff"])]
-max_rhat <- max(sum_pars[, "Rhat"], na.rm = TRUE)
-
-min_ess
-worst
-sum_pars[worst, c("mean","sd","n_eff","Rhat")]
-
-
-
-# keeping key parameters only
-key_pars <- c("sd_rw","sd_phi","sd_rt","sd_male","sd_age_male","sd_age_female",
-              "beta_retest_overall","beta_male_overall","phi_overall",
-              "beta_age_male_overall","beta_age_female_overall")
-
-sum_key <- sum_all[rownames(sum_all) %in% key_pars, , drop = FALSE]
-min(sum_key[, "n_eff"])
-max(sum_key[, "Rhat"])
-
-
-
-#---obtaining ESS for phi----
-# summary table for all country-specific phi
-sum_phi <- rstan::summary(fit, pars = "phi")$summary
-
-# ESS (bulk n_eff in rstan)
-ess_phi  <- sum_phi[, "n_eff"]   # length = n_cnt
-rhat_phi <- sum_phi[, "Rhat"]
-
-sum_phi <- rstan::summary(fit, pars = "phi")$summary
-
-df_phi_diag <- data.frame(
-  country = names(cnt_data),          # country order used in data_stan
-  ess_bulk = sum_phi[, "n_eff"],      # rstan's bulk effective sample size
-  rhat     = sum_phi[, "Rhat"],
-  row.names = NULL
-)
-
-df_phi_diag
-
-
-
-
-#---obtaining posterior shrinkage----
-
-post_phi <- rstan::extract(fit, pars = "phi")$phi  # iterations x n_cnt
-post_var <- apply(post_phi, 2, var)
-
-set.seed(1)
-n_draw <- nrow(post_phi)      # match posterior draws
-n_cnt  <- ncol(post_phi)
-
-# Priors as in Stan:
-mu_phi_overall <- qlogis((0.85 - 0.5)/(1 - 0.5))
-sd_phi_overall <- 1
-
-phi_overall_prior <- rnorm(n_draw, mean = mu_phi_overall, sd = sd_phi_overall)
-
-# sd_phi ~ normal(0, 0.5) T[1e-6, 5]
-sd_phi_prior <- abs(rnorm(n_draw, mean = 0, sd = 0.5))
-sd_phi_prior <- pmin(pmax(sd_phi_prior, 1e-6), 5)
-
-# phi_raw ~ std_normal() for each country
-phi_raw_prior <- matrix(rnorm(n_draw * n_cnt), ncol = n_cnt)
-
-# prior draws of phi[c]
-prior_phi <- 0.5 + 0.5 * plogis(phi_overall_prior + sd_phi_prior * phi_raw_prior)
-
-prior_var <- apply(prior_phi, 2, var)
-
-
-# final table for ESS + Shrinkage
-
-shrinkage <- 1 - (post_var / prior_var)
-
-df_phi_diag$post_var   <- post_var
-df_phi_diag$prior_var  <- prior_var
-df_phi_diag$shrinkage  <- shrinkage
-
-df_phi_diag <- df_phi_diag[order(df_phi_diag$shrinkage, decreasing = TRUE), ]
-
-df_phi_diag
-
-library(dplyr)
-library(stringr)
-
-df_phi_final <- df_phi_diag %>%
-  mutate(
-    country = case_when(
-      tolower(country) == "drc" ~ "DRC",
-      TRUE ~ str_to_title(country)
-    )
-  ) %>%
-  arrange(country) %>%
-  select(country, ess_bulk, shrinkage)
-
-df_phi_final
-
-
-df_phi_final <- df_phi_final %>%
-  rename(
-    ESS = ess_bulk,
-    posterior_shrinkage = shrinkage
-  )
-
-
-df_phi_final <- df_phi_diag %>%
-  mutate(
-    country = case_when(
-      tolower(country) == "drc" ~ "DRC",
-      TRUE ~ str_to_title(country)
-    )
-  ) %>%
-  arrange(country) %>%
-  select(country, ess_bulk, shrinkage) %>%
-  mutate(across(c(ess_bulk, shrinkage), ~ round(.x, 2)))
-
-df_phi_final
-
-# table
-
-library(dplyr)
-library(knitr)
-
-df_tab <- df_phi_final %>%
-  mutate(
-    ess_bulk  = round(ess_bulk, 0),
-    shrinkage = round(shrinkage, 2)
-  ) %>%
-  arrange(country)
-
-kable(
-  df_tab,
-  col.names = c("Country", "Bulk ESS (ϕc)", "Shrinkage"),
-  caption = "Bulk effective sample size (ESS) and posterior shrinkage for country-specific ϕc."
-)
-
-write.table(df_phi_final, "phi_table.tsv", sep="\t", row.names=FALSE, quote=FALSE)
-
-
-
-
-library(dplyr)
-library(knitr)
-
-tab <- df_phi_final %>%
-  arrange(country) %>%
-  mutate(
-    ess_bulk  = round(ess_bulk, 0),
-    shrinkage = round(shrinkage, 2)
-  )
-
-html <- kable(tab, format = "html",
-              col.names = c("Country", "Bulk ESS (ϕc)", "Shrinkage"),
-              align = c("l","r","r"))
-
-tmp <- tempfile(fileext = ".html")
-writeLines(paste0("<html><body>", html, "</body></html>"), tmp)
-browseURL(tmp)
-
-
-# plot
-library(ggplot2)
-library(patchwork)
-
-# (Optional) cap shrinkage at 0 for interpretability
-df_plot <- df_phi_final %>%
-  mutate(shrinkage_capped = pmax(shrinkage, 0))
-
-p_ess <- ggplot(df_plot, aes(x = reorder(country, ess_bulk), y = ess_bulk)) +
-  geom_col() +
-  coord_flip() +
-  labs(x = NULL, y = "ESS", title = "Effective sample size") +
-  theme_minimal()
-
-p_shr <- ggplot(df_plot, aes(x = reorder(country, shrinkage_capped), y = shrinkage_capped)) +
-  geom_col() +
-  coord_flip() +
-  labs(x = NULL, y = "Shrinkage", title = "Posterior shrinkage") +
-  theme_minimal()
-
-(p_ess / p_shr) + plot_annotation(title = "ESS and Posterior Shrinkage for Country-specific proportion of kits used")
-
-
-
+=

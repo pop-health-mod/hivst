@@ -523,11 +523,11 @@ forestplot(
   boxsize    = 0.2,
   
   txt_gp = fpTxtGp(
-    label = gpar(fontsize = 12),   # row labels (country/year text)
-    ticks = gpar(fontsize = 24),   # x-axis tick labels (e.g. 0.5, 1, 1.5)
-    xlab  = gpar(fontsize = 24),   # the "Odds Ratio (95% CI)" text
-    title = gpar(fontsize = 16),   # title
-    summary = gpar(fontface = "bold", fontsize = 12)  # the "Overall" label/diamond
+    label = gpar(fontsize = 12),   
+    ticks = gpar(fontsize = 24),   
+    xlab  = gpar(fontsize = 24),   
+    title = gpar(fontsize = 16),   
+    summary = gpar(fontface = "bold", fontsize = 12) 
   )
 )
 dev.off()
