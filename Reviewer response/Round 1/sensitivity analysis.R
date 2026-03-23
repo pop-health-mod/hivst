@@ -2,7 +2,6 @@
 #-- different sensitivity analyses to address reviewer comments --
 
 # Change 1: Changing the SD of RW1 to 0.5 from 0.25 and run the model
-# the model will be saved as "hivst_stan_fit_sdrw1.rds"
 
 
 # ----- final age and sex stratified model with constraint on number of tests ----
@@ -2883,4 +2882,5 @@ traceplot(fit, pars = "phi_overall")
 traceplot(fit, pars = "phi_raw")
 
 saveRDS(fit, file = "hivst_stan_fit_increased_threshold.rds") 
+fit <- readRDS("hivst_stan_fit_increased_threshold.rds") 
 

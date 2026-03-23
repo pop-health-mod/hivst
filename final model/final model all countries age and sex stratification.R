@@ -4,7 +4,6 @@ rm(list = ls())
 gc()
 
 setwd("E:\\Stan model fits\\Sept 2")
-# setwd("D:\\Downloads\\MSc Thesis\\hivst\\Model results")
 
 library(wpp2024)
 library(rstan)

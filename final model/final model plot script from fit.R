@@ -12,7 +12,7 @@ library(clipr)
 setwd("E:\\Stan model fits\\Sept 2")
 fit <- readRDS("hivst_stan_fit_sep2.rds")
 
-setwd("E:\\Stan model fits\\Sept 2\\Figures for paper")
+setwd("E:\\Stan model fits\\17 March 2026 Figures")
 
 
 # first we run model codes from the final model all countries age and sex stratification script
@@ -985,14 +985,14 @@ p_age <- ggplot(df_age, aes(x = time)) +
   geom_line(aes(y = median, color = age_grp),
             size = 1.1) +
   scale_color_manual(
-    values = c("15-24 years" = "#326df9", 
-               "25-34 years" = "#a3d47e", 
+    values = c("15-24 years" = "#a3d47e", 
+               "25-34 years" = "#326df9", 
                "35-49 years" = "#ff7476", 
                "50+ years"   = "#f9b332")
   ) +
   scale_fill_manual(
-    values = c("15-24 years" = "#326df9",
-               "25-34 years" = "#a3d47e", 
+    values = c("15-24 years" = "#a3d47e",
+               "25-34 years" = "#326df9", 
                "35-49 years" = "#ff7476", 
                "50+ years"   = "#f9b332")
   )+
@@ -1301,15 +1301,15 @@ p_age <- ggplot(df_age, aes(x = time)) +
               alpha = 0.2, color = NA) +
   geom_line(aes(y = median, color = age_grp), size = 1.1) +
   scale_color_manual(
-    values = c("15-24 years" = "#326df9", 
-               "25-34 years" = "#a3d47e", 
+    values = c("15-24 years" = "#a3d47e", 
+               "25-34 years" = "#326df9", 
                "35-49 years" = "#ff7476", 
                "50+ years"   = "#f9b332"),
     name   = NULL 
   ) +
   scale_fill_manual(
-    values = c("15-24 years" = "#326df9",
-               "25-34 years" = "#a3d47e", 
+    values = c("15-24 years" = "#a3d47e",
+               "25-34 years" = "#326df9", 
                "35-49 years" = "#ff7476", 
                "50+ years"   = "#f9b332"),
     name   = NULL 
@@ -1365,6 +1365,7 @@ library(patchwork)
 combined_trend2 <- p_total + p_regions + sex_trend_plot + p_age +
   plot_layout(ncol = 2) +
   plot_annotation(
+    title = "Trends in HIV Self-Testing Uptake (doubled threshold)",
     tag_levels = "A",              
     theme = theme(
       plot.tag.position = c(0.08, 0.92),  
@@ -1380,6 +1381,27 @@ combined_trend2 <- combined_trend2 &
 combined_trend2
 
 ggsave("trend_all4_plot.png", plot = combined_trend2, width = 12, height = 9, dpi = 600)
+
+# for sensitivity analysis of 5% and 15% SE of program data
+
+combined_trend2 <- p_total + p_regions + sex_trend_plot + p_age +
+  plot_layout(ncol = 2) +
+  plot_annotation(
+    title = "Trends in HIV Self-Testing Uptake (doubled threshold)",
+    tag_levels = "A",
+    theme = theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      plot.tag.position = c(0.08, 0.92),
+      plot.tag = element_text(size = 16, face = "bold")
+    )
+  )
+
+combined_trend2 <- combined_trend2 &
+  theme(
+    plot.margin = margin(t = 5, r = 5, b = 5, l = 15)
+  )
+
+combined_trend2
 
 #ggsave("trend_all4_plot_wo_constraint.png", plot = combined_trend2, width = 13, height = 13, dpi = 600)
 
